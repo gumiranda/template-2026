@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { Loader2Icon, SendIcon, SquareIcon, XIcon } from "lucide-react";
 import type {
   ComponentProps,
@@ -8,13 +9,6 @@ import type {
 } from "react";
 import { Children, useCallback, useEffect, useRef } from "react";
 import { Button } from "@workspace/ui/components/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { cn } from "@workspace/ui/lib/utils";
 
@@ -41,10 +35,8 @@ const useAutoResizeTextarea = ({
         return;
       }
 
-      // Temporarily shrink to get the right scrollHeight
       textarea.style.height = `${minHeight}px`;
 
-      // Calculate new height
       const newHeight = Math.max(
         minHeight,
         Math.min(textarea.scrollHeight, maxHeight ?? Number.POSITIVE_INFINITY)
@@ -56,14 +48,12 @@ const useAutoResizeTextarea = ({
   );
 
   useEffect(() => {
-    // Set initial height
     const textarea = textareaRef.current;
     if (textarea) {
       textarea.style.height = `${minHeight}px`;
     }
   }, [minHeight]);
 
-  // Adjust height on window resize
   useEffect(() => {
     const handleResize = () => adjustHeight();
     window.addEventListener("resize", handleResize);
@@ -113,20 +103,25 @@ export const AIInputTextarea = ({
     }
   };
 
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+      adjustHeight();
+      onChange?.(e);
+    },
+    [adjustHeight, onChange]
+  );
+
   return (
     <Textarea
       className={cn(
-        "text-sm!",
+        "!text-sm",
         "w-full resize-none rounded-none border-none p-3 shadow-none outline-none ring-0",
         "bg-transparent dark:bg-transparent",
         "focus-visible:ring-0",
         className
       )}
       name="message"
-      onChange={(e) => {
-        adjustHeight();
-        onChange?.(e);
-      }}
+      onChange={handleChange}
       onKeyDown={handleKeyDown}
       placeholder={placeholder}
       ref={textareaRef}
@@ -221,56 +216,3 @@ export const AIInputSubmit = ({
     </Button>
   );
 };
-
-export type AIInputModelSelectProps = ComponentProps<typeof Select>;
-
-export const AIInputModelSelect = (props: AIInputModelSelectProps) => (
-  <Select {...props} />
-);
-
-export type AIInputModelSelectTriggerProps = ComponentProps<
-  typeof SelectTrigger
->;
-
-export const AIInputModelSelectTrigger = ({
-  className,
-  ...props
-}: AIInputModelSelectTriggerProps) => (
-  <SelectTrigger
-    className={cn(
-      "border-none bg-transparent font-medium text-muted-foreground shadow-none transition-colors",
-      'hover:bg-accent hover:text-foreground [&[aria-expanded="true"]]:bg-accent [&[aria-expanded="true"]]:text-foreground',
-      className
-    )}
-    {...props}
-  />
-);
-
-export type AIInputModelSelectContentProps = ComponentProps<
-  typeof SelectContent
->;
-
-export const AIInputModelSelectContent = ({
-  className,
-  ...props
-}: AIInputModelSelectContentProps) => (
-  <SelectContent className={cn(className)} {...props} />
-);
-
-export type AIInputModelSelectItemProps = ComponentProps<typeof SelectItem>;
-
-export const AIInputModelSelectItem = ({
-  className,
-  ...props
-}: AIInputModelSelectItemProps) => (
-  <SelectItem className={cn(className)} {...props} />
-);
-
-export type AIInputModelSelectValueProps = ComponentProps<typeof SelectValue>;
-
-export const AIInputModelSelectValue = ({
-  className,
-  ...props
-}: AIInputModelSelectValueProps) => (
-  <SelectValue className={cn(className)} {...props} />
-);

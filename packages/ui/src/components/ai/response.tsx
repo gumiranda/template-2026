@@ -101,7 +101,6 @@ export const AIResponse = memo(
       </ReactMarkdown>
     </div>
   ),
-  (prevProps, nextProps) => prevProps.children === nextProps.children,
 );
 
 AIResponse.displayName = "AIResponse";

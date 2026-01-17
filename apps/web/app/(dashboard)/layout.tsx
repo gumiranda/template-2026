@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
@@ -13,7 +13,6 @@ import {
   SheetTrigger,
 } from "@workspace/ui/components/sheet";
 import {
-  Loader2,
   Shield,
   Crown,
   UserPlus,
@@ -25,6 +24,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@workspace/ui/lib/utils";
+import { FullPageLoader } from "@/components/full-page-loader";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -59,11 +59,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   }, [currentUser, hasSuperadmin, router]);
 
   if (currentUser === undefined || hasSuperadmin === undefined) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   if (hasSuperadmin === false || currentUser === null) {
@@ -77,13 +73,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const isSuperadmin = currentUser.role === "superadmin";
   const isCeo = currentUser.role === "ceo";
 
-  const navItems = [
+  const navItems = useMemo(() => [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
     ...(isSuperadminOrCeo ? [
       { label: "Users", href: "/admin/users", icon: UserCog },
       { label: "Pending Users", href: "/admin/pending-users", icon: Users },
     ] : []),
-  ];
+  ], [isSuperadminOrCeo]);
 
   const SidebarContent = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
@@ -118,16 +114,13 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="flex min-h-screen">
-      {/* Desktop Sidebar */}
       <aside className="hidden md:block w-64 border-r bg-muted/40">
         <SidebarContent />
       </aside>
 
-      {/* Main content */}
       <div className="flex-1">
         <header className="h-14 border-b flex items-center justify-between px-6">
           <div className="flex items-center gap-2">
-            {/* Mobile hamburger menu */}
             <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden">

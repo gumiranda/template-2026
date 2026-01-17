@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { Sector, Role, UserStatus } from "./lib/types";
+import { getAuthenticatedUser, isAdmin } from "./lib/auth";
 
 export const getMany = query({
   args: {},
@@ -13,13 +14,7 @@ export const getMany = query({
 export const getCurrentUser = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return null;
-
-    return await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
+    return getAuthenticatedUser(ctx);
   },
 });
 
@@ -112,19 +107,8 @@ export const bootstrap = mutation({
 export const getAllUsers = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!currentUser) return [];
-
-    if (currentUser.role !== Role.SUPERADMIN && currentUser.role !== Role.CEO) {
-      return [];
-    }
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser || !isAdmin(currentUser.role)) return [];
 
     return await ctx.db.query("users").collect();
   },
@@ -136,22 +120,13 @@ export const updateUserRole = mutation({
     role: v.string(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
+    const currentUser = await getAuthenticatedUser(ctx);
     if (!currentUser || currentUser.role !== Role.SUPERADMIN) {
       throw new Error("Only superadmin can change user roles");
     }
 
-    const validRoles = Object.values(Role);
-    if (!validRoles.includes(args.role as (typeof validRoles)[number])) {
+    const validRoles = Object.values(Role) as string[];
+    if (!validRoles.includes(args.role)) {
       throw new Error("Invalid role");
     }
 
@@ -181,26 +156,17 @@ export const updateUserSector = mutation({
     sector: v.string(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser) {
       throw new Error("Not authenticated");
     }
 
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!currentUser) {
-      throw new Error("User not found");
-    }
-
-    if (currentUser.role !== Role.SUPERADMIN && currentUser.role !== Role.CEO) {
+    if (!isAdmin(currentUser.role)) {
       throw new Error("Only superadmin or CEO can change user sectors");
     }
 
-    const validSectors = Object.values(Sector);
-    if (!validSectors.includes(args.sector as (typeof validSectors)[number])) {
+    const validSectors = Object.values(Sector) as string[];
+    if (!validSectors.includes(args.sector)) {
       throw new Error("Invalid sector");
     }
 
@@ -209,13 +175,11 @@ export const updateUserSector = mutation({
       throw new Error("User not found");
     }
 
-    if (currentUser.role === Role.CEO) {
-      if (targetUser.role === Role.SUPERADMIN || targetUser.role === Role.CEO) {
-        throw new Error("CEO cannot modify superadmin or other CEO users");
-      }
+    if (currentUser.role === Role.CEO && isAdmin(targetUser.role)) {
+      throw new Error("CEO cannot modify superadmin or other CEO users");
     }
 
-    if (targetUser.role === Role.SUPERADMIN || targetUser.role === Role.CEO) {
+    if (isAdmin(targetUser.role)) {
       throw new Error("Cannot assign sector to superadmin or CEO");
     }
 
@@ -224,26 +188,11 @@ export const updateUserSector = mutation({
   },
 });
 
-// ============================================
-// User Approval System
-// ============================================
-
 export const getPendingUsers = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return [];
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!currentUser) return [];
-
-    if (currentUser.role !== Role.SUPERADMIN && currentUser.role !== Role.CEO) {
-      return [];
-    }
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser || !isAdmin(currentUser.role)) return [];
 
     const pendingUsers = await ctx.db
       .query("users")
@@ -260,19 +209,8 @@ export const getPendingUsers = query({
 export const getPendingUsersCount = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) return 0;
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!currentUser) return 0;
-
-    if (currentUser.role !== Role.SUPERADMIN && currentUser.role !== Role.CEO) {
-      return 0;
-    }
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser || !isAdmin(currentUser.role)) return 0;
 
     const pendingUsers = await ctx.db
       .query("users")
@@ -292,26 +230,17 @@ export const approveUser = mutation({
     sector: v.string(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser) {
       throw new Error("Not authenticated");
     }
 
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!currentUser) {
-      throw new Error("User not found");
-    }
-
-    if (currentUser.role !== Role.SUPERADMIN && currentUser.role !== Role.CEO) {
+    if (!isAdmin(currentUser.role)) {
       throw new Error("Not authorized to approve users");
     }
 
-    const validSectors = Object.values(Sector);
-    if (!validSectors.includes(args.sector as (typeof validSectors)[number])) {
+    const validSectors = Object.values(Sector) as string[];
+    if (!validSectors.includes(args.sector)) {
       throw new Error("Invalid sector");
     }
 
@@ -342,21 +271,12 @@ export const rejectUser = mutation({
     reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser) {
       throw new Error("Not authenticated");
     }
 
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!currentUser) {
-      throw new Error("User not found");
-    }
-
-    if (currentUser.role !== Role.SUPERADMIN && currentUser.role !== Role.CEO) {
+    if (!isAdmin(currentUser.role)) {
       throw new Error("Not authorized to reject users");
     }
 
@@ -384,16 +304,7 @@ export const rejectUser = mutation({
 export const migrateExistingUsers = mutation({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const currentUser = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
+    const currentUser = await getAuthenticatedUser(ctx);
     if (!currentUser || currentUser.role !== Role.SUPERADMIN) {
       throw new Error("Only superadmin can run migration");
     }
@@ -405,13 +316,11 @@ export const migrateExistingUsers = mutation({
     let migratedCount = 0;
 
     for (const user of usersWithoutStatus) {
-      if (!user.status) {
-        await ctx.db.patch(user._id, {
-          status: UserStatus.APPROVED,
-          approvedAt: Date.now(),
-        });
-        migratedCount++;
-      }
+      await ctx.db.patch(user._id, {
+        status: UserStatus.APPROVED,
+        approvedAt: Date.now(),
+      });
+      migratedCount++;
     }
 
     return { migratedCount };

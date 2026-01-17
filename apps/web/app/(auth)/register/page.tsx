@@ -8,7 +8,7 @@ import {
   Card,
   CardContent,
 } from "@workspace/ui/components/card";
-import { Loader2 } from "lucide-react";
+import { FullPageLoader } from "@/components/full-page-loader";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -39,7 +39,6 @@ export default function RegisterPage() {
     }
   }, [currentUser, router]);
 
-  // Auto-register when user doesn't exist
   useEffect(() => {
     const autoRegister = async () => {
       if (
@@ -62,20 +61,11 @@ export default function RegisterPage() {
   }, [hasSuperadmin, currentUser, addUser, router]);
 
   if (hasSuperadmin === undefined || currentUser === undefined) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center flex-col gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <p className="text-muted-foreground">Creating your account...</p>
-      </div>
-    );
+    return <FullPageLoader message="Creating your account..." />;
   }
 
   if (error) {

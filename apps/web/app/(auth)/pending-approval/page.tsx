@@ -1,49 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useQuery } from "convex/react";
-import { api } from "@workspace/backend/_generated/api";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
-import { Clock, Loader2 } from "lucide-react";
+import { Clock } from "lucide-react";
+import { useAuthRedirect } from "@/hooks/use-auth-redirect";
+import { FullPageLoader } from "@/components/full-page-loader";
 
 export default function PendingApprovalPage() {
-  const router = useRouter();
-  const currentUser = useQuery(api.users.getCurrentUser);
-  const hasSuperadmin = useQuery(api.users.hasSuperadmin);
+  const { isLoading } = useAuthRedirect({
+    whenPending: undefined,
+  });
 
-  useEffect(() => {
-    if (hasSuperadmin === false) {
-      router.push("/bootstrap");
-      return;
-    }
-
-    if (currentUser === null && hasSuperadmin === true) {
-      router.push("/register");
-      return;
-    }
-
-    if (currentUser?.status === "approved") {
-      router.push("/");
-      return;
-    }
-
-    if (currentUser?.status === "rejected") {
-      router.push("/rejected");
-    }
-  }, [currentUser, hasSuperadmin, router]);
-
-  if (currentUser === undefined || hasSuperadmin === undefined) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+  if (isLoading) {
+    return <FullPageLoader />;
   }
 
   return (

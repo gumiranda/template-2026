@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
-import { Loader2 } from "lucide-react";
+import { FullPageLoader } from "@/components/full-page-loader";
 
 export default function BootstrapPage() {
   const router = useRouter();
@@ -42,11 +42,7 @@ export default function BootstrapPage() {
   }, [currentUser, router]);
 
   if (!isLoaded || hasAnyUsers === undefined) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <FullPageLoader />;
   }
 
   if (!isSignedIn) {
@@ -55,12 +51,7 @@ export default function BootstrapPage() {
   }
 
   if (hasAnyUsers === false && !error) {
-    return (
-      <div className="flex min-h-screen items-center justify-center flex-col gap-4">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        <p className="text-muted-foreground">Creating superadmin...</p>
-      </div>
-    );
+    return <FullPageLoader message="Creating superadmin..." />;
   }
 
   if (error) {
