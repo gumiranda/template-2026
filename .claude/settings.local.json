@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "WebSearch",
+      "Bash(ls:*)",
+      "WebFetch(domain:docs.convex.dev)",
+      "WebFetch(domain:github.com)",
+      "Bash(npx convex:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,55 @@
+UTILS:
+
+lsof -i :3001  
+kill -9  
+
+1. pnpm dlx shadcn@2.9.2 init
+2. pnpm setup
+3. pnpm add turbo --global
+4. turbo dev
+5. cd apps/web && pnpm dlx shadcn@2.9.2 add input
+6. pnpm -F eslint-config add --save-dev @eslint/js
+7. pnpm -F backend add convex@1.25.4
+8. pnpm -F backend run setup
+9. pnpm -F web add convex@1.25.4
+10. pnpm -F widget add convex@1.25.4
+11. Configura Clerk seguindo https://docs.convex.dev/auth/clerk#nextjs
+12. pnpm -F backend add --save-dev @types/node
+13. configura variável de ambiente no convex.dev CLERK_JWT_ISSUER_DOMAIN=
+14. turbo dev
+15. pnpm -F web add @clerk/nextjs @clerk/themes
+16. cd app/web && pnpm dlx @sentry/wizard@latest -i nextjs --saas --org crazynator --project javascript-nextjs && cd .. && cd ..
+17. pnpm install
+18. pnpm -F widget add @vapi-ai/web
+19. cd apps/web && pnpm dlx shadcn@2.9.2 add --all
+20. pnpm -F widget add zod@^3.25.76 react-hook-form@^7.62.0
+21. pnpm -F widget add @hookform/resolvers@^5.2.1
+22. pnpm -F widget add jotai
+23. pnpm -F backend add @clerk/backend
+24. pnpm -F backend add @convex-dev/agent
+25. pnpm -F backend add convex-helpers
+26. pnpm -F backend add ai @ai-sdk/openai @ai-sdk/google
+27. pnpm -F widget add @convex-dev/agent
+28. pnpm -F ui add use-stick-to-bottom
+29. pnpm -F ui add @radix-ui/react-use-controllable-state
+30. pnpm -F ui add react-markdown remark-gfm
+31. pnpm -F ui add @dicebear/core @dicebear/collection
+32. pnpm -F widget add date-fns
+33. pnpm -F web add countries-and-timezones
+34. pnpm -F web add date-fns
+35. pnpm -F web add jotai
+36. pnpm -F web add zod@^3.25.76 react-hook-form@^7.62.0
+37. pnpm -F web add @hookform/resolvers@^5.2.1
+38. pnpm -F web add @convex-dev/agent
+39. pnpm -F backend add zod@^3.25.76 
+40. pnpm -F backend add @convex-dev/rag     
+41. pnpm -F ui add react-dropzone
+42. pnpm -F backend add @convex-dev/agent-playground 
+43. cd packages/backend && pnpm dlx convex run --component agent apiKeys:issue '{name:"test"}'
+44. pnpm dlx @convex-dev/agent-playground
+45. pnpm -F backend add @aws-sdk/client-secrets-manager
+46. pnpm -F web add sonner@^2.0.7
+47. pnpm -F backend add @vapi-ai/server-sdk
+48. pnpm -F web add bowser
+49. pnpm -F web add stripe
+50. pnpm -F backend add svix
