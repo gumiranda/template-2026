@@ -102,8 +102,7 @@ pnpm dev:prod
 | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Chave publica do Clerk | Sim |
 | `CLERK_SECRET_KEY` | Chave secreta do Clerk | Sim |
 | `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | Rota de login | Sim |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | Rota de cadastro | Sim |
-| `NEXT_PUBLIC_APP_URL` | URL base da aplicacao | Sim |
+| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | Rota de cadastro | Sim | 
 
 ### Variaveis de Ambiente do Backend
 
@@ -228,8 +227,7 @@ CLERK_SECRET_KEY=sk_xxx
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
-NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/select-sector
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/ 
 ```
 
 ---

@@ -181,9 +181,7 @@ NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL=/
 NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL=/select-sector
-
-# App
-NEXT_PUBLIC_APP_URL=http://localhost:3002
+ 
 ```
 
 #### Backend (packages/backend/.env.local)
@@ -456,8 +454,7 @@ CONVEX_DEPLOY_KEY="prod:sua-chave" npx convex deploy --env-file .env.prod
 
 Certifique-se de atualizar:
 - URLs do Clerk para producao (pk_live_xxx, sk_live_xxx)
-- URL do Convex de producao
-- `NEXT_PUBLIC_APP_URL` para o dominio final
+- URL do Convex de producao 
 
 ---
 
