@@ -1,8 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
-export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
-
 export default defineSchema({
   users: defineTable({
     name: v.string(),

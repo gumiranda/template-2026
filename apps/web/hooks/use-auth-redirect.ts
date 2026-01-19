@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
@@ -26,7 +26,10 @@ export function useAuthRedirect(options: AuthRedirectOptions = {}) {
   const currentUser = useQuery(api.users.getCurrentUser);
   const hasSuperadmin = useQuery(api.users.hasSuperadmin);
 
-  const opts = { ...defaultOptions, ...options };
+  const opts = useMemo(
+    () => ({ ...defaultOptions, ...options }),
+    [options.whenApproved, options.whenPending, options.whenRejected, options.whenNoUser, options.whenNoSuperadmin]
+  );
 
   useEffect(() => {
     if (hasSuperadmin === false && opts.whenNoSuperadmin) {

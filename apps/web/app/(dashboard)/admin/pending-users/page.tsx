@@ -42,13 +42,9 @@ import {
   X,
   Loader2,
   Clock,
-  Users,
 } from "lucide-react";
 import { toast } from "sonner";
-
-const SECTORS = [
-  { id: "general", name: "General", icon: Users },
-];
+import { SECTORS } from "@/lib/constants";
 
 export default function PendingUsersPage() {
   const currentUser = useQuery(api.users.getCurrentUser);
@@ -201,7 +197,6 @@ export default function PendingUsersPage() {
         </CardContent>
       </Card>
 
-      {/* Approve Dialog */}
       <Dialog open={!!approveDialog} onOpenChange={() => setApproveDialog(null)}>
         <DialogContent>
           <DialogHeader>
@@ -264,7 +259,6 @@ export default function PendingUsersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Reject Dialog */}
       <Dialog open={!!rejectDialog} onOpenChange={() => setRejectDialog(null)}>
         <DialogContent>
           <DialogHeader>

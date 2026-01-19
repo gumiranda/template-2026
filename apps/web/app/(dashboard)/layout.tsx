@@ -13,14 +13,13 @@ import {
   SheetTrigger,
 } from "@workspace/ui/components/sheet";
 import {
-  Shield,
-  Crown,
   UserPlus,
   LayoutDashboard,
   UserCog,
   Users,
   Menu,
 } from "lucide-react";
+import { RoleBadge } from "@/components/role-badge";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@workspace/ui/lib/utils";
@@ -38,6 +37,14 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     api.users.getPendingUsersCount,
     isSuperadminOrCeo ? {} : "skip"
   );
+
+  const navItems = useMemo(() => [
+    { label: "Dashboard", href: "/", icon: LayoutDashboard },
+    ...(isSuperadminOrCeo ? [
+      { label: "Users", href: "/admin/users", icon: UserCog },
+      { label: "Pending Users", href: "/admin/pending-users", icon: Users },
+    ] : []),
+  ], [isSuperadminOrCeo]);
 
   useEffect(() => {
     if (hasSuperadmin === false) {
@@ -72,14 +79,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   const isSuperadmin = currentUser.role === "superadmin";
   const isCeo = currentUser.role === "ceo";
-
-  const navItems = useMemo(() => [
-    { label: "Dashboard", href: "/", icon: LayoutDashboard },
-    ...(isSuperadminOrCeo ? [
-      { label: "Users", href: "/admin/users", icon: UserCog },
-      { label: "Pending Users", href: "/admin/pending-users", icon: Users },
-    ] : []),
-  ], [isSuperadminOrCeo]);
 
   const SidebarContent = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
@@ -133,17 +132,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
               </SheetContent>
             </Sheet>
 
-            {isSuperadmin && (
-              <Badge variant="default" className="bg-purple-600">
-                <Shield className="mr-1 h-3 w-3" />
-                Superadmin
-              </Badge>
-            )}
-            {isCeo && (
-              <Badge variant="default" className="bg-amber-600">
-                <Crown className="mr-1 h-3 w-3" />
-                CEO
-              </Badge>
+            {(isSuperadmin || isCeo) && (
+              <RoleBadge role={currentUser.role} />
             )}
           </div>
           <div className="flex items-center gap-4">

@@ -1,11 +1,3 @@
-/**
- * Core types and enums for the Template Application
- */
-
-// ============================================
-// ENUMS
-// ============================================
-
 export const Sector = {
   GENERAL: "general",
 } as const;

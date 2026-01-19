@@ -27,7 +27,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-import { Badge } from "@workspace/ui/components/badge";
 import {
   Dialog,
   DialogContent,
@@ -36,50 +35,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
-import {
-  Users,
-  Shield,
-  Crown,
-  User,
-  Loader2,
-} from "lucide-react";
+import { Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
-
-const ROLES = [
-  { id: "superadmin", name: "Superadmin", icon: Shield },
-  { id: "ceo", name: "CEO", icon: Crown },
-  { id: "user", name: "User", icon: User },
-];
-
-const SECTORS = [
-  { id: "general", name: "General", icon: Users },
-];
-
-function getRoleBadge(role?: string) {
-  switch (role) {
-    case "superadmin":
-      return (
-        <Badge variant="default" className="bg-purple-600">
-          <Shield className="mr-1 h-3 w-3" />
-          Superadmin
-        </Badge>
-      );
-    case "ceo":
-      return (
-        <Badge variant="default" className="bg-amber-600">
-          <Crown className="mr-1 h-3 w-3" />
-          CEO
-        </Badge>
-      );
-    default:
-      return (
-        <Badge variant="secondary">
-          <User className="mr-1 h-3 w-3" />
-          User
-        </Badge>
-      );
-  }
-}
+import { ROLES, SECTORS } from "@/lib/constants";
+import { RoleBadge } from "@/components/role-badge";
 
 function getSectorName(sector: string | undefined) {
   if (!sector) return "-";
@@ -194,37 +153,43 @@ export default function AdminUsersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Sector</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users?.map((user) => (
-                <TableRow key={user._id}>
-                  <TableCell className="font-medium">{user.name}</TableCell>
-                  <TableCell>{getRoleBadge(user.role)}</TableCell>
-                  <TableCell>{getSectorName(user.sector)}</TableCell>
-                  <TableCell className="text-right">
-                    {canEditUser(user.role) &&
-                      user._id !== currentUser._id && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEditUser(user)}
-                        >
-                          Edit
-                        </Button>
-                      )}
-                  </TableCell>
+          {users === undefined ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Sector</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {users.map((user) => (
+                  <TableRow key={user._id}>
+                    <TableCell className="font-medium">{user.name}</TableCell>
+                    <TableCell><RoleBadge role={user.role} /></TableCell>
+                    <TableCell>{getSectorName(user.sector)}</TableCell>
+                    <TableCell className="text-right">
+                      {canEditUser(user.role) &&
+                        user._id !== currentUser._id && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditUser(user)}
+                          >
+                            Edit
+                          </Button>
+                        )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 

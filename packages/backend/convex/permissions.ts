@@ -1,37 +1,20 @@
-/**
- * Permission Control Functions
- * Implements role-based access control
- */
-
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { Role } from "./lib/types";
+import { getAuthenticatedUser, isAdmin } from "./lib/auth";
 
-/**
- * Check if user has permission for an action
- */
 export const checkPermission = query({
   args: {
     entityType: v.string(),
     action: v.string(),
   },
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
+  handler: async (ctx) => {
+    const user = await getAuthenticatedUser(ctx);
+    if (!user) {
       return { allowed: false, reason: "Not authenticated" };
     }
 
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
-    if (!user) {
-      return { allowed: false, reason: "User not found" };
-    }
-
-    // Superadmin and CEO have full access
-    if (user.role === Role.SUPERADMIN || user.role === Role.CEO) {
+    if (isAdmin(user.role)) {
       return {
         allowed: true,
         reason: "Full access granted",
@@ -39,7 +22,6 @@ export const checkPermission = query({
       };
     }
 
-    // Regular users have basic access
     return {
       allowed: true,
       reason: "Access granted",
@@ -48,62 +30,36 @@ export const checkPermission = query({
   },
 });
 
-/**
- * Get user's role
- */
 export const getUserRole = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return null;
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
+    const user = await getAuthenticatedUser(ctx);
     if (!user) {
       return null;
     }
 
     return {
       role: user.role || Role.USER,
-      isAdmin: user.role === Role.SUPERADMIN || user.role === Role.CEO,
+      isAdmin: isAdmin(user.role),
       isSuperadmin: user.role === Role.SUPERADMIN,
       isCeo: user.role === Role.CEO,
     };
   },
 });
 
-/**
- * Get menu items based on user role
- */
 export const getMenuItems = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return [];
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
+    const user = await getAuthenticatedUser(ctx);
     if (!user) {
       return [];
     }
 
-    // Base menu for all users
     const baseMenu = [
       { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
     ];
 
-    // Admin menu items
-    if (user.role === Role.SUPERADMIN || user.role === Role.CEO) {
+    if (isAdmin(user.role)) {
       return [
         ...baseMenu,
         { label: "Users", href: "/admin/users", icon: "UserCog" },
@@ -115,34 +71,22 @@ export const getMenuItems = query({
   },
 });
 
-/**
- * Get permissions for current user
- */
 export const getCurrentUserPermissions = query({
   args: {},
   handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return null;
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
-      .unique();
-
+    const user = await getAuthenticatedUser(ctx);
     if (!user) {
       return null;
     }
 
-    const isAdmin = user.role === Role.SUPERADMIN || user.role === Role.CEO;
+    const userIsAdmin = isAdmin(user.role);
 
     return {
       role: user.role || Role.USER,
-      isAdmin,
+      isAdmin: userIsAdmin,
       isSuperadmin: user.role === Role.SUPERADMIN,
       isCeo: user.role === Role.CEO,
-      canManageUsers: isAdmin,
+      canManageUsers: userIsAdmin,
     };
   },
 });

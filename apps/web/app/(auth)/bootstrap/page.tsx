@@ -21,7 +21,7 @@ export default function BootstrapPage() {
   const bootstrap = useMutation(api.users.bootstrap);
   useEffect(() => {
     const autoBootstrap = async () => {
-      if (isSignedIn && !hasAnyUsers && !bootstrapAttempted.current) {
+      if (isSignedIn && hasAnyUsers === false && !bootstrapAttempted.current) {
         bootstrapAttempted.current = true;
         try {
           await bootstrap();
