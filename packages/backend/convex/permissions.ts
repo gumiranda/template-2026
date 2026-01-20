@@ -43,6 +43,7 @@ export const getUserRole = query({
       isAdmin: isAdmin(user.role),
       isSuperadmin: user.role === Role.SUPERADMIN,
       isCeo: user.role === Role.CEO,
+      isWaiter: user.role === Role.WAITER,
     };
   },
 });
@@ -86,6 +87,7 @@ export const getCurrentUserPermissions = query({
       isAdmin: userIsAdmin,
       isSuperadmin: user.role === Role.SUPERADMIN,
       isCeo: user.role === Role.CEO,
+      isWaiter: user.role === Role.WAITER,
       canManageUsers: userIsAdmin,
     };
   },

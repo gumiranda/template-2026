@@ -12,3 +12,6 @@ export async function getAuthenticatedUser(ctx: QueryCtx | MutationCtx) {
 
 export const isAdmin = (role?: string) =>
   role === Role.SUPERADMIN || role === Role.CEO;
+
+export const isRestaurantStaff = (role?: string) =>
+  role === Role.SUPERADMIN || role === Role.CEO || role === Role.WAITER;

@@ -1,8 +1,9 @@
-import { Shield, Crown, User, Users } from "lucide-react";
+import { Shield, Crown, User, Users, Utensils } from "lucide-react";
 
 export const ROLES = [
   { id: "superadmin", name: "Superadmin", icon: Shield },
   { id: "ceo", name: "CEO", icon: Crown },
+  { id: "waiter", name: "Waiter", icon: Utensils },
   { id: "user", name: "User", icon: User },
 ] as const;
 

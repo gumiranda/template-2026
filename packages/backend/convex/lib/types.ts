@@ -8,6 +8,7 @@ export const Role = {
   SUPERADMIN: "superadmin",
   CEO: "ceo",
   USER: "user",
+  WAITER: "waiter",
 } as const;
 
 export type RoleType = (typeof Role)[keyof typeof Role];
@@ -19,3 +20,14 @@ export const UserStatus = {
 } as const;
 
 export type UserStatusType = (typeof UserStatus)[keyof typeof UserStatus];
+
+export const OrderStatus = {
+  PENDING: "pending",
+  CONFIRMED: "confirmed",
+  PREPARING: "preparing",
+  READY: "ready",
+  SERVED: "served",
+  COMPLETED: "completed",
+} as const;
+
+export type OrderStatusType = (typeof OrderStatus)[keyof typeof OrderStatus];

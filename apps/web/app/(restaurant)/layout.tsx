@@ -1,61 +1,64 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { UserButton } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
+import { UserButton } from "@clerk/nextjs";
 import { Button } from "@workspace/ui/components/button";
-import { Badge } from "@workspace/ui/components/badge";
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
 } from "@workspace/ui/components/sheet";
 import {
-  UserPlus,
   LayoutDashboard,
-  UserCog,
-  Users,
+  ShoppingCart,
+  Utensils,
+  Settings,
+  QrCode,
   Menu,
-  Building2,
 } from "lucide-react";
-import { RoleBadge } from "@/components/role-badge";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@workspace/ui/lib/utils";
 import { FullPageLoader } from "@/components/full-page-loader";
 import { useAuthRedirect } from "@/hooks/use-auth-redirect";
 
-const Layout = ({ children }: { children: React.ReactNode }) => {
+const RestaurantLayout = ({ children }: { children: React.ReactNode }) => {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const { currentUser, hasSuperadmin, isLoading } = useAuthRedirect({
-    whenApproved: undefined,
+  const { currentUser, isLoading } = useAuthRedirect({
+    whenApproved: "/restaurant",
   });
 
-  const isSuperadminOrCeo = currentUser?.role === "superadmin" || currentUser?.role === "ceo";
-  const pendingUsersCount = useQuery(
-    api.users.getPendingUsersCount,
-    isSuperadminOrCeo ? {} : "skip"
+  const isRestaurantStaff =
+    currentUser?.role === "superadmin" ||
+    currentUser?.role === "ceo" ||
+    currentUser?.role === "waiter";
+
+  const restaurants = useQuery(
+    api.restaurants.list,
+    isRestaurantStaff ? {} : "skip"
   );
 
-  const navItems = useMemo(() => [
-    { label: "Dashboard", href: "/", icon: LayoutDashboard },
-    ...(isSuperadminOrCeo ? [
-      { label: "Users", href: "/admin/users", icon: UserCog },
-      { label: "Pending Users", href: "/admin/pending-users", icon: Users },
-    ] : []),
-    ...(isSuperadmin ? [
-      { label: "Restaurants", href: "/admin/restaurants", icon: UserCog },
-    ] : []),
-  ], [isSuperadminOrCeo, isSuperadmin]);
+  const navItems = useMemo(
+    () => [
+      { label: "Dashboard", href: "/restaurant", icon: LayoutDashboard },
+      { label: "Orders", href: "/restaurant/orders", icon: ShoppingCart },
+      { label: "Tables", href: "/restaurant/tables", icon: Utensils },
+      { label: "Menu", href: "/restaurant/menu", icon: Menu },
+      { label: "QR Codes", href: "/restaurant/qr-codes", icon: QrCode },
+      { label: "Settings", href: "/restaurant/settings", icon: Settings },
+    ],
+    []
+  );
 
   if (isLoading) {
     return <FullPageLoader />;
   }
 
-  if (hasSuperadmin === false || !currentUser) {
+  if (!currentUser || !isRestaurantStaff) {
     return null;
   }
 
@@ -63,19 +66,18 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     return null;
   }
 
-  const isSuperadmin = currentUser.role === "superadmin";
-  const isCeo = currentUser.role === "ceo";
-
   const SidebarContent = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
       <div className="p-6">
-        <h1 className="text-xl font-bold">Template App</h1>
+        <h1 className="text-xl font-bold">Restaurantix</h1>
       </div>
       <nav className="px-4 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
+          const isActive =
+            pathname === item.href ||
+            (item.href !== "/restaurant" &&
+              pathname.startsWith(item.href));
           return (
             <Link
               key={item.href}
@@ -117,25 +119,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 <SidebarContent onNavigate={() => setSidebarOpen(false)} />
               </SheetContent>
             </Sheet>
-
-            {(isSuperadmin || isCeo) && (
-              <RoleBadge role={currentUser.role} />
-            )}
           </div>
           <div className="flex items-center gap-4">
-            {(isSuperadmin || isCeo) && pendingUsersCount && pendingUsersCount > 0 && (
-              <Link href="/admin/pending-users">
-                <Button variant="ghost" size="icon" className="relative">
-                  <UserPlus className="h-5 w-5" />
-                  <Badge
-                    variant="destructive"
-                    className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
-                  >
-                    {pendingUsersCount > 9 ? "9+" : pendingUsersCount}
-                  </Badge>
-                </Button>
-              </Link>
-            )}
             <UserButton />
           </div>
         </header>
@@ -145,4 +130,4 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export default Layout;
+export default RestaurantLayout;
