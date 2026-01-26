@@ -9,7 +9,7 @@
 ![pnpm](https://img.shields.io/badge/pnpm-10.17-F69220?logo=pnpm)
 
 Template SaaS full-stack moderno com autenticacao, backend real-time, sistema de aprovacao de usuarios e biblioteca de componentes UI.
-
+fdfd
 ---
 
 ## Funcionalidades Principais
