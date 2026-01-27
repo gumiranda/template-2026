@@ -7,12 +7,12 @@ import { useRestaurantSession } from "@/hooks/use-restaurant-session";
 import { MenuDisplay } from "@/components/restaurant/menu-display";
 import { CartDrawer } from "@/components/restaurant/cart-drawer";
 import { Loader2 } from "lucide-react";
-import { RestaurantId } from "@/types/convex";
+import { Id } from "@workspace/backend/_generated/dataModel";
 
 export default function TablePage() {
   const params = useParams();
-  const restaurantId = params.restaurantId as RestaurantId;
-  const tableId = params.tableId as string;
+  const restaurantId = params.restaurantId as Id<"restaurants">;
+  const tableId = params.tableId as Id<"tables">;
 
   const { session, isLoading: sessionLoading } = useRestaurantSession(
     restaurantId,

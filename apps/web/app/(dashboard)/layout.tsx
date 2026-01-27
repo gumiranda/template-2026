@@ -18,6 +18,10 @@ import {
   Users,
   Menu,
   Building2,
+  ShoppingCart,
+  Utensils,
+  QrCode,
+  Settings,
 } from "lucide-react";
 import { RoleBadge } from "@/components/role-badge";
 import Link from "next/link";
@@ -25,7 +29,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@workspace/ui/lib/utils";
 import { FullPageLoader } from "@/components/full-page-loader";
 import { useAuthRedirect } from "@/hooks/use-auth-redirect";
-import { getAuthenticatedUser } from "@workspace/backend/lib/auth";
+
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
  
@@ -35,26 +39,26 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
  
   const { hasSuperadmin, isLoading } = useAuthRedirect({
     whenApproved: undefined,
-  })  as any
-  const isSuperadmin = currentUser?.role === "superadmin";
+  });
+ const isSuperadmin = currentUser?.role === "superadmin";
   const isCeo = currentUser?.role === "ceo";
-  const isSuperadminOrCeo = isSuperadmin|| isCeo
+  const isSuperadminOrCeo = currentUser?.role === "superadmin" || currentUser?.role === "ceo";
   const pendingUsersCount = useQuery(
     api.users.getPendingUsersCount,
     isSuperadminOrCeo ? {} : "skip"
   );
   
 
-  const navItems = useMemo(() => [
+  const adminNavItems = useMemo(() => [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
     ...(isSuperadminOrCeo ? [
       { label: "Users", href: "/admin/users", icon: UserCog },
       { label: "Pending Users", href: "/admin/pending-users", icon: Users },
     ] : []),
     ...(isSuperadmin ? [
-      { label: "Restaurants", href: "/admin/restaurants", icon: UserCog },
+      { label: "Restaurants", href: "/admin/restaurants", icon: Building2 },
     ] : []),
-  ], [isSuperadminOrCeo,isSuperadmin]);
+  ], [isSuperadminOrCeo, isSuperadmin]);
 
   if (isLoading) {
     return <FullPageLoader />;
@@ -68,6 +72,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     return null;
   }
 
+  
 
   const SidebarContent = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
@@ -75,7 +80,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
         <h1 className="text-xl font-bold">Template App</h1>
       </div>
       <nav className="px-4 space-y-1">
-        {navItems.map((item) => {
+        {adminNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href ||
             (item.href !== "/" && pathname.startsWith(item.href));
@@ -146,11 +151,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       </div>
     </div>
   );
-  // return(
-  //   <div>
-  //     {children}
-  //   </div>
-  // )
 };
 
 export default Layout;
