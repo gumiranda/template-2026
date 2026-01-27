@@ -15,6 +15,8 @@ import type * as lib_types from "../lib/types.js";
 import type * as menu from "../menu.js";
 import type * as orders from "../orders.js";
 import type * as permissions from "../permissions.js";
+import type * as restaurants from "../restaurants.js";
+import type * as sessions from "../sessions.js";
 import type * as users from "../users.js";
 
 import type {
@@ -39,6 +41,8 @@ declare const fullApi: ApiFromModules<{
   menu: typeof menu;
   orders: typeof orders;
   permissions: typeof permissions;
+  restaurants: typeof restaurants;
+  sessions: typeof sessions;
   users: typeof users;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
