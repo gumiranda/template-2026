@@ -18,6 +18,10 @@ import {
   Users,
   Menu,
   Building2,
+  ShoppingCart,
+  Utensils,
+  QrCode,
+  Settings,
 } from "lucide-react";
 import { RoleBadge } from "@/components/role-badge";
 import Link from "next/link";
@@ -42,16 +46,25 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     isSuperadminOrCeo ? {} : "skip"
   );
 
-  const navItems = useMemo(() => [
+  const adminNavItems = useMemo(() => [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
     ...(isSuperadminOrCeo ? [
       { label: "Users", href: "/admin/users", icon: UserCog },
       { label: "Pending Users", href: "/admin/pending-users", icon: Users },
     ] : []),
     ...(isSuperadmin ? [
-      { label: "Restaurants", href: "/admin/restaurants", icon: UserCog },
+      { label: "Restaurants", href: "/admin/restaurants", icon: Building2 },
     ] : []),
   ], [isSuperadminOrCeo, isSuperadmin]);
+
+  const restaurantNavItems = useMemo(() => [
+    { label: "Dashboard", href: "/restaurant", icon: LayoutDashboard },
+    { label: "Orders", href: "/restaurant/orders", icon: ShoppingCart },
+    { label: "Tables", href: "/restaurant/tables", icon: Utensils },
+    { label: "Menu", href: "/restaurant/menu", icon: Menu },
+    { label: "QR Codes", href: "/restaurant/qr-codes", icon: QrCode },
+    { label: "Settings", href: "/restaurant/settings", icon: Settings },
+  ], []);
 
   if (isLoading) {
     return <FullPageLoader />;
@@ -65,33 +78,50 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     return null;
   }
 
+  const renderNavItems = (items: typeof adminNavItems, onNavigate?: () => void) =>
+    items.map((item) => {
+      const Icon = item.icon;
+      const isActive = pathname === item.href ||
+        (item.href !== "/" && item.href !== "/restaurant" && pathname.startsWith(item.href));
+      return (
+        <Link
+          key={item.href}
+          href={item.href}
+          onClick={onNavigate}
+          className={cn(
+            "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+            isActive
+              ? "bg-primary text-primary-foreground"
+              : "hover:bg-muted"
+          )}
+        >
+          <Icon className="h-4 w-4" />
+          {item.label}
+        </Link>
+      );
+    });
+
   const SidebarContent = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
       <div className="p-6">
         <h1 className="text-xl font-bold">Template App</h1>
       </div>
       <nav className="px-4 space-y-1">
-        {navItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onNavigate}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-muted"
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {item.label}
-            </Link>
-          );
-        })}
+        {isSuperadminOrCeo && (
+          <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Admin
+          </p>
+        )}
+        {renderNavItems(adminNavItems, onNavigate)}
+        {isSuperadminOrCeo && (
+          <>
+            <div className="my-2 border-t" />
+            <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Restaurant
+            </p>
+            {renderNavItems(restaurantNavItems, onNavigate)}
+          </>
+        )}
       </nav>
     </>
   );
