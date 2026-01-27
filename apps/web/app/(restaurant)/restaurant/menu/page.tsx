@@ -74,7 +74,8 @@ export default function MenuPage() {
     await createItem({
       restaurantId: selectedRestaurantId as any,
       categoryId: itemForm.categoryId as any,
-      ...itemForm,
+      name: itemForm.name,
+      description: itemForm.description || undefined,
       price: Number(itemForm.price),
     });
 

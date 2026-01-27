@@ -34,7 +34,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     whenApproved: undefined,
   });
 
-  const isSuperadminOrCeo = currentUser?.role === "superadmin" || currentUser?.role === "ceo";
+  const isSuperadmin = currentUser?.role === "superadmin";
+  const isCeo = currentUser?.role === "ceo";
+  const isSuperadminOrCeo = isSuperadmin || isCeo;
   const pendingUsersCount = useQuery(
     api.users.getPendingUsersCount,
     isSuperadminOrCeo ? {} : "skip"
@@ -62,9 +64,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   if (currentUser.status !== "approved") {
     return null;
   }
-
-  const isSuperadmin = currentUser.role === "superadmin";
-  const isCeo = currentUser.role === "ceo";
 
   const SidebarContent = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>

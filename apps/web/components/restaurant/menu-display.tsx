@@ -19,7 +19,7 @@ export function MenuDisplay({
   menu,
 }: MenuDisplayProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
-    menu.length > 0 ? menu[0]._id : null
+    menu.length > 0 ? menu[0]!._id : null
   );
 
   const selectedCategoryData = menu.find(

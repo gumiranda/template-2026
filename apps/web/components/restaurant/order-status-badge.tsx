@@ -16,7 +16,7 @@ export function OrderStatusBadge({ status }: OrderStatusBadgeProps) {
     completed: { label: "Completed", variant: "secondary" },
   };
 
-  const config = statusConfig[status] || statusConfig.pending;
+  const config = statusConfig[status] ?? statusConfig.pending!;
 
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+  return <Badge variant={config!.variant}>{config!.label}</Badge>;
 }
