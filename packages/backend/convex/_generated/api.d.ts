@@ -17,6 +17,7 @@ import type * as orders from "../orders.js";
 import type * as permissions from "../permissions.js";
 import type * as restaurants from "../restaurants.js";
 import type * as sessions from "../sessions.js";
+import type * as tables from "../tables.js";
 import type * as users from "../users.js";
 
 import type {
@@ -43,6 +44,7 @@ declare const fullApi: ApiFromModules<{
   permissions: typeof permissions;
   restaurants: typeof restaurants;
   sessions: typeof sessions;
+  tables: typeof tables;
   users: typeof users;
 }>;
 declare const fullApiWithMounts: typeof fullApi;
