@@ -1,7 +1,8 @@
 "use client";
 
-import { Component, ErrorBoundary as ReactErrorBoundary, ReactNode } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import { Component, ReactNode } from "react";
+import { ErrorBoundary as ReactErrorBoundary } from "react-error-boundary";
+import { Card, CardContent, CardHeader, CardTitle} from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
 import { AlertCircle, RefreshCw } from "lucide-react";
 
@@ -59,7 +60,7 @@ interface ErrorBoundaryProps {
 export function ErrorBoundary({ children, fallback }: ErrorBoundaryProps) {
   return (
     <ReactErrorBoundary
-      FallbackComponent={({ error, resetError }) =>
+      FallbackComponent={({ error , resetError }: any ) =>
         fallback ? (
           <>{fallback}</>
         ) : (

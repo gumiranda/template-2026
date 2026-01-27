@@ -25,20 +25,25 @@ import { usePathname } from "next/navigation";
 import { cn } from "@workspace/ui/lib/utils";
 import { FullPageLoader } from "@/components/full-page-loader";
 import { useAuthRedirect } from "@/hooks/use-auth-redirect";
+import { getAuthenticatedUser } from "@workspace/backend/lib/auth";
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
+ 
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const { currentUser, hasSuperadmin, isLoading } = useAuthRedirect({
+  const currentUser = useQuery(api.users.getCurrentUser)
+ 
+  const { hasSuperadmin, isLoading } = useAuthRedirect({
     whenApproved: undefined,
-  });
-
-  const isSuperadminOrCeo = currentUser?.role === "superadmin" || currentUser?.role === "ceo";
+  })  as any
+  const isSuperadmin = currentUser?.role === "superadmin";
+  const isCeo = currentUser?.role === "ceo";
+  const isSuperadminOrCeo = isSuperadmin|| isCeo
   const pendingUsersCount = useQuery(
     api.users.getPendingUsersCount,
     isSuperadminOrCeo ? {} : "skip"
   );
+  
 
   const navItems = useMemo(() => [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -49,7 +54,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     ...(isSuperadmin ? [
       { label: "Restaurants", href: "/admin/restaurants", icon: UserCog },
     ] : []),
-  ], [isSuperadminOrCeo, isSuperadmin]);
+  ], [isSuperadminOrCeo,isSuperadmin]);
 
   if (isLoading) {
     return <FullPageLoader />;
@@ -63,8 +68,6 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
     return null;
   }
 
-  const isSuperadmin = currentUser.role === "superadmin";
-  const isCeo = currentUser.role === "ceo";
 
   const SidebarContent = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
@@ -143,6 +146,11 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       </div>
     </div>
   );
+  // return(
+  //   <div>
+  //     {children}
+  //   </div>
+  // )
 };
 
 export default Layout;

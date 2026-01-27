@@ -80,7 +80,7 @@ export default function AdminRestaurantsPage() {
 
     await updateRestaurant({
       id: editingRestaurantId,
-      ...formData,
+     options: formData,
     });
 
     toast.success("Restaurant updated!");
