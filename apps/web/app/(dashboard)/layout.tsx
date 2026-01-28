@@ -76,10 +76,12 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   const SidebarContent = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
-      <div className="p-6">
-        <h1 className="text-xl font-bold">Template App</h1>
+      <div className="fixed top-0 left-0 p-6 z-50">
+        <Link href={"/"}>
+        <h1 className="text-xl font-bold flex items-start">Restaurantix</h1>
+        </Link>
       </div>
-      <nav className="px-4 space-y-1">
+      <nav className="flex items-center px-4 space-x-2">
         {adminNavItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href ||
@@ -107,7 +109,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="hidden md:block w-64 border-r bg-muted/40">
+      <aside className="fixed top-0 left-0 w-full h-16 flex items-center justify-center bg-white shadow z-50">
         <SidebarContent />
       </aside>
 
