@@ -28,7 +28,7 @@ import {
 import { Building2, Plus, Trash2, Edit, Users } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery as useConvexQuery } from "convex/react";
-
+import { useRouter } from "next/navigation";
 export default function AdminRestaurantsPage() {
   const currentUser = useConvexQuery(api.users.getCurrentUser);
   const restaurants = useConvexQuery(api.restaurants.list);
@@ -256,7 +256,7 @@ export default function AdminRestaurantsPage() {
         </CardHeader>
         <CardContent>
           {restaurants === undefined ? (
-            <div className="flex justify-center py-8">
+            <div className="flex justify-center py-8 ">
               <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
           ) : restaurants.length === 0 ? (
@@ -270,7 +270,7 @@ export default function AdminRestaurantsPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {restaurants.map((restaurant) => (
-                <RestaurantCard
+                <RestaurantCard 
                   key={restaurant._id}
                   restaurant={restaurant}
                   onEdit={() => openEditDialog(restaurant)}
@@ -292,10 +292,12 @@ interface RestaurantCardProps {
 }
 
 function RestaurantCard({ restaurant, onEdit, onDelete }: RestaurantCardProps) {
+  const route = useRouter();
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-start justify-between">
+
+    <Card className="bg-gradient-to-r from-orange-340 to-orange-400 hover:scale-102 transeition-transform duration-500" onClick={()=> route.push(`/restaurant/${restaurant._id}`) }>
+      <CardHeader>    
+        <div className="flex items-start justify-between ">
           <div className="flex-1">
             <CardTitle className="text-xl">
               {restaurant.name}
@@ -323,6 +325,7 @@ function RestaurantCard({ restaurant, onEdit, onDelete }: RestaurantCardProps) {
             </Button>
           </div>
         </div>
+
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="text-sm text-muted-foreground">
@@ -337,5 +340,6 @@ function RestaurantCard({ restaurant, onEdit, onDelete }: RestaurantCardProps) {
         </div>
       </CardContent>
     </Card>
+
   );
 }
