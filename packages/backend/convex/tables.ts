@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 
 export const listByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -72,3 +72,15 @@ export const getByIdentifier = query({
     return await ctx.db.get(args.tableId);
   },
 });
+export const createTable = mutation({
+  args:{
+    restaurantId: v.id("restaurants"),
+    tableNumber: v.string(),
+    capacity: v.number(),
+    qrCode: v.string(),
+    isActive: v.boolean(),
+  },
+  handler:async (ctx, args)=> {
+    return await ctx.db.insert("tables",args);;
+  },
+})

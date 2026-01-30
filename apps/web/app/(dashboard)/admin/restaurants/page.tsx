@@ -268,7 +268,7 @@ export default function AdminRestaurantsPage() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="flex gap-11 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {restaurants.map((restaurant) => (
                 <RestaurantCard 
                   key={restaurant._id}
@@ -295,8 +295,8 @@ function RestaurantCard({ restaurant, onEdit, onDelete }: RestaurantCardProps) {
   const route = useRouter();
   return (
 
-    <Card className="bg-gradient-to-r from-orange-340 to-orange-400 hover:scale-102 transeition-transform duration-500" onClick={()=> route.push(`/restaurant/${restaurant._id}`) }>
-      <CardHeader>    
+    <Card className=" hover:scale-102 transeition-transform duration-500 b-100px " onClick={()=> route.push(`/restaurant/${restaurant._id}`) }>
+      <CardHeader >    
         <div className="flex items-start justify-between ">
           <div className="flex-1">
             <CardTitle className="text-xl">

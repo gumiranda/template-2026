@@ -9,10 +9,14 @@ import {
 import { useParams } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
-import { useRouter } from "next/router";
+import CreateMenu from "../components/CreateMenu";
+import { Id } from "@workspace/backend/_generated/dataModel";
+import Link from "next/link";
+import { useState } from "react";
+
 export default function pageRestaurante() {
-    const id = useParams().restaurantId
-    
+    const id = useParams().restaurantId as Id<"restaurants">
+    const [showTablesPage, setShowTablesPage] = useState(false);
     const restaurants = useQuery(api.restaurants.list);
     const restaurantOrders = useQuery(
         api.orders.getOrdersByRestaurant,
@@ -79,6 +83,10 @@ export default function pageRestaurante() {
                       </div>
                     </CardContent>
             </Card>
+            <CreateMenu id={id}></CreateMenu>
+           
+                     <Link href={"/restaurant/tables"}>tables</Link> 
+                  
         </div>
 
     )

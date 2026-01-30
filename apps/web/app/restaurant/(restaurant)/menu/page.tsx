@@ -25,12 +25,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
+import { Id } from "@workspace/backend/_generated/dataModel";
 
-export default function MenuPage() {
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
+export default function MenuPage({selectedRestaurantIdProps}:{selectedRestaurantIdProps:Id<"restaurants">}) {
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<Id<"restaurants"> | null>(selectedRestaurantIdProps);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
-
   const restaurants = useQuery(api.restaurants.list);
   const menu = useQuery(
     api.menu.getMenuByRestaurant,
@@ -94,7 +94,7 @@ export default function MenuPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {restaurants &&
+           {restaurants &&
             restaurants.map((restaurant) => (
               <Button
                 key={restaurant._id}
@@ -105,7 +105,7 @@ export default function MenuPage() {
               >
                 {restaurant.name}
               </Button>
-            ))}
+            ))} 
           <Dialog
             open={isCategoryDialogOpen}
             onOpenChange={setIsCategoryDialogOpen}
@@ -292,7 +292,7 @@ export default function MenuPage() {
                 {category.items.map((item) => (
                   <div
                     key={item._id}
-                    className="flex items-center justify-between py-3 border-b last:border-0"
+                    className="flex items-center justify-between py-3 border-b last:border-0 bg-white p-10px rounded-sm hover:scale-101 transition-transform duration-600"
                   >
                     <div className="flex-1">
                       <p className="font-medium">{item.name}</p>

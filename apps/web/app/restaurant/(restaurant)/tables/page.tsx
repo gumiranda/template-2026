@@ -18,6 +18,7 @@ import {
 } from "@workspace/ui/components/dialog";
 import { ShoppingCart } from "lucide-react";
 
+import CreateTableBtn from "../components/createTable";
 export default function TablesPage() {
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
@@ -37,7 +38,7 @@ export default function TablesPage() {
     setIsDialogOpen(false);
     setSelectedTableId(null);
   };
-
+  console.log("restauranteId",selectedRestaurantId)
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -75,6 +76,8 @@ export default function TablesPage() {
 
       {selectedRestaurantId && tablesOverview && tablesOverview.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          
+          
           {tablesOverview.map((tableOverview) => (
             <TableCard
               key={tableOverview.table._id}
@@ -91,6 +94,7 @@ export default function TablesPage() {
               }}
             />
           ))}
+             <CreateTableBtn selectRestaurantId={selectedRestaurantId}></CreateTableBtn>
         </div>
       ) : selectedRestaurantId && tablesOverview && tablesOverview.length === 0 ? (
         <Card>
@@ -99,8 +103,11 @@ export default function TablesPage() {
               No tables found for this restaurant
             </p>
           </CardContent>
+              <CreateTableBtn selectRestaurantId={selectedRestaurantId}></CreateTableBtn>
         </Card>
       ) : null}
+  
+       
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>

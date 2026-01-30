@@ -5,6 +5,7 @@ import { getAuthenticatedUser } from "./lib/auth";
 import { Id } from "./_generated/dataModel";
 
 export const list = query({
+    args:{},
     handler:async(ctx) =>{
         return await ctx.db.query("restaurants").collect();
     }
