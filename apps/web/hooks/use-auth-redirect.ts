@@ -28,7 +28,7 @@ export function useAuthRedirect(options: AuthRedirectOptions = {}) {
 
   const opts = useMemo(
     () => ({ ...defaultOptions, ...options }),
-    [options.whenApproved, options.whenPending, options.whenRejected, options.whenNoUser, options.whenNoSuperadmin]
+    [options]
   );
 
   useEffect(() => {

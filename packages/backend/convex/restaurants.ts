@@ -22,7 +22,7 @@ export const create = mutation({
         const isActive = true
         const identity = await getAuthenticatedUser(ctx) ;
         
-       ctx.db.insert("restaurants",{... args,ownerId:identity?._id as Id<"users">, isActive:isActive})
+       return ctx.db.insert("restaurants",{... args,ownerId:identity?._id as Id<"users">, isActive:isActive})
     },
 }) 
 

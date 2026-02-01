@@ -94,9 +94,7 @@ export const clearCart = mutation({
       .withIndex("by_cart", (q) => q.eq("cartId", cart._id))
       .collect();
 
-    for (const item of items) {
-      await ctx.db.delete(item._id);
-    }
+    await Promise.all(items.map((item) => ctx.db.delete(item._id)));
 
     await ctx.db.patch(cart._id, { isActive: false });
   },

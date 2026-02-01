@@ -26,7 +26,7 @@ export const getOrdersByRestaurant = query({
 
 export const createOrder = mutation({
   args: {
-    restaurantId: v.string(),
+    restaurantId: v.id("restaurants"),
     tableId: v.id("tables"),
     sessionId: v.string(),
     items: v.array(
@@ -44,7 +44,7 @@ export const createOrder = mutation({
     const now = Date.now();
 
     const orderId = await ctx.db.insert("orders", {
-      restaurantId: args.restaurantId as any,
+      restaurantId: args.restaurantId,
       tableId: args.tableId,
       sessionId: args.sessionId,
       status: "pending",

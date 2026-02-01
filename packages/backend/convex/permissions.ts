@@ -1,52 +1,6 @@
-import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { Role } from "./lib/types";
 import { getAuthenticatedUser, isAdmin } from "./lib/auth";
-
-export const checkPermission = query({
-  args: {
-    entityType: v.string(),
-    action: v.string(),
-  },
-  handler: async (ctx) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user) {
-      return { allowed: false, reason: "Not authenticated" };
-    }
-
-    if (isAdmin(user.role)) {
-      return {
-        allowed: true,
-        reason: "Full access granted",
-        role: user.role,
-      };
-    }
-
-    return {
-      allowed: true,
-      reason: "Access granted",
-      role: user.role || Role.USER,
-    };
-  },
-});
-
-export const getUserRole = query({
-  args: {},
-  handler: async (ctx) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user) {
-      return null;
-    }
-
-    return {
-      role: user.role || Role.USER,
-      isAdmin: isAdmin(user.role),
-      isSuperadmin: user.role === Role.SUPERADMIN,
-      isCeo: user.role === Role.CEO,
-      isWaiter: user.role === Role.WAITER,
-    };
-  },
-});
 
 export const getMenuItems = query({
   args: {},
