@@ -1,11 +1,16 @@
 import type { QueryCtx, MutationCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
 
+type ValidateSessionOptions = {
+  checkExpiry?: boolean;
+};
+
 export async function validateSession(
   ctx: QueryCtx | MutationCtx,
   sessionId: string,
-  checkExpiry = true
+  options: ValidateSessionOptions = {}
 ): Promise<Doc<"sessions">> {
+  const { checkExpiry = true } = options;
   const session = await ctx.db
     .query("sessions")
     .withIndex("by_session_id", (q) => q.eq("sessionId", sessionId))
@@ -47,3 +52,22 @@ export async function batchFetchTables(
 
   return tableMap;
 }
+
+export function groupBy<T>(
+  items: T[],
+  keyFn: (item: T) => string
+): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const item of items) {
+    const key = keyFn(item);
+    const existing = map.get(key);
+    if (existing) {
+      existing.push(item);
+    } else {
+      map.set(key, [item]);
+    }
+  }
+  return map;
+}
+
+export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;

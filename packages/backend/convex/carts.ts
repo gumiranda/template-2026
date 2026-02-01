@@ -161,7 +161,7 @@ export const clearCart = mutation({
       .filter((q) => q.eq(q.field("isActive"), true))
       .first();
 
-    if (!cart) return;
+    if (!cart) return { deletedCount: 0 };
 
     const items = await ctx.db
       .query("cartItems")
@@ -171,5 +171,7 @@ export const clearCart = mutation({
     await Promise.all(items.map((item) => ctx.db.delete(item._id)));
 
     await ctx.db.patch(cart._id, { isActive: false });
+
+    return { deletedCount: items.length };
   },
 });

@@ -7,7 +7,7 @@ import {
   canManageRestaurant,
   requireRestaurantAccess,
 } from "./lib/auth";
-import { batchFetchMenuItems } from "./lib/helpers";
+import { batchFetchMenuItems, groupBy } from "./lib/helpers";
 
 export const listByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -78,12 +78,7 @@ export const getTablesOverview = query({
         q.eq("restaurantId", args.restaurantId)
       )
       .collect();
-    const ordersByTable = new Map<string, typeof allOrders>();
-    allOrders.forEach((o) => {
-      const key = o.tableId.toString();
-      if (!ordersByTable.has(key)) ordersByTable.set(key, []);
-      ordersByTable.get(key)!.push(o);
-    });
+    const ordersByTable = groupBy(allOrders, (o) => o.tableId.toString());
 
     return tables.map((table) => {
       const cart = cartByTable.get(table._id.toString());

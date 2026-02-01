@@ -64,7 +64,8 @@ function AdminUsersContent({
   isSuperadmin: boolean;
   isCeo: boolean;
 }) {
-  const users = useQuery(api.users.getAllUsers);
+  const usersResult = useQuery(api.users.getAllUsers, {});
+  const users = usersResult?.users;
   const updateUserRole = useMutation(api.users.updateUserRole);
   const updateUserSector = useMutation(api.users.updateUserSector);
 
@@ -156,7 +157,7 @@ function AdminUsersContent({
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {users === undefined ? (
+          {usersResult === undefined ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
@@ -171,7 +172,7 @@ function AdminUsersContent({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
+                {users?.map((user) => (
                   <TableRow key={user._id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell><RoleBadge role={user.role} /></TableCell>

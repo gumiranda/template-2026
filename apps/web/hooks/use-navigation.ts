@@ -21,10 +21,9 @@ export function formatBadgeCount(count: number): string {
 export function useNavigation() {
   const pathname = usePathname();
   const currentUser = useQuery(api.users.getCurrentUser);
+  const userRole = currentUser?.role;
 
-  const isSuperadmin = currentUser?.role === "superadmin";
-  const isCeo = currentUser?.role === "ceo";
-  const isSuperadminOrCeo = isSuperadmin || isCeo;
+  const isSuperadminOrCeo = userRole === "superadmin" || userRole === "ceo";
 
   const pendingUsersCount = useQuery(
     api.users.getPendingUsersCount,
@@ -39,25 +38,25 @@ export function useNavigation() {
     [pathname]
   );
 
-  const adminItems: NavItem[] = useMemo(
-    () => [
+  const adminItems: NavItem[] = useMemo(() => {
+    const isAdmin = userRole === "superadmin" || userRole === "ceo";
+    return [
       { label: "Dashboard", href: "/", icon: LayoutDashboard, show: true },
-      { label: "Users", href: "/admin/users", icon: UserCog, show: isSuperadminOrCeo },
+      { label: "Users", href: "/admin/users", icon: UserCog, show: isAdmin },
       {
         label: "Pending Users",
         href: "/admin/pending-users",
         icon: Users,
-        show: isSuperadminOrCeo,
+        show: isAdmin,
         badge: pendingUsersCount && pendingUsersCount > 0 ? pendingUsersCount : undefined,
       },
-    ],
-    [isSuperadminOrCeo, pendingUsersCount]
-  );
+    ];
+  }, [userRole, pendingUsersCount]);
 
   return {
     currentUser,
-    isSuperadmin,
-    isCeo,
+    isSuperadmin: userRole === "superadmin",
+    isCeo: userRole === "ceo",
     isSuperadminOrCeo,
     pendingUsersCount,
     adminItems,

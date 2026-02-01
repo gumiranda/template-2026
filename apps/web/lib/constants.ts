@@ -1,5 +1,7 @@
 import { Shield, Crown, User, Users, Utensils } from "lucide-react";
 
+export const CLERK_PRIMARY_COLOR = "#13ec80";
+
 export const ROLES = [
   { id: "superadmin", name: "Superadmin", icon: Shield },
   { id: "ceo", name: "CEO", icon: Crown },

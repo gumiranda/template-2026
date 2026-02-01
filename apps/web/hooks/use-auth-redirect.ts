@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
@@ -26,36 +26,37 @@ export function useAuthRedirect(options: AuthRedirectOptions = {}) {
   const currentUser = useQuery(api.users.getCurrentUser);
   const hasSuperadmin = useQuery(api.users.hasSuperadmin);
 
-  const opts = useMemo(
-    () => ({ ...defaultOptions, ...options }),
-    [options]
-  );
+  const whenApproved = options.whenApproved ?? defaultOptions.whenApproved;
+  const whenPending = options.whenPending ?? defaultOptions.whenPending;
+  const whenRejected = options.whenRejected ?? defaultOptions.whenRejected;
+  const whenNoUser = options.whenNoUser ?? defaultOptions.whenNoUser;
+  const whenNoSuperadmin = options.whenNoSuperadmin ?? defaultOptions.whenNoSuperadmin;
 
   useEffect(() => {
-    if (hasSuperadmin === false && opts.whenNoSuperadmin) {
-      router.push(opts.whenNoSuperadmin);
+    if (hasSuperadmin === false && whenNoSuperadmin) {
+      router.push(whenNoSuperadmin);
       return;
     }
 
-    if (currentUser === null && hasSuperadmin === true && opts.whenNoUser) {
-      router.push(opts.whenNoUser);
+    if (currentUser === null && hasSuperadmin === true && whenNoUser) {
+      router.push(whenNoUser);
       return;
     }
 
-    if (currentUser?.status === "pending" && opts.whenPending) {
-      router.push(opts.whenPending);
+    if (currentUser?.status === "pending" && whenPending) {
+      router.push(whenPending);
       return;
     }
 
-    if (currentUser?.status === "rejected" && opts.whenRejected) {
-      router.push(opts.whenRejected);
+    if (currentUser?.status === "rejected" && whenRejected) {
+      router.push(whenRejected);
       return;
     }
 
-    if (currentUser?.status === "approved" && opts.whenApproved) {
-      router.push(opts.whenApproved);
+    if (currentUser?.status === "approved" && whenApproved) {
+      router.push(whenApproved);
     }
-  }, [currentUser, hasSuperadmin, router, opts]);
+  }, [currentUser, hasSuperadmin, router, whenApproved, whenPending, whenRejected, whenNoUser, whenNoSuperadmin]);
 
   const isLoading = currentUser === undefined || hasSuperadmin === undefined;
 

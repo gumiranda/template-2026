@@ -124,14 +124,32 @@ export const bootstrap = mutation({
 });
 
 export const getAllUsers = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    paginationOpts: v.optional(
+      v.object({
+        cursor: v.optional(v.string()),
+        numItems: v.optional(v.number()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
     const currentUser = await getAuthenticatedUser(ctx);
-    if (!currentUser || !isAdmin(currentUser.role)) return [];
+    if (!currentUser || !isAdmin(currentUser.role)) {
+      return { users: [], nextCursor: null };
+    }
 
-    const users = await ctx.db.query("users").collect();
+    const numItems = args.paginationOpts?.numItems ?? 50;
+    const result = await ctx.db
+      .query("users")
+      .paginate({ numItems, cursor: args.paginationOpts?.cursor ?? null });
 
-    return users.map(({ clerkId, ...safeUser }) => safeUser);
+    const users = result.page.map(({ clerkId, ...safeUser }) => safeUser);
+
+    return {
+      users,
+      nextCursor: result.continueCursor,
+      isDone: result.isDone,
+    };
   },
 });
 
@@ -161,6 +179,7 @@ export const updateUserRole = mutation({
 
     const updateData: { role: string; sector?: string } = { role: args.role };
 
+    // SUPERADMIN and CEO roles have global access, so sector assignment is not applicable
     if (args.role === Role.SUPERADMIN || args.role === Role.CEO) {
       updateData.sector = undefined;
     }

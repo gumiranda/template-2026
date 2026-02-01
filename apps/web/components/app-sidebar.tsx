@@ -35,7 +35,6 @@ export function AppSidebar({ currentUser, adminItems, isActive }: AppSidebarProp
 }
 
 function AppSidebarContent({ currentUser, adminItems, isActive }: AppSidebarProps) {
-
   return (
     <Sidebar>
       <SidebarHeader className="border-b border-sidebar-border">

@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { validateSession, batchFetchMenuItems } from "./lib/helpers";
+import { validateSession, batchFetchMenuItems, SESSION_DURATION_MS } from "./lib/helpers";
 
 export const createSession = mutation({
   args: {
@@ -21,7 +21,7 @@ export const createSession = mutation({
       restaurantId: args.restaurantId,
       tableId: args.tableId,
       createdAt: Date.now(),
-      expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+      expiresAt: Date.now() + SESSION_DURATION_MS,
     });
   },
 });
@@ -94,7 +94,7 @@ export const addToSessionCart = mutation({
 export const clearSessionCart = mutation({
   args: { sessionId: v.string() },
   handler: async (ctx, args) => {
-    await validateSession(ctx, args.sessionId, false);
+    await validateSession(ctx, args.sessionId, { checkExpiry: false });
 
     const items = await ctx.db
       .query("sessionCartItems")
@@ -102,5 +102,7 @@ export const clearSessionCart = mutation({
       .collect();
 
     await Promise.all(items.map((item) => ctx.db.delete(item._id)));
+
+    return { deletedCount: items.length };
   },
 });

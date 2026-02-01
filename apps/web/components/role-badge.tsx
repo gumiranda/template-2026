@@ -1,5 +1,5 @@
 import { Badge } from "@workspace/ui/components/badge";
-import { Shield, Crown, User } from "lucide-react";
+import { Shield, Crown, User, Utensils } from "lucide-react";
 
 interface RoleBadgeProps {
   role?: string;
@@ -19,6 +19,13 @@ export function RoleBadge({ role }: RoleBadgeProps) {
         <Badge variant="secondary">
           <Crown className="mr-1 h-3 w-3" />
           CEO
+        </Badge>
+      );
+    case "waiter":
+      return (
+        <Badge variant="outline">
+          <Utensils className="mr-1 h-3 w-3" />
+          Waiter
         </Badge>
       );
     default:

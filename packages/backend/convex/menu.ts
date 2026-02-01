@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { requireAdminRestaurantAccess } from "./lib/auth";
+import { groupBy } from "./lib/helpers";
 
 export const getMenuByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -19,12 +20,7 @@ export const getMenuByRestaurant = query({
       )
       .collect();
 
-    const itemsByCategory = new Map<string, typeof allItems>();
-    for (const item of allItems) {
-      const key = item.categoryId.toString();
-      if (!itemsByCategory.has(key)) itemsByCategory.set(key, []);
-      itemsByCategory.get(key)!.push(item);
-    }
+    const itemsByCategory = groupBy(allItems, (item) => item.categoryId.toString());
 
     return categories.map((category) => ({
       ...category,
