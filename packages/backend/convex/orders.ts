@@ -1,11 +1,25 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { OrderStatus, isValidOrderStatus } from "./lib/types";
+import { OrderStatus, isValidOrderStatus, Role } from "./lib/types";
 import { getAuthenticatedUser, isRestaurantStaff } from "./lib/auth";
 
 export const getOrdersByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
+    const user = await getAuthenticatedUser(ctx);
+    if (!user || !isRestaurantStaff(user.role)) {
+      throw new Error("Unauthorized: Only restaurant staff can view orders");
+    }
+
+    const restaurant = await ctx.db.get(args.restaurantId);
+    if (!restaurant) {
+      throw new Error("Restaurant not found");
+    }
+
+    if (user.role !== Role.SUPERADMIN && restaurant.ownerId !== user._id) {
+      throw new Error("Not authorized to access this restaurant's orders");
+    }
+
     const orders = await ctx.db
       .query("orders")
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.restaurantId))
