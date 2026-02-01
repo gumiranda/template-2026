@@ -537,9 +537,7 @@ function TenantOverviewContent() {
                               {restaurant.name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <div className="font-medium">{restaurant.name}</div>
-                          </div>
+                          <div className="font-medium">{restaurant.name}</div>
                         </div>
                       </TableCell>
                       <TableCell>
