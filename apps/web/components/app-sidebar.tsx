@@ -23,12 +23,6 @@ import {
   UserCog,
   Users,
   Building2,
-  Store,
-  UtensilsCrossed,
-  ShoppingCart,
-  Grid3X3,
-  Settings,
-  QrCode,
 } from "lucide-react";
 
 export function AppSidebar() {
@@ -37,9 +31,7 @@ export function AppSidebar() {
 
   const isSuperadmin = currentUser?.role === "superadmin";
   const isCeo = currentUser?.role === "ceo";
-  const isWaiter = currentUser?.role === "waiter";
   const isSuperadminOrCeo = isSuperadmin || isCeo;
-  const hasRestaurantAccess = isCeo || isWaiter;
 
   const pendingUsersCount = useQuery(
     api.users.getPendingUsersCount,
@@ -61,16 +53,6 @@ export function AppSidebar() {
       show: isSuperadminOrCeo,
       badge: pendingUsersCount && pendingUsersCount > 0 ? pendingUsersCount : undefined,
     },
-    { label: "Restaurants", href: "/admin/restaurants", icon: Building2, show: isSuperadmin },
-  ];
-
-  const restaurantItems = [
-    { label: "Dashboard", href: "/restaurant", icon: Store },
-    { label: "Menu", href: "/restaurant/menu", icon: UtensilsCrossed },
-    { label: "Orders", href: "/restaurant/orders", icon: ShoppingCart },
-    { label: "Tables", href: "/restaurant/tables", icon: Grid3X3 },
-    { label: "Settings", href: "/restaurant/settings", icon: Settings },
-    { label: "QR Codes", href: "/restaurant/qr-codes", icon: QrCode },
   ];
 
   return (
@@ -110,30 +92,6 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {hasRestaurantAccess && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Restaurant</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {restaurantItems.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.href)}
-                      tooltip={item.label}
-                    >
-                      <Link href={item.href}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">

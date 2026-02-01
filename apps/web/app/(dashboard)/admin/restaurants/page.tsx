@@ -27,7 +27,6 @@ import {
 } from "@workspace/ui/components/dialog";
 import { Building2, Plus, Trash2, Edit, Users, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 
 export default function AdminRestaurantsPage() {
   const currentUser = useQuery(api.users.getCurrentUser);
@@ -315,9 +314,8 @@ interface RestaurantCardProps {
 }
 
 function RestaurantCard({ restaurant, onEdit, onDelete }: RestaurantCardProps) {
-  const route = useRouter();
   return (
-    <Card className="hover:scale-105 transition-transform duration-500" onClick={() => route.push(`/restaurant/${restaurant._id}`)}>
+    <Card>
       <CardHeader>
         <div className="flex items-start justify-between ">
           <div className="flex-1">
