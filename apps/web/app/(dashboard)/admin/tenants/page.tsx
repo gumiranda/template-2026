@@ -5,12 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card";
+import { Card, CardContent } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
@@ -53,7 +48,6 @@ import {
   Users,
   DollarSign,
   Pencil,
-  LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -62,6 +56,7 @@ import {
 } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import { AdminGuard } from "@/components/admin-guard";
+import { StatCard } from "@/components/stat-card";
 
 interface RestaurantForm {
   name: string;
@@ -77,37 +72,10 @@ const initialFormState = {
   description: "",
 } satisfies RestaurantForm;
 
-function OverviewStatCard({
-  title,
-  value,
-  subtext,
-  icon: Icon,
-  isLoading,
-}: {
-  title: string;
-  value: string | number;
-  subtext: string;
-  icon: LucideIcon;
-  isLoading: boolean;
-}) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <Loader2 className="h-6 w-6 animate-spin" />
-        ) : (
-          <>
-            <div className="text-2xl font-bold">{value}</div>
-            <p className="text-xs text-muted-foreground">{subtext}</p>
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
+function validateRestaurantForm(form: RestaurantForm): string | null {
+  if (!form.name.trim()) return "Restaurant name is required";
+  if (!form.address.trim()) return "Address is required";
+  return null;
 }
 
 interface RestaurantFormDialogProps {
@@ -271,12 +239,9 @@ function TenantOverviewContent() {
   }, [restaurants, searchQuery, statusFilter]);
 
   const handleCreateRestaurant = async () => {
-    if (!formData.name.trim()) {
-      toast.error("Restaurant name is required");
-      return;
-    }
-    if (!formData.address.trim()) {
-      toast.error("Address is required");
+    const validationError = validateRestaurantForm(formData);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
@@ -314,12 +279,9 @@ function TenantOverviewContent() {
   const handleEditRestaurant = async () => {
     if (!editingRestaurantId) return;
 
-    if (!editFormData.name.trim()) {
-      toast.error("Restaurant name is required");
-      return;
-    }
-    if (!editFormData.address.trim()) {
-      toast.error("Address is required");
+    const validationError = validateRestaurantForm(editFormData);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
@@ -380,21 +342,21 @@ function TenantOverviewContent() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <OverviewStatCard
+        <StatCard
           title="Total Restaurants"
           value={stats?.totalRestaurants ?? 0}
           subtext={`${stats?.activeRestaurants ?? 0} active`}
           icon={Building2}
           isLoading={stats === undefined}
         />
-        <OverviewStatCard
+        <StatCard
           title="Active Sessions"
           value={stats?.activeSessions ?? 0}
           subtext="Current active sessions"
           icon={Users}
           isLoading={stats === undefined}
         />
-        <OverviewStatCard
+        <StatCard
           title="Total Revenue"
           value={formatCurrency(stats?.totalRevenue ?? 0)}
           subtext="From all completed orders"

@@ -6,12 +6,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { isValidConvexId } from "@workspace/backend/lib/helpers";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card";
+import { Card, CardContent } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
 import { Badge } from "@workspace/ui/components/badge";
 import {
@@ -34,6 +29,7 @@ import {
 import { getRestaurantStatus } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import { AdminGuard } from "@/components/admin-guard";
+import { StatCard } from "@/components/stat-card";
 
 function BackToTenantsButton({ variant = "ghost" }: { variant?: "ghost" | "icon" }) {
   const router = useRouter();
@@ -73,31 +69,6 @@ function InfoCard({ icon: Icon, label, value }: { icon: LucideIcon; label: strin
             <p className="text-sm text-muted-foreground">{value}</p>
           </div>
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-function StatCard({
-  title,
-  value,
-  subtext,
-  icon: Icon,
-}: {
-  title: string;
-  value: string | number;
-  subtext: string;
-  icon: LucideIcon;
-}) {
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground">{subtext}</p>
       </CardContent>
     </Card>
   );
