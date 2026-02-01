@@ -1,11 +1,24 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthenticatedUser, canModifyRestaurant, isAdmin } from "./lib/auth";
-import { RestaurantStatus } from "./lib/types";
+import { RestaurantStatus, OrderStatus } from "./lib/types";
+import { groupBy } from "./lib/helpers";
 
 export const list = query({
   args: {},
   handler: async (ctx) => {
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser) return [];
+
+    // Only admins can see all restaurants
+    if (!isAdmin(currentUser.role)) {
+      // Non-admins can only see restaurants they own
+      return await ctx.db
+        .query("restaurants")
+        .withIndex("by_owner", (q) => q.eq("ownerId", currentUser._id))
+        .collect();
+    }
+
     return await ctx.db.query("restaurants").collect();
   },
 });
@@ -100,8 +113,16 @@ export const get = query({
     id: v.id("restaurants"),
   },
   handler: async (ctx, args) => {
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser) return null;
+
     const restaurant = await ctx.db.get(args.id);
     if (!restaurant) return null;
+
+    // Check authorization: only admins or owners can view restaurant details
+    if (!canModifyRestaurant(currentUser, restaurant)) {
+      return null;
+    }
 
     return {
       _id: restaurant._id,
@@ -139,23 +160,27 @@ export const listAllWithStats = query({
 
     const restaurants = await ctx.db.query("restaurants").collect();
 
-    const restaurantsWithStats = await Promise.all(
-      restaurants.map(async (restaurant) => {
-        const orders = await ctx.db
-          .query("orders")
-          .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
-          .collect();
+    // Fetch all completed orders in a single query using the composite index
+    // This is O(n) for orders instead of O(n*m) for restaurants * orders
+    const completedOrders = await ctx.db
+      .query("orders")
+      .filter((q) => q.eq(q.field("status"), OrderStatus.COMPLETED))
+      .collect();
 
-        const totalRevenue = orders
-          .filter((order) => order.status === "completed")
-          .reduce((sum, order) => sum + order.total, 0);
-
-        return {
-          ...restaurant,
-          totalRevenue,
-        };
-      })
+    // Group orders by restaurant and calculate revenue
+    const revenueByRestaurant = groupBy(completedOrders, (order) =>
+      order.restaurantId.toString()
     );
+
+    const restaurantsWithStats = restaurants.map((restaurant) => {
+      const restaurantOrders = revenueByRestaurant.get(restaurant._id.toString()) ?? [];
+      const totalRevenue = restaurantOrders.reduce((sum, order) => sum + order.total, 0);
+
+      return {
+        ...restaurant,
+        totalRevenue,
+      };
+    });
 
     return restaurantsWithStats;
   },
@@ -216,25 +241,34 @@ export const getOverviewStats = query({
       return null;
     }
 
-    const restaurants = await ctx.db.query("restaurants").collect();
-    const totalRestaurants = restaurants.length;
+    // Use index to count active restaurants
+    const activeRestaurantsList = await ctx.db
+      .query("restaurants")
+      .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.ACTIVE))
+      .collect();
+    const activeRestaurants = activeRestaurantsList.length;
 
-    const activeRestaurants = restaurants.filter(
-      (r) => r.status === RestaurantStatus.ACTIVE || r.status === undefined
-    ).length;
+    // Count restaurants with undefined status (legacy data treated as active)
+    const allRestaurants = await ctx.db.query("restaurants").collect();
+    const totalRestaurants = allRestaurants.length;
+    const legacyActiveCount = allRestaurants.filter((r) => r.status === undefined).length;
 
+    // For sessions, we still need to filter by expiry, but this is a lighter operation
+    // In production, consider adding an index or scheduled cleanup for expired sessions
     const now = Date.now();
     const sessions = await ctx.db.query("sessions").collect();
     const activeSessions = sessions.filter((s) => s.expiresAt > now).length;
 
-    const orders = await ctx.db.query("orders").collect();
-    const totalRevenue = orders
-      .filter((order) => order.status === "completed")
-      .reduce((sum, order) => sum + order.total, 0);
+    // Query only completed orders for revenue calculation
+    const completedOrders = await ctx.db
+      .query("orders")
+      .filter((q) => q.eq(q.field("status"), OrderStatus.COMPLETED))
+      .collect();
+    const totalRevenue = completedOrders.reduce((sum, order) => sum + order.total, 0);
 
     return {
       totalRestaurants,
-      activeRestaurants,
+      activeRestaurants: activeRestaurants + legacyActiveCount,
       activeSessions,
       totalRevenue,
     };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@workspace/backend/_generated/api";
@@ -102,17 +102,19 @@ function TenantOverviewContent() {
   const createRestaurant = useMutation(api.restaurants.create);
   const updateRestaurant = useMutation(api.restaurants.update);
 
-  const filteredRestaurants = restaurants?.filter((restaurant) => {
-    const matchesSearch =
-      restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      restaurant.subdomain?.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredRestaurants = useMemo(() => {
+    return restaurants?.filter((restaurant) => {
+      const matchesSearch =
+        restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        restaurant.subdomain?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus =
-      statusFilter === "all" ||
-      (restaurant.status ?? "active") === statusFilter;
+      const matchesStatus =
+        statusFilter === "all" ||
+        (restaurant.status ?? "active") === statusFilter;
 
-    return matchesSearch && matchesStatus;
-  });
+      return matchesSearch && matchesStatus;
+    });
+  }, [restaurants, searchQuery, statusFilter]);
 
   const handleCreateRestaurant = async () => {
     if (!formData.name.trim()) {
@@ -208,7 +210,6 @@ function TenantOverviewContent() {
         </div>
         <Button
           onClick={() => setIsCreateModalOpen(true)}
-          className="bg-green-600 hover:bg-green-700"
         >
           <Plus className="mr-2 h-4 w-4" />
           Create New Restaurant
@@ -501,7 +502,6 @@ function TenantOverviewContent() {
             <Button
               onClick={handleCreateRestaurant}
               disabled={isSubmitting}
-              className="bg-green-600 hover:bg-green-700"
             >
               {isSubmitting ? (
                 <>

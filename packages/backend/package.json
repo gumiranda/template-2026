@@ -11,7 +11,8 @@
     "./convex": "./convex/*.ts",
     "./_generated/api": "./convex/_generated/api.js",
     "./_generated/dataModel": "./convex/_generated/dataModel.d.ts",
-    "./lib/types": "./convex/lib/types.ts"
+    "./lib/types": "./convex/lib/types.ts",
+    "./lib/helpers": "./convex/lib/helpers.ts"
   },
   "devDependencies": {
     "@types/node": "^20.19.9",

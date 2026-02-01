@@ -5,6 +5,7 @@ import { useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
+import { isValidConvexId } from "@workspace/backend/lib/helpers";
 import {
   Card,
   CardContent,
@@ -40,6 +41,34 @@ export default function RestaurantDetailsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
+
+  // Validate ID format before rendering content
+  if (!isValidConvexId(id)) {
+    return (
+      <AdminGuard>
+        {() => (
+          <div className="space-y-6">
+            <Button
+              variant="ghost"
+              onClick={() => router.push("/admin/tenants")}
+              className="mb-4"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Tenants
+            </Button>
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium">Invalid restaurant ID</h3>
+              <p className="text-muted-foreground">
+                The provided ID format is not valid.
+              </p>
+            </div>
+          </div>
+        )}
+      </AdminGuard>
+    );
+  }
 
   return (
     <AdminGuard>
