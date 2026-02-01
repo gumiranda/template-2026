@@ -5,40 +5,47 @@ import { useMutation } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
+import { Label } from "@workspace/ui/components/label";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, X } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@workspace/ui/components/dialog";
 
 export default function CreateTableBtn({
   selectRestaurantId,
 }: {
   selectRestaurantId: Id<"restaurants"> | null;
 }) {
-  const [showCreateTable, setShowCreateTable] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div>
-      {showCreateTable ? (
-        <div className="relative">
-          <div className="p-2 h-16">
-            <button
-              onClick={() => setShowCreateTable(false)}
-              className="absolute h-8 p-4 right-2"
-            >
-              x
-            </button>
-          </div>
-          <CreateTable
-            selectRestaurantId={selectRestaurantId}
-            onSuccess={() => setShowCreateTable(false)}
-          />
-        </div>
-      ) : (
-        <div>
-          <button onClick={() => setShowCreateTable(true)}>create table</button>
-        </div>
-      )}
-    </div>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <Plus className="h-4 w-4 mr-2" />
+          Create Table
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Create New Table</DialogTitle>
+          <DialogDescription>
+            Add a new table to your restaurant
+          </DialogDescription>
+        </DialogHeader>
+        <CreateTable
+          selectRestaurantId={selectRestaurantId}
+          onSuccess={() => setIsOpen(false)}
+        />
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -89,31 +96,43 @@ function CreateTable({
   }
 
   return (
-    <div className="space-y-2">
-      <Input
-        placeholder="table number"
-        type="text"
-        name="tableNumber"
-        value={tableData.tableNumber}
-        onChange={handleSetData}
-      />
-      <Input
-        placeholder="capacity"
-        type="number"
-        name="capacity"
-        value={tableData.capacity || ""}
-        onChange={handleSetData}
-      />
-      <Input
-        placeholder="qrCode"
-        type="text"
-        name="qrCode"
-        value={tableData.qrCode}
-        onChange={handleSetData}
-      />
-      <Button onClick={create} disabled={isLoading}>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label htmlFor="tableNumber">Table Number</Label>
+        <Input
+          id="tableNumber"
+          placeholder="e.g., 1, A1, VIP-1"
+          type="text"
+          name="tableNumber"
+          value={tableData.tableNumber}
+          onChange={handleSetData}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="capacity">Capacity</Label>
+        <Input
+          id="capacity"
+          placeholder="Number of seats"
+          type="number"
+          name="capacity"
+          value={tableData.capacity || ""}
+          onChange={handleSetData}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="qrCode">QR Code</Label>
+        <Input
+          id="qrCode"
+          placeholder="QR code identifier"
+          type="text"
+          name="qrCode"
+          value={tableData.qrCode}
+          onChange={handleSetData}
+        />
+      </div>
+      <Button onClick={create} disabled={isLoading} className="w-full">
         {isLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-        create table
+        Create Table
       </Button>
     </div>
   );

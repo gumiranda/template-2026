@@ -161,7 +161,7 @@ export function CartDrawer({
       <DrawerTrigger asChild>
         <Button
           size="lg"
-          className="fixed bottom-4 right-4 shadow-lg gap-2"
+          className="fixed bottom-4 right-4 z-50 shadow-lg gap-2"
         >
           <ShoppingCart className="h-5 w-5" />
           <span>Cart</span>

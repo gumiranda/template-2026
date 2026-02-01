@@ -39,6 +39,7 @@ import {
   RestaurantEmptyState,
   RestaurantSelectorButtons,
 } from "./RestaurantSelector";
+import { Card, CardContent } from "@workspace/ui/components/card";
 
 interface MenuItem {
   _id: Id<"menuItems">;
@@ -210,12 +211,12 @@ export default function MenuContent({
     <div className="min-h-screen bg-background">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-background border-b">
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="rounded-full">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-lg font-semibold">Configuração do Cardápio</h1>
+            <h1 className="text-3xl font-bold">Configuração do Cardápio</h1>
           </div>
           <Dialog
             open={isCategoryDialogOpen}
@@ -290,7 +291,7 @@ export default function MenuContent({
         </div>
 
         {/* Restaurant Selector */}
-        <div className="px-4 pb-3">
+        <div className="px-6 pb-3">
           <RestaurantSelectorButtons
             restaurants={restaurants}
             selectedRestaurantId={effectiveRestaurantId}
@@ -299,7 +300,7 @@ export default function MenuContent({
         </div>
 
         {/* Search Bar */}
-        <div className="px-4 pb-3">
+        <div className="px-6 pb-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -312,27 +313,25 @@ export default function MenuContent({
         </div>
 
         {/* Category Tabs */}
-        <div className="px-4 pb-3 overflow-x-auto">
+        <div className="px-6 pb-3 overflow-x-auto">
           <div className="flex gap-2">
             {categories.map((category) => (
-              <button
+              <Button
                 key={category.id}
                 onClick={() => setSelectedCategory(category.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                  selectedCategory === category.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-muted/80"
-                }`}
+                variant={selectedCategory === category.id ? "default" : "outline"}
+                size="sm"
+                className="whitespace-nowrap"
               >
                 {category.name}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
       </div>
 
       {/* Content */}
-      <div className="p-4 pb-24">
+      <div className="p-6 pb-24">
         {!effectiveRestaurantId && (
           <RestaurantEmptyState message="Selecione um restaurante para gerenciar o cardápio" />
         )}
@@ -356,84 +355,94 @@ export default function MenuContent({
                 </div>
 
                 {/* Items */}
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {category.items.map((item) => (
-                    <div
+                    <Card
                       key={item._id}
-                      className={`flex items-center gap-3 p-3 rounded-xl border bg-card transition-opacity ${
+                      className={`transition-opacity ${
                         !item.isActive ? "opacity-60" : ""
                       }`}
                     >
-                      {/* Item Image */}
-                      <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                        {item.imageUrl ? (
-                          <img
-                            src={item.imageUrl}
-                            alt={item.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
-                            Sem foto
-                          </div>
-                        )}
-                        {!item.isActive && (
-                          <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-                            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-                              Esgotado
-                            </span>
-                          </div>
-                        )}
-                      </div>
+                      <CardContent className="flex items-center gap-4 py-4">
+                        {/* Item Image */}
+                        <div className="relative w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                          {item.imageUrl ? (
+                            <img
+                              src={item.imageUrl}
+                              alt={item.name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                              Sem foto
+                            </div>
+                          )}
+                          {!item.isActive && (
+                            <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                              <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                Esgotado
+                              </span>
+                            </div>
+                          )}
+                        </div>
 
-                      {/* Item Info */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm truncate">
-                          {item.name}
-                        </h3>
-                        {item.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                            {item.description}
+                        {/* Item Info */}
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm truncate">
+                            {item.name}
+                          </h3>
+                          {item.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                              {item.description}
+                            </p>
+                          )}
+                          <p className="text-sm font-semibold text-primary mt-1">
+                            R$ {item.price.toFixed(2).replace(".", ",")}
                           </p>
-                        )}
-                        <p className="text-sm font-semibold text-primary mt-1">
-                          R$ {item.price.toFixed(2).replace(".", ",")}
-                        </p>
-                      </div>
+                        </div>
 
-                      {/* Actions */}
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={item.isActive}
-                          onCheckedChange={() =>
-                            handleToggleItemStatus(item._id, item.isActive)
-                          }
-                          className="data-[state=checked]:bg-primary"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-muted-foreground"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+                        {/* Actions */}
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={item.isActive}
+                            onCheckedChange={() =>
+                              handleToggleItemStatus(item._id, item.isActive)
+                            }
+                            className="data-[state=checked]:bg-primary"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
 
                   {category.items.length === 0 && (
-                    <p className="text-muted-foreground text-center py-8 text-sm">
-                      Nenhum item nesta categoria
-                    </p>
+                    <Card>
+                      <CardContent className="py-12 text-center">
+                        <p className="text-muted-foreground text-sm">
+                          Nenhum item nesta categoria
+                        </p>
+                      </CardContent>
+                    </Card>
                   )}
                 </div>
               </div>
             ))}
 
             {filteredMenu.length === 0 && searchQuery && (
-              <p className="text-muted-foreground text-center py-12 text-sm">
-                Nenhum item encontrado para "{searchQuery}"
-              </p>
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-muted-foreground text-sm">
+                    Nenhum item encontrado para "{searchQuery}"
+                  </p>
+                </CardContent>
+              </Card>
             )}
           </div>
         )}
@@ -441,7 +450,7 @@ export default function MenuContent({
 
       {/* Floating Action Button */}
       {effectiveRestaurantId && (
-        <div className="fixed bottom-6 left-4 right-4">
+        <div className="fixed bottom-6 left-6 right-6 z-50">
           <Dialog open={isItemDialogOpen} onOpenChange={setIsItemDialogOpen}>
             <DialogTrigger asChild>
               <Button className="w-full h-14 rounded-full text-base font-medium shadow-lg">

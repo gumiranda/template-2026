@@ -5,6 +5,7 @@ import { Id } from "@workspace/backend/_generated/dataModel";
 import { MenuCategoryWithItems } from "@/types";
 import { MenuItemCard } from "./menu-item-card";
 import { Button } from "@workspace/ui/components/button";
+import { Card, CardContent } from "@workspace/ui/components/card";
 
 interface MenuDisplayProps {
   restaurantId: Id<"restaurants">;
@@ -35,8 +36,8 @@ export function MenuDisplay({
 
   return (
     <div className="space-y-6">
-      <div className="sticky top-16 bg-background z-30 border-b">
-        <div className="flex gap-2 overflow-x-auto pb-2">
+      <div className="sticky top-14 bg-background z-30 border-b">
+        <div className="flex gap-2 overflow-x-auto pb-2 pt-2">
           {menu.map((category) => (
             <Button
               key={category._id}
@@ -65,9 +66,13 @@ export function MenuDisplay({
             ))}
         </div>
       ) : (
-        <div className="text-center py-12 text-muted-foreground">
-          No items in this category
-        </div>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">
+              No items in this category
+            </p>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
