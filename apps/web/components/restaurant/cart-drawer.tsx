@@ -1,20 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from "@workspace/ui/components/drawer";
 import { Button } from "@workspace/ui/components/button";
 import { Badge } from "@workspace/ui/components/badge";
 import { Separator } from "@workspace/ui/components/separator";
-import { ShoppingCart, Trash2, CheckCircle2, Bell } from "lucide-react";
+import { ShoppingCart, Trash2, CheckCircle2, Bell, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { RestaurantId } from "@/types/convex";
+import { Id } from "@workspace/backend/_generated/dataModel";
 
 interface CartDrawerProps {
-  restaurantId: RestaurantId;
-  tableId: string;
+  restaurantId: Id<"restaurants">;
+  tableId: Id<"tables">;
   sessionId: string;
+}
+
+interface CartItem {
+  _id: string;
+  menuItemId: string;
+  quantity: number;
+  price: number;
+  menuItem?: { name: string };
+}
+
+function CartItemsList({ items }: { items: CartItem[] }) {
+  return (
+    <div className="space-y-3">
+      {items.map((item) => (
+        <div
+          key={item._id}
+          className="flex items-center justify-between py-2 border-b"
+        >
+          <div className="flex-1">
+            <p className="font-medium">
+              {item.menuItem?.name}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Qty: {item.quantity} x R$ {item.price.toFixed(2)}
+            </p>
+          </div>
+          <span className="font-bold">
+            R$ {(item.price * item.quantity).toFixed(2)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function CartDrawer({
@@ -23,66 +56,105 @@ export function CartDrawer({
   sessionId,
 }: CartDrawerProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isCallWaiterLoading, setIsCallWaiterLoading] = useState(false);
+  const [isCloseBillLoading, setIsCloseBillLoading] = useState(false);
+  const [isClearCartLoading, setIsClearCartLoading] = useState(false);
 
   const sessionCart = useQuery(api.sessions.getSessionCart, { sessionId });
-  const generalCart = useQuery(api.carts.getCart, { tableId: tableId as any });
+  const generalCart = useQuery(api.carts.getCart, { tableId });
   const createOrder = useMutation(api.orders.createOrder);
   const clearSessionCart = useMutation(api.sessions.clearSessionCart);
   const clearGeneralCart = useMutation(api.carts.clearCart);
 
-  const sessionCartTotal = sessionCart?.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  ) || 0;
+  const sessionCartTotal = useMemo(() =>
+    sessionCart?.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    ) || 0,
+    [sessionCart]
+  );
 
-  const generalCartTotal = generalCart?.items?.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
-  ) || 0;
+  const generalCartTotal = useMemo(() =>
+    generalCart?.items?.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    ) || 0,
+    [generalCart?.items]
+  );
 
-  const handleCallWaiter = async () => {
+  const totalBill = useMemo(() =>
+    sessionCartTotal + generalCartTotal,
+    [sessionCartTotal, generalCartTotal]
+  );
+
+  const handleCallWaiter = useCallback(async () => {
     if (!sessionCart || sessionCart.length === 0) {
       toast.error("Session cart is empty");
       return;
     }
 
-    const orderItems = sessionCart.map((item) => ({
-      menuItemId: item.menuItemId,
-      name: item.menuItem?.name || "",
-      quantity: item.quantity,
-      price: item.price,
-      totalPrice: item.price * item.quantity,
-    }));
+    setIsCallWaiterLoading(true);
+    try {
+      const orderItems = sessionCart.map((item) => ({
+        menuItemId: item.menuItemId,
+        name: item.menuItem?.name || "",
+        quantity: item.quantity,
+        price: item.price,
+        totalPrice: item.price * item.quantity,
+      }));
 
-    await createOrder({
-      restaurantId,
-      tableId: tableId as any,
-      sessionId,
-      items: orderItems,
-    });
+      await createOrder({
+        restaurantId,
+        tableId,
+        sessionId,
+        items: orderItems,
+      });
 
-    await clearSessionCart({ sessionId });
+      await clearSessionCart({ sessionId });
 
-    toast.success("Order sent to waiter!");
+      toast.success("Order sent to waiter!");
+      setIsOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send order");
+    } finally {
+      setIsCallWaiterLoading(false);
+    }
+  }, [sessionCart, restaurantId, tableId, sessionId, createOrder, clearSessionCart]);
 
-    setIsOpen(false);
-  };
-
-  const handleCloseBill = async () => {
+  const handleCloseBill = useCallback(async () => {
     if (!generalCart || !generalCart.items || generalCart.items.length === 0) {
       toast.error("Cart is empty");
       return;
     }
 
-    toast.success("Bill requested! Waiter will be with you soon.");
+    setIsCloseBillLoading(true);
+    try {
+      await clearGeneralCart({ tableId });
+      toast.success("Bill requested! Waiter will be with you soon.");
+      setIsOpen(false);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to close bill");
+    } finally {
+      setIsCloseBillLoading(false);
+    }
+  }, [generalCart, tableId, clearGeneralCart]);
 
-    await clearGeneralCart({ tableId: tableId as any });
-
-    setIsOpen(false);
-  };
+  const handleClearSessionCart = useCallback(async () => {
+    setIsClearCartLoading(true);
+    try {
+      await clearSessionCart({ sessionId });
+      toast.success("Session cart cleared");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to clear cart");
+    } finally {
+      setIsClearCartLoading(false);
+    }
+  }, [sessionId, clearSessionCart]);
 
   const totalItems =
     (sessionCart?.length || 0) + (generalCart?.items?.length || 0);
+
+  const isAnyLoading = isCallWaiterLoading || isCloseBillLoading || isClearCartLoading;
 
   return (
     <Drawer open={isOpen} onOpenChange={setIsOpen}>
@@ -111,24 +183,7 @@ export function CartDrawer({
             </div>
             {sessionCart && sessionCart.length > 0 ? (
               <div className="space-y-3">
-                {sessionCart.map((item) => (
-                  <div
-                    key={item._id}
-                    className="flex items-center justify-between py-2 border-b"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium">
-                        {item.menuItem?.name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Qty: {item.quantity} x R$ {item.price.toFixed(2)}
-                      </p>
-                    </div>
-                    <span className="font-bold">
-                      R$ {(item.price * item.quantity).toFixed(2)}
-                    </span>
-                  </div>
-                ))}
+                <CartItemsList items={sessionCart as CartItem[]} />
                 <div className="pt-2">
                   <div className="flex justify-between text-lg font-bold">
                     <span>Session Total:</span>
@@ -152,24 +207,7 @@ export function CartDrawer({
             </div>
             {generalCart && generalCart.items && generalCart.items.length > 0 ? (
               <div className="space-y-3">
-                {generalCart.items.map((item) => (
-                  <div
-                    key={item._id}
-                    className="flex items-center justify-between py-2 border-b"
-                  >
-                    <div className="flex-1">
-                      <p className="font-medium">
-                        {item.menuItem?.name}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Qty: {item.quantity} x R$ {item.price.toFixed(2)}
-                      </p>
-                    </div>
-                    <span className="font-bold">
-                      R$ {(item.price * item.quantity).toFixed(2)}
-                    </span>
-                  </div>
-                ))}
+                <CartItemsList items={generalCart.items as CartItem[]} />
                 <div className="pt-2">
                   <div className="flex justify-between text-lg font-bold">
                     <span>General Total:</span>
@@ -189,40 +227,49 @@ export function CartDrawer({
           <div className="space-y-3">
             <div className="flex justify-between text-xl font-bold">
               <span>Total Bill:</span>
-              <span>R$ {(sessionCartTotal + generalCartTotal).toFixed(2)}</span>
+              <span>R$ {totalBill.toFixed(2)}</span>
             </div>
 
             <div className="flex gap-3">
               <Button
                 onClick={handleCallWaiter}
-                disabled={!sessionCart || sessionCart.length === 0}
+                disabled={!sessionCart || sessionCart.length === 0 || isAnyLoading}
                 className="flex-1"
               >
-                <Bell className="h-4 w-4 mr-2" />
+                {isCallWaiterLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Bell className="h-4 w-4 mr-2" />
+                )}
                 Chamar Garçom
               </Button>
 
               <Button
                 onClick={handleCloseBill}
-                disabled={!generalCart || !generalCart.items || generalCart.items.length === 0}
+                disabled={!generalCart || !generalCart.items || generalCart.items.length === 0 || isAnyLoading}
                 variant="outline"
                 className="flex-1"
               >
-                <CheckCircle2 className="h-4 w-4 mr-2" />
+                {isCloseBillLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                )}
                 Fechar Conta
               </Button>
             </div>
 
             <Button
-              onClick={() => {
-                clearSessionCart({ sessionId });
-                toast.success("Session cart cleared");
-              }}
+              onClick={handleClearSessionCart}
               variant="destructive"
               className="w-full"
-              disabled={!sessionCart || sessionCart.length === 0}
+              disabled={!sessionCart || sessionCart.length === 0 || isAnyLoading}
             >
-              <Trash2 className="h-4 w-4 mr-2" />
+              {isClearCartLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
               Clear Session Cart
             </Button>
           </div>

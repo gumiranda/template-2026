@@ -12,27 +12,21 @@ import { api } from "@workspace/backend/_generated/api";
 import CreateMenu from "../components/CreateMenu";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import Link from "next/link";
-import { useState } from "react";
 
-export default function pageRestaurante() {
+export default function RestaurantPage() {
     const id = useParams().restaurantId as Id<"restaurants">
-    const [showTablesPage, setShowTablesPage] = useState(false);
     const restaurants = useQuery(api.restaurants.list);
     const restaurantOrders = useQuery(
         api.orders.getOrdersByRestaurant,
-
-        { restaurantId: id as any }
-
+        { restaurantId: id }
     );
     const pendingOrders = restaurantOrders?.filter((o) => o.status === "pending") || [];
     const totalOrders = restaurantOrders?.length || 0;
     const totalRevenue = restaurantOrders?.reduce((sum, order) => sum + order.total, 0) || 0;
 
     return (
-
-
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="hover:scale-101 transition-transform duration-500" >
+            <Card className="hover:scale-105 transition-transform duration-500" >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 ">
                     <CardTitle className="text-sm font-medium ">
                         Pending Orders
@@ -44,7 +38,7 @@ export default function pageRestaurante() {
                 </CardContent>
             </Card>
 
-            <Card className="hover:scale-101 transition-transform duration-500">
+            <Card className="hover:scale-105 transition-transform duration-500">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                         Total Orders
@@ -56,7 +50,7 @@ export default function pageRestaurante() {
                 </CardContent>
             </Card>
 
-            <Card className="hover:scale-101 transition-transform duration-500">
+            <Card className="hover:scale-105 transition-transform duration-500">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                         Total Revenue
@@ -70,7 +64,7 @@ export default function pageRestaurante() {
                 </CardContent>
             </Card>
 
-            <Card className="hover:scale-101 transition-transform duration-500">
+            <Card className="hover:scale-105 transition-transform duration-500">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">
                         Restaurants
@@ -84,11 +78,9 @@ export default function pageRestaurante() {
                     </CardContent>
             </Card>
             <CreateMenu id={id}></CreateMenu>
-           
-                     <Link href={"/restaurant/tables"}>tables</Link> 
-                  
+
+                     <Link href={"/restaurant/tables"}>tables</Link>
+
         </div>
-
     )
-
 }

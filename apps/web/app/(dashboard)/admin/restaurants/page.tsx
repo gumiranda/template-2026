@@ -25,14 +25,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@workspace/ui/components/dialog";
-import { Building2, Plus, Trash2, Edit, Users } from "lucide-react";
+import { Building2, Plus, Trash2, Edit, Users, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { useQuery as useConvexQuery } from "convex/react";
 import { useRouter } from "next/navigation";
+
 export default function AdminRestaurantsPage() {
-  const currentUser = useConvexQuery(api.users.getCurrentUser);
-  const restaurants = useConvexQuery(api.restaurants.list);
-  const allUsers = useConvexQuery(api.users.getAllUsers);
+  const currentUser = useQuery(api.users.getCurrentUser);
+  const restaurants = useQuery(api.restaurants.list);
+  const allUsers = useQuery(api.users.getAllUsers);
   const createRestaurant = useMutation(api.restaurants.create);
   const updateRestaurant = useMutation(api.restaurants.update);
   const deleteRestaurant = useMutation(api.restaurants.deleteRestaurant);
@@ -40,6 +40,7 @@ export default function AdminRestaurantsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingRestaurantId, setEditingRestaurantId] = useState<Id<"restaurants"> | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     address: "",
@@ -66,32 +67,50 @@ export default function AdminRestaurantsPage() {
       return;
     }
 
-    await createRestaurant({
-      ...formData,
-    });
+    setIsLoading(true);
+    try {
+      await createRestaurant({
+        ...formData,
+      });
 
-    toast.success("Restaurant created!");
-    setIsDialogOpen(false);
-    resetForm();
+      toast.success("Restaurant created!");
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create restaurant");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleUpdate = async () => {
     if (!editingRestaurantId) return;
 
-    await updateRestaurant({
-      id: editingRestaurantId,
-     options: formData,
-    });
+    setIsLoading(true);
+    try {
+      await updateRestaurant({
+        id: editingRestaurantId,
+        options: formData,
+      });
 
-    toast.success("Restaurant updated!");
-    setIsDialogOpen(false);
-    resetForm();
+      toast.success("Restaurant updated!");
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update restaurant");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDelete = async (id: Id<"restaurants">) => {
     if (confirm("Are you sure you want to delete this restaurant?")) {
-      await deleteRestaurant({ id });
-      toast.success("Restaurant deleted!");
+      try {
+        await deleteRestaurant({ id });
+        toast.success("Restaurant deleted!");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Failed to delete restaurant");
+      }
     }
   };
 
@@ -102,7 +121,7 @@ export default function AdminRestaurantsPage() {
     setIsDialogOpen(true);
   };
 
-  const openEditDialog = (restaurant: any) => {
+  const openEditDialog = (restaurant: { _id: Id<"restaurants">; name: string; address: string; phone?: string; description?: string }) => {
     setIsEditMode(true);
     setEditingRestaurantId(restaurant._id);
     setFormData({
@@ -229,13 +248,17 @@ export default function AdminRestaurantsPage() {
                 <Button
                   variant="outline"
                   onClick={() => setIsDialogOpen(false)}
+                  disabled={isLoading}
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={isEditMode ? handleUpdate : handleCreate}
-                  disabled={!formData.name || !formData.address}
+                  disabled={!formData.name || !formData.address || isLoading}
                 >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : null}
                   {isEditMode ? "Update" : "Create"}
                 </Button>
               </DialogFooter>
@@ -270,7 +293,7 @@ export default function AdminRestaurantsPage() {
           ) : (
             <div className="flex gap-11 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {restaurants.map((restaurant) => (
-                <RestaurantCard 
+                <RestaurantCard
                   key={restaurant._id}
                   restaurant={restaurant}
                   onEdit={() => openEditDialog(restaurant)}
@@ -286,7 +309,7 @@ export default function AdminRestaurantsPage() {
 }
 
 interface RestaurantCardProps {
-  restaurant: any;
+  restaurant: { _id: Id<"restaurants">; name: string; address: string; phone?: string; description?: string; ownerId: string };
   onEdit: () => void;
   onDelete: () => void;
 }
@@ -294,9 +317,8 @@ interface RestaurantCardProps {
 function RestaurantCard({ restaurant, onEdit, onDelete }: RestaurantCardProps) {
   const route = useRouter();
   return (
-
-    <Card className=" hover:scale-102 transeition-transform duration-500 b-100px " onClick={()=> route.push(`/restaurant/${restaurant._id}`) }>
-      <CardHeader >    
+    <Card className="hover:scale-105 transition-transform duration-500" onClick={() => route.push(`/restaurant/${restaurant._id}`)}>
+      <CardHeader>
         <div className="flex items-start justify-between ">
           <div className="flex-1">
             <CardTitle className="text-xl">
@@ -312,14 +334,20 @@ function RestaurantCard({ restaurant, onEdit, onDelete }: RestaurantCardProps) {
             <Button
               variant="ghost"
               size="icon"
-              onClick={onEdit}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
             >
               <Edit className="h-4 w-4" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
-              onClick={onDelete}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
             >
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
@@ -340,6 +368,5 @@ function RestaurantCard({ restaurant, onEdit, onDelete }: RestaurantCardProps) {
         </div>
       </CardContent>
     </Card>
-
   );
 }

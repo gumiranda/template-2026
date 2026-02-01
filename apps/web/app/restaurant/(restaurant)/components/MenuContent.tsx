@@ -23,7 +23,7 @@ import {
 } from "@workspace/ui/components/select";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { useMutation, useQuery } from "convex/react";
-import { Edit, Plus, PlusCircle, Trash2 } from "lucide-react";
+import { Edit, Plus, PlusCircle, Trash2, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -34,10 +34,13 @@ export default function MenuContent({
     useState<Id<"restaurants"> | null>(selectedRestaurantIdProps ?? null);
   const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [isItemDialogOpen, setIsItemDialogOpen] = useState(false);
+  const [isCategoryLoading, setIsCategoryLoading] = useState(false);
+  const [isItemLoading, setIsItemLoading] = useState(false);
+
   const restaurants = useQuery(api.restaurants.list);
   const menu = useQuery(
     api.menu.getMenuByRestaurant,
-    selectedRestaurantId ? { restaurantId: selectedRestaurantId as any } : "skip"
+    selectedRestaurantId ? { restaurantId: selectedRestaurantId } : "skip"
   );
 
   const createCategory = useMutation(api.menu.createCategory);
@@ -59,30 +62,44 @@ export default function MenuContent({
   const handleCreateCategory = async () => {
     if (!selectedRestaurantId) return;
 
-    await createCategory({
-      restaurantId: selectedRestaurantId as any,
-      ...categoryForm,
-    });
+    setIsCategoryLoading(true);
+    try {
+      await createCategory({
+        restaurantId: selectedRestaurantId,
+        ...categoryForm,
+      });
 
-    toast.success("Category created!");
-    setIsCategoryDialogOpen(false);
-    setCategoryForm({ name: "", description: "", order: 0 });
+      toast.success("Category created!");
+      setIsCategoryDialogOpen(false);
+      setCategoryForm({ name: "", description: "", order: 0 });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create category");
+    } finally {
+      setIsCategoryLoading(false);
+    }
   };
 
   const handleCreateItem = async () => {
     if (!selectedRestaurantId || !itemForm.categoryId) return;
 
-    await createItem({
-      restaurantId: selectedRestaurantId as any,
-      categoryId: itemForm.categoryId as any,
-      name: itemForm.name,
-      description: itemForm.description || undefined,
-      price: Number(itemForm.price),
-    });
+    setIsItemLoading(true);
+    try {
+      await createItem({
+        restaurantId: selectedRestaurantId,
+        categoryId: itemForm.categoryId as Id<"menuCategories">,
+        name: itemForm.name,
+        description: itemForm.description || undefined,
+        price: Number(itemForm.price),
+      });
 
-    toast.success("Item created!");
-    setIsItemDialogOpen(false);
-    setItemForm({ name: "", description: "", price: 0, categoryId: "" });
+      toast.success("Item created!");
+      setIsItemDialogOpen(false);
+      setItemForm({ name: "", description: "", price: 0, categoryId: "" });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to create item");
+    } finally {
+      setIsItemLoading(false);
+    }
   };
 
   return (
@@ -141,7 +158,12 @@ export default function MenuContent({
                     placeholder="Category description (optional)"
                   />
                 </div>
-                <Button onClick={handleCreateCategory} className="w-full">
+                <Button
+                  onClick={handleCreateCategory}
+                  className="w-full"
+                  disabled={isCategoryLoading}
+                >
+                  {isCategoryLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Create Category
                 </Button>
               </div>
@@ -222,9 +244,10 @@ export default function MenuContent({
                 </div>
                 <Button
                   onClick={handleCreateItem}
-                  disabled={!itemForm.categoryId}
+                  disabled={!itemForm.categoryId || isItemLoading}
                   className="w-full"
                 >
+                  {isItemLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                   Create Item
                 </Button>
               </div>
@@ -266,7 +289,7 @@ export default function MenuContent({
                 {category.items.map((item) => (
                   <div
                     key={item._id}
-                    className="flex items-center justify-between py-3 border-b last:border-0 bg-white p-10px rounded-sm hover:scale-101 transition-transform duration-600"
+                    className="flex items-center justify-between py-3 border-b last:border-0 bg-white p-2.5 rounded-sm hover:scale-[1.01] transition-transform duration-300"
                   >
                     <div className="flex-1">
                       <p className="font-medium">{item.name}</p>

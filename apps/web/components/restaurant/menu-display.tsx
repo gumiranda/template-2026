@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { MenuCategoryWithItems, MenuItem } from "@/types";
+import { useState, useEffect } from "react";
+import { Id } from "@workspace/backend/_generated/dataModel";
+import { MenuCategoryWithItems } from "@/types";
 import { MenuItemCard } from "./menu-item-card";
 import { Button } from "@workspace/ui/components/button";
 
 interface MenuDisplayProps {
-  restaurantId: string;
-  tableId: string;
+  restaurantId: Id<"restaurants">;
+  tableId: Id<"tables">;
   sessionId: string;
   menu: MenuCategoryWithItems[];
 }
@@ -21,6 +22,12 @@ export function MenuDisplay({
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
     menu.length > 0 ? menu[0]!._id : null
   );
+
+  useEffect(() => {
+    if (menu.length > 0 && !menu.find((cat) => cat._id === selectedCategory)) {
+      setSelectedCategory(menu[0]!._id);
+    }
+  }, [menu, selectedCategory]);
 
   const selectedCategoryData = menu.find(
     (cat) => cat._id === selectedCategory

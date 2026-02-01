@@ -1,59 +1,67 @@
 "use client";
 
 import { api } from "@workspace/backend/_generated/api";
+import { Id } from "@workspace/backend/_generated/dataModel";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { useMutation, useQuery } from "convex/react";
-import { Save } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Save, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function RestaurantSettingsPage() {
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<Id<"restaurants"> | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    address: "",
+    phone: "",
+    description: "",
+  });
 
   const restaurants = useQuery(api.restaurants.list);
   const restaurant = useQuery(
     api.restaurants.get,
-    selectedRestaurantId ? { id: selectedRestaurantId as any } : "skip"
+    selectedRestaurantId ? { id: selectedRestaurantId } : "skip"
   );
 
   const updateRestaurant = useMutation(api.restaurants.update);
 
-  const formData = useMemo(() => {
-    if (!restaurant) {
-      return {
-        name: "",
-        address: "",
-        phone: "",
-        description: "",
-      };
+  useEffect(() => {
+    if (restaurant) {
+      setFormData({
+        name: restaurant.name,
+        address: restaurant.address,
+        phone: restaurant.phone || "",
+        description: restaurant.description || "",
+      });
     }
-
-    return {
-      name: restaurant.name,
-      address: restaurant.address,
-      phone: restaurant.phone || "",
-      description: restaurant.description || "",
-    };
   }, [restaurant]);
 
   const handleSave = async () => {
     if (!selectedRestaurantId) return;
 
-    await updateRestaurant({
-      id: selectedRestaurantId as any,
-      options: {
-        name: formData.name,
-        address: formData.address,
-        phone: formData.phone || "",
-        description: formData.description || "",
-      },
-    });
+    setIsSaving(true);
+    try {
+      await updateRestaurant({
+        id: selectedRestaurantId,
+        options: {
+          name: formData.name,
+          address: formData.address,
+          phone: formData.phone || "",
+          description: formData.description || "",
+        },
+      });
 
-    toast.success("Restaurant updated!");
+      toast.success("Restaurant updated!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update restaurant");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -65,13 +73,13 @@ export default function RestaurantSettingsPage() {
         </div>
         <div className="flex gap-2">
           {restaurants &&
-            restaurants.map((restaurant) => (
+            restaurants.map((r) => (
               <Button
-                key={restaurant._id}
-                variant={selectedRestaurantId === restaurant._id ? "default" : "outline"}
-                onClick={() => setSelectedRestaurantId(restaurant._id)}
+                key={r._id}
+                variant={selectedRestaurantId === r._id ? "default" : "outline"}
+                onClick={() => setSelectedRestaurantId(r._id)}
               >
-                {restaurant.name}
+                {r.name}
               </Button>
             ))}
         </div>
@@ -96,18 +104,7 @@ export default function RestaurantSettingsPage() {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => {
-                  if (!restaurant) return;
-                  updateRestaurant({
-                    id: restaurant._id,
-                    options: {
-                      name: e.target.value,
-                      address: restaurant.address,
-                      phone: restaurant.phone || "",
-                      description: restaurant.description || "",
-                    },
-                  });
-                }}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Restaurant name"
               />
             </div>
@@ -117,18 +114,7 @@ export default function RestaurantSettingsPage() {
               <Input
                 id="address"
                 value={formData.address}
-                onChange={(e) => {
-                  if (!restaurant) return;
-                  updateRestaurant({
-                    id: restaurant._id,
-                    options: {
-                      name: restaurant.name,
-                      address: e.target.value,
-                      phone: restaurant.phone || "",
-                      description: restaurant.description || "",
-                    },
-                  });
-                }}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                 placeholder="Full address"
               />
             </div>
@@ -138,18 +124,7 @@ export default function RestaurantSettingsPage() {
               <Input
                 id="phone"
                 value={formData.phone}
-                onChange={(e) => {
-                  if (!restaurant) return;
-                  updateRestaurant({
-                    id: restaurant._id,
-                    options: {
-                      name: restaurant.name,
-                      address: restaurant.address,
-                      phone: e.target.value,
-                      description: restaurant.description || "",
-                    },
-                  });
-                }}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 placeholder="Contact phone number"
               />
             </div>
@@ -159,24 +134,17 @@ export default function RestaurantSettingsPage() {
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => {
-                  if (!restaurant) return;
-                  updateRestaurant({
-                    id: restaurant._id,
-                    options: {
-                      name: restaurant.name,
-                      address: restaurant.address,
-                      phone: restaurant.phone || "",
-                      description: e.target.value,
-                    },
-                  });
-                }}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Brief description of restaurant"
               />
             </div>
 
-            <Button onClick={handleSave} className="w-full">
-              <Save className="h-4 w-4 mr-2" />
+            <Button onClick={handleSave} className="w-full" disabled={isSaving}>
+              {isSaving ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
               Save Changes
             </Button>
           </CardContent>

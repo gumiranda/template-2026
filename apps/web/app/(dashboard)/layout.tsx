@@ -18,10 +18,6 @@ import {
   Users,
   Menu,
   Building2,
-  ShoppingCart,
-  Utensils,
-  QrCode,
-  Settings,
 } from "lucide-react";
 import { RoleBadge } from "@/components/role-badge";
 import Link from "next/link";

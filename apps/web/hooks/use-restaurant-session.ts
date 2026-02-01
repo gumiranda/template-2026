@@ -3,15 +3,19 @@
 import { useEffect, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
+import { Id } from "@workspace/backend/_generated/dataModel";
 import { v4 as uuidv4 } from "uuid";
 
 interface RestaurantSession {
   sessionId: string;
-  restaurantId: string;
-  tableId: string;
+  restaurantId: Id<"restaurants">;
+  tableId: Id<"tables">;
 }
 
-export function useRestaurantSession(restaurantId: string, tableId: string) {
+export function useRestaurantSession(
+  restaurantId: Id<"restaurants">,
+  tableId: Id<"tables">
+) {
   const [session, setSession] = useState<RestaurantSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -35,8 +39,8 @@ export function useRestaurantSession(restaurantId: string, tableId: string) {
 
       createSession({
         sessionId,
-        restaurantId: restaurantId as any,
-        tableId: tableId as any,
+        restaurantId,
+        tableId,
       });
     }
 

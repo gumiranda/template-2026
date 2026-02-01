@@ -1,20 +1,27 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
+import { Id } from "@workspace/backend/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
 import { QRCodeSVG } from "@/components/restaurant/qr-code-generator";
-import { Download, Printer, QrCode } from "lucide-react";
+import { Download, Printer } from "lucide-react";
+
+interface Table {
+  _id: Id<"tables">;
+  tableNumber: string;
+  capacity: number;
+}
 
 export default function QRCodesPage() {
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<Id<"restaurants"> | null>(null);
 
   const restaurants = useQuery(api.restaurants.list);
   const tables = useQuery(
     api.tables.listByRestaurant,
-    selectedRestaurantId ? { restaurantId: selectedRestaurantId as any } : "skip"
+    selectedRestaurantId ? { restaurantId: selectedRestaurantId } : "skip"
   );
 
   const handlePrint = () => {
@@ -98,7 +105,7 @@ export default function QRCodesPage() {
             {tables.map((table) => (
               <QRCodeCard
                 key={table._id}
-                table={table}
+                table={table as Table}
                 restaurantId={selectedRestaurantId}
               />
             ))}
@@ -118,8 +125,8 @@ export default function QRCodesPage() {
 }
 
 interface QRCodeCardProps {
-  table: any;
-  restaurantId: string;
+  table: Table;
+  restaurantId: Id<"restaurants">;
 }
 
 function QRCodeCard({ table, restaurantId }: QRCodeCardProps) {

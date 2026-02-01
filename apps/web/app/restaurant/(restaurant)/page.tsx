@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
+import { Id } from "@workspace/backend/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import {
-  LayoutDashboard,
   ShoppingCart,
   Utensils,
   Clock,
@@ -15,12 +15,12 @@ import {
 export default function RestaurantDashboardPage() {
   const currentUser = useQuery(api.users.getCurrentUser);
   const restaurants = useQuery(api.restaurants.list);
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<Id<"restaurants"> | null>(null);
 
   const restaurantOrders = useQuery(
     api.orders.getOrdersByRestaurant,
     selectedRestaurantId
-      ? { restaurantId: selectedRestaurantId as any }
+      ? { restaurantId: selectedRestaurantId }
       : "skip"
   );
 

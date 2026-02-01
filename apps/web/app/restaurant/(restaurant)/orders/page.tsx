@@ -3,35 +3,55 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
+import { Id } from "@workspace/backend/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
-import { Badge } from "@workspace/ui/components/badge";
 import { OrderStatusBadge } from "@/components/restaurant/order-status-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+interface OrderItem {
+  name: string;
+  quantity: number;
+  price: number;
+  totalPrice: number;
+}
+
+interface Order {
+  _id: Id<"orders">;
+  status: string;
+  table?: { tableNumber: string };
+  items: OrderItem[];
+  total: number;
+  createdAt: number;
+}
+
 export default function OrdersPage() {
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState<Id<"restaurants"> | null>(null);
   const restaurants = useQuery(api.restaurants.list);
   const orders = useQuery(
     api.orders.getOrdersByRestaurant,
     selectedRestaurantId
-      ? { restaurantId: selectedRestaurantId as any }
+      ? { restaurantId: selectedRestaurantId }
       : "skip"
   );
 
   const updateOrderStatus = useMutation(api.orders.updateOrderStatus);
 
   const handleUpdateStatus = async (
-    orderId: any,
+    orderId: Id<"orders">,
     newStatus: string
   ) => {
-    await updateOrderStatus({
-      orderId,
-      status: newStatus,
-    });
-    toast.success(`Order status updated to ${newStatus}`);
+    try {
+      await updateOrderStatus({
+        orderId,
+        status: newStatus,
+      });
+      toast.success(`Order status updated to ${newStatus}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update status");
+    }
   };
 
   const pendingOrders = orders?.filter((o) => o.status === "pending") || [];
@@ -99,7 +119,7 @@ export default function OrdersPage() {
               pendingOrders.map((order) => (
                 <OrderCard
                   key={order._id}
-                  order={order}
+                  order={order as Order}
                   onUpdateStatus={handleUpdateStatus}
                 />
               ))
@@ -112,7 +132,7 @@ export default function OrdersPage() {
               .map((order) => (
                 <OrderCard
                   key={order._id}
-                  order={order}
+                  order={order as Order}
                   onUpdateStatus={handleUpdateStatus}
                 />
               ))}
@@ -127,7 +147,7 @@ export default function OrdersPage() {
               preparingOrders.map((order) => (
                 <OrderCard
                   key={order._id}
-                  order={order}
+                  order={order as Order}
                   onUpdateStatus={handleUpdateStatus}
                 />
               ))
@@ -143,7 +163,7 @@ export default function OrdersPage() {
               readyOrders.map((order) => (
                 <OrderCard
                   key={order._id}
-                  order={order}
+                  order={order as Order}
                   onUpdateStatus={handleUpdateStatus}
                 />
               ))
@@ -156,11 +176,22 @@ export default function OrdersPage() {
 }
 
 interface OrderCardProps {
-  order: any;
-  onUpdateStatus: (orderId: any, status: string) => Promise<void>;
+  order: Order;
+  onUpdateStatus: (orderId: Id<"orders">, status: string) => Promise<void>;
 }
 
 function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  const handleStatusUpdate = async (newStatus: string) => {
+    setIsUpdating(true);
+    try {
+      await onUpdateStatus(order._id, newStatus);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -175,7 +206,7 @@ function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
         <div>
           <h4 className="font-semibold mb-2">Items</h4>
           <div className="space-y-2">
-            {order.items.map((item: any, index: number) => (
+            {order.items.map((item, index) => (
               <div
                 key={index}
                 className="flex justify-between items-center py-2 border-b last:border-0"
@@ -206,37 +237,48 @@ function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
         <div className="flex gap-2">
           {order.status === "pending" && (
             <Button
-              onClick={() => onUpdateStatus(order._id, "confirmed")}
+              onClick={() => handleStatusUpdate("confirmed")}
               className="flex-1"
+              disabled={isUpdating}
             >
-              <CheckCircle2 className="h-4 w-4 mr-2" />
+              {isUpdating ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+              )}
               Confirm
             </Button>
           )}
 
           {order.status === "confirmed" && (
             <Button
-              onClick={() => onUpdateStatus(order._id, "preparing")}
+              onClick={() => handleStatusUpdate("preparing")}
               className="flex-1"
+              disabled={isUpdating}
             >
+              {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Start Preparing
             </Button>
           )}
 
           {order.status === "preparing" && (
             <Button
-              onClick={() => onUpdateStatus(order._id, "ready")}
+              onClick={() => handleStatusUpdate("ready")}
               className="flex-1"
+              disabled={isUpdating}
             >
+              {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Mark Ready
             </Button>
           )}
 
           {order.status === "ready" && (
             <Button
-              onClick={() => onUpdateStatus(order._id, "served")}
+              onClick={() => handleStatusUpdate("served")}
               className="flex-1"
+              disabled={isUpdating}
             >
+              {isUpdating && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Mark Served
             </Button>
           )}

@@ -6,17 +6,19 @@ interface OrderStatusBadgeProps {
   status: string;
 }
 
+const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  pending: { label: "Pending", variant: "secondary" },
+  confirmed: { label: "Confirmed", variant: "outline" },
+  preparing: { label: "Preparing", variant: "outline" },
+  ready: { label: "Ready", variant: "default" },
+  served: { label: "Served", variant: "secondary" },
+  completed: { label: "Completed", variant: "secondary" },
+};
+
+const defaultConfig = { label: "Pending", variant: "secondary" } as const;
+
 export function OrderStatusBadge({ status }: OrderStatusBadgeProps) {
-  const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-    pending: { label: "Pending", variant: "secondary" },
-    confirmed: { label: "Confirmed", variant: "outline" },
-    preparing: { label: "Preparing", variant: "outline" },
-    ready: { label: "Ready", variant: "default" },
-    served: { label: "Served", variant: "secondary" },
-    completed: { label: "Completed", variant: "secondary" },
-  };
+  const config = statusConfig[status] ?? defaultConfig;
 
-  const config = statusConfig[status] ?? statusConfig.pending!;
-
-  return <Badge variant={config!.variant}>{config!.label}</Badge>;
+  return <Badge variant={config.variant}>{config.label}</Badge>;
 }

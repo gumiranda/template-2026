@@ -1,15 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
+import { Id } from "@workspace/backend/_generated/dataModel";
 import { MenuItem } from "@/types";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface MenuItemCardProps {
-  restaurantId: string;
-  tableId: string;
+  restaurantId: Id<"restaurants">;
+  tableId: Id<"tables">;
   sessionId: string;
   item: MenuItem;
 }
@@ -20,27 +23,48 @@ export function MenuItemCard({
   sessionId,
   item,
 }: MenuItemCardProps) {
+  const [isAddingToSession, setIsAddingToSession] = useState(false);
+  const [isAddingToGeneral, setIsAddingToGeneral] = useState(false);
+
   const addToSessionCart = useMutation(api.sessions.addToSessionCart);
   const addToGeneralCart = useMutation(api.carts.addToCart);
 
   const handleAddToSession = async () => {
-    await addToSessionCart({
-      sessionId,
-      menuItemId: item._id,
-      quantity: 1,
-      price: item.price,
-    });
+    setIsAddingToSession(true);
+    try {
+      await addToSessionCart({
+        sessionId,
+        menuItemId: item._id,
+        quantity: 1,
+        price: item.price,
+      });
+      toast.success("Added to session cart");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add item");
+    } finally {
+      setIsAddingToSession(false);
+    }
   };
 
   const handleAddToGeneral = async () => {
-    await addToGeneralCart({
-      tableId: tableId as any,
-      restaurantId: restaurantId as any,
-      menuItemId: item._id,
-      quantity: 1,
-      price: item.price,
-    });
+    setIsAddingToGeneral(true);
+    try {
+      await addToGeneralCart({
+        tableId,
+        restaurantId,
+        menuItemId: item._id,
+        quantity: 1,
+        price: item.price,
+      });
+      toast.success("Added to general cart");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to add item");
+    } finally {
+      setIsAddingToGeneral(false);
+    }
   };
+
+  const isLoading = isAddingToSession || isAddingToGeneral;
 
   return (
     <Card className="overflow-hidden">
@@ -72,16 +96,26 @@ export function MenuItemCard({
                 size="icon"
                 variant="outline"
                 onClick={handleAddToSession}
+                disabled={isLoading}
                 title="Add to session cart (send to waiter)"
               >
-                <Plus className="h-4 w-4" />
+                {isAddingToSession ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
               </Button>
               <Button
                 size="icon"
                 onClick={handleAddToGeneral}
+                disabled={isLoading}
                 title="Add to general cart (for bill)"
               >
-                <Plus className="h-4 w-4" />
+                {isAddingToGeneral ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
               </Button>
             </div>
           </div>
