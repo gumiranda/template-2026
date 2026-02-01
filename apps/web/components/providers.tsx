@@ -17,7 +17,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ClerkProvider
       appearance={{
         variables: {
-          colorPrimary: "#3C82F6",
+          colorPrimary: "#13ec80",
         },
       }}
     >

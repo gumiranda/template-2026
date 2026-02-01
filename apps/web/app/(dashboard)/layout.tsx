@@ -105,7 +105,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="flex min-h-screen">
-      <aside className="fixed top-0 left-0 w-full h-16 flex items-center justify-center bg-white shadow z-50">
+      <aside className="fixed top-0 left-0 w-full h-16 flex items-center justify-center bg-background shadow z-50">
         <SidebarContent />
       </aside>
 

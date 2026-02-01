@@ -9,7 +9,7 @@ export default function CreateMenu({ id }: { id: Id<"restaurants"> }) {
     <div>
       {createMenu === true ? (
         <div className="fixed inset-0 z-50 flex items-start justify-center">
-          <div className="mt-20 w-full bg-white rounded-2xl p-6 max-h-[80%] max-w-[80%] overflow-y-auto rounded-xl">
+          <div className="mt-20 w-full bg-card rounded-2xl p-6 max-h-[80%] max-w-[80%] overflow-y-auto">
             <button
               onClick={() => setCreateMenu(false)}
               className="flex items-center ml-auto"

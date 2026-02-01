@@ -160,7 +160,7 @@ export default function PendingUsersPage() {
                   <TableRow key={user._id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-amber-600">
+                      <Badge variant="outline" className="text-accent-foreground">
                         <Clock className="mr-1 h-3 w-3" />
                         Pending
                       </Badge>
@@ -169,7 +169,7 @@ export default function PendingUsersPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-green-600 hover:text-green-700"
+                        className="text-primary hover:text-primary/80"
                         onClick={() =>
                           setApproveDialog({ userId: user._id, name: user.name })
                         }
@@ -180,7 +180,7 @@ export default function PendingUsersPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-red-600 hover:text-red-700"
+                        className="text-destructive hover:text-destructive/80"
                         onClick={() =>
                           setRejectDialog({ userId: user._id, name: user.name })
                         }
@@ -241,7 +241,7 @@ export default function PendingUsersPage() {
             <Button
               onClick={handleApprove}
               disabled={isLoading || !selectedSector}
-              className="bg-green-600 hover:bg-green-700"
+              className="bg-primary hover:bg-primary/90"
             >
               {isLoading ? (
                 <>

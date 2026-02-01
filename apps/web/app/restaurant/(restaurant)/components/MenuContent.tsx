@@ -289,7 +289,7 @@ export default function MenuContent({
                 {category.items.map((item) => (
                   <div
                     key={item._id}
-                    className="flex items-center justify-between py-3 border-b last:border-0 bg-white p-2.5 rounded-sm hover:scale-[1.01] transition-transform duration-300"
+                    className="flex items-center justify-between py-3 border-b last:border-0 bg-card p-2.5 rounded-sm hover:scale-[1.01] transition-transform duration-300"
                   >
                     <div className="flex-1">
                       <p className="font-medium">{item.name}</p>
