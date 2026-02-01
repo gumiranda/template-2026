@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { OrderStatus } from "./lib/types";
+import { getAuthenticatedUser, isRestaurantStaff } from "./lib/auth";
 
 export const getOrdersByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -50,15 +51,41 @@ export const createOrder = mutation({
     items: v.array(
       v.object({
         menuItemId: v.id("menuItems"),
-        name: v.string(),
         quantity: v.number(),
-        price: v.number(),
-        totalPrice: v.number(),
+        notes: v.optional(v.string()),
       })
     ),
   },
   handler: async (ctx, args) => {
-    const total = args.items.reduce((sum, item) => sum + item.totalPrice, 0);
+    // Verify table belongs to restaurant
+    const table = await ctx.db.get(args.tableId);
+    if (!table || table.restaurantId !== args.restaurantId) {
+      throw new Error("Invalid table");
+    }
+
+    // Fetch actual prices from database (SERVER-SIDE) and validate menu items
+    const itemsWithServerPrices = await Promise.all(
+      args.items.map(async (item) => {
+        const menuItem = await ctx.db.get(item.menuItemId);
+        if (!menuItem || menuItem.restaurantId !== args.restaurantId) {
+          throw new Error("Invalid menu item");
+        }
+        if (!menuItem.isActive) {
+          throw new Error(`Menu item "${menuItem.name}" is no longer available`);
+        }
+        return {
+          menuItemId: item.menuItemId,
+          name: menuItem.name,
+          quantity: item.quantity,
+          price: menuItem.price,
+          totalPrice: menuItem.price * item.quantity,
+          notes: item.notes,
+        };
+      })
+    );
+
+    // Calculate total from server prices
+    const total = itemsWithServerPrices.reduce((sum, item) => sum + item.totalPrice, 0);
     const now = Date.now();
 
     const orderId = await ctx.db.insert("orders", {
@@ -72,7 +99,7 @@ export const createOrder = mutation({
     });
 
     await Promise.all(
-      args.items.map((item) =>
+      itemsWithServerPrices.map((item) =>
         ctx.db.insert("orderItems", {
           orderId,
           menuItemId: item.menuItemId,
@@ -94,9 +121,43 @@ export const updateOrderStatus = mutation({
     status: v.string(),
   },
   handler: async (ctx, args) => {
+    // Authenticate user
+    const user = await getAuthenticatedUser(ctx);
+    if (!user) {
+      throw new Error("Not authenticated");
+    }
+
+    // Validate status against OrderStatus enum
+    const validStatuses = Object.values(OrderStatus);
+    if (!validStatuses.includes(args.status as typeof validStatuses[number])) {
+      throw new Error("Invalid status");
+    }
+
+    // Get order and verify it exists
+    const order = await ctx.db.get(args.orderId);
+    if (!order) {
+      throw new Error("Order not found");
+    }
+
+    // Authorization: Verify user is restaurant owner or staff
+    const restaurant = await ctx.db.get(order.restaurantId);
+    if (!restaurant) {
+      throw new Error("Restaurant not found");
+    }
+
+    const isOwner = restaurant.ownerId === user._id;
+    const isStaff = isRestaurantStaff(user.role);
+
+    if (!isOwner && !isStaff) {
+      throw new Error("Not authorized to update order status");
+    }
+
+    // Perform update
     await ctx.db.patch(args.orderId, {
       status: args.status,
       updatedAt: Date.now(),
     });
+
+    return true;
   },
 });

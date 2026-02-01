@@ -1,5 +1,11 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import {
+  getAuthenticatedUser,
+  isRestaurantStaff,
+  canManageRestaurant,
+  requireRestaurantAccess,
+} from "./lib/auth";
 
 export const listByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -16,6 +22,18 @@ export const listByRestaurant = query({
 export const getTablesOverview = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
+    // Authorization check
+    const user = await getAuthenticatedUser(ctx);
+    if (!user || !isRestaurantStaff(user.role)) {
+      return [];
+    }
+
+    // Verify user can access this restaurant
+    const canAccess = await canManageRestaurant(ctx, user._id, args.restaurantId);
+    if (!canAccess) {
+      return [];
+    }
+
     // 1. Fetch all tables
     const tables = await ctx.db
       .query("tables")
@@ -105,14 +123,17 @@ export const getTablesOverview = query({
 });
 
 export const createTable = mutation({
-  args:{
+  args: {
     restaurantId: v.id("restaurants"),
     tableNumber: v.string(),
     capacity: v.number(),
     qrCode: v.string(),
     isActive: v.boolean(),
   },
-  handler:async (ctx, args)=> {
-    return await ctx.db.insert("tables",args);;
+  handler: async (ctx, args) => {
+    // Require authentication and restaurant access
+    await requireRestaurantAccess(ctx, args.restaurantId);
+
+    return await ctx.db.insert("tables", args);
   },
-})
+});

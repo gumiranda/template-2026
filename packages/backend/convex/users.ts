@@ -100,13 +100,28 @@ export const bootstrap = mutation({
     if (existingUser) {
       throw new Error("User already exists");
     }
-    return await ctx.db.insert("users", {
+
+    const newUserId = await ctx.db.insert("users", {
       name: identity.name ?? "Superadmin",
       clerkId: clerkId,
       role: Role.SUPERADMIN,
       status: UserStatus.APPROVED,
       approvedAt: Date.now(),
     });
+
+    // POST-INSERT VERIFICATION: Check we're still the only superadmin
+    const allSuperadmins = await ctx.db
+      .query("users")
+      .withIndex("by_role", (q) => q.eq("role", Role.SUPERADMIN))
+      .collect();
+
+    if (allSuperadmins.length > 1) {
+      // Race condition detected - rollback
+      await ctx.db.delete(newUserId);
+      throw new Error("Race condition detected. Please try again.");
+    }
+
+    return newUserId;
   },
 });
 
@@ -116,7 +131,10 @@ export const getAllUsers = query({
     const currentUser = await getAuthenticatedUser(ctx);
     if (!currentUser || !isAdmin(currentUser.role)) return [];
 
-    return await ctx.db.query("users").collect();
+    const users = await ctx.db.query("users").collect();
+
+    // Filter out sensitive fields
+    return users.map(({ clerkId, ...safeUser }) => safeUser);
   },
 });
 

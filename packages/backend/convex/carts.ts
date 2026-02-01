@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { getAuthenticatedUser, isRestaurantStaff } from "./lib/auth";
 
 export const getCart = query({
   args: { tableId: v.id("tables") },
@@ -44,9 +45,26 @@ export const addToCart = mutation({
     restaurantId: v.id("restaurants"),
     menuItemId: v.id("menuItems"),
     quantity: v.number(),
-    price: v.number(),
   },
   handler: async (ctx, args) => {
+    // Validate table belongs to the restaurant
+    const table = await ctx.db.get(args.tableId);
+    if (!table || table.restaurantId !== args.restaurantId) {
+      throw new Error("Invalid table for this restaurant");
+    }
+
+    // Fetch menu item from database to get authoritative price
+    const menuItem = await ctx.db.get(args.menuItemId);
+    if (!menuItem) {
+      throw new Error("Menu item not found");
+    }
+    if (menuItem.restaurantId !== args.restaurantId) {
+      throw new Error("Menu item does not belong to this restaurant");
+    }
+    if (!menuItem.isActive) {
+      throw new Error("Menu item is not available");
+    }
+
     let cart = await ctx.db
       .query("carts")
       .withIndex("by_table", (q) => q.eq("tableId", args.tableId))
@@ -80,7 +98,7 @@ export const addToCart = mutation({
       cartId: cart._id,
       menuItemId: args.menuItemId,
       quantity: args.quantity,
-      price: args.price,
+      price: menuItem.price, // Use authoritative price from database
       addedAt: Date.now(),
     });
   },
@@ -89,6 +107,12 @@ export const addToCart = mutation({
 export const clearCart = mutation({
   args: { tableId: v.id("tables") },
   handler: async (ctx, args) => {
+    // Require authenticated staff to clear carts
+    const user = await getAuthenticatedUser(ctx);
+    if (!user || !isRestaurantStaff(user.role)) {
+      throw new Error("Unauthorized: Only restaurant staff can clear carts");
+    }
+
     const cart = await ctx.db
       .query("carts")
       .withIndex("by_table", (q) => q.eq("tableId", args.tableId))
