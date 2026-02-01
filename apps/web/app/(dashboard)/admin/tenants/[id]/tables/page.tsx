@@ -4,7 +4,6 @@ import { use, useReducer, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
-import { jsPDF } from "jspdf";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { isValidConvexId } from "@workspace/backend/lib/helpers";
@@ -73,7 +72,6 @@ interface BatchSettings {
   formatTemplate: FormatTemplate;
   colorTheme: ColorTheme;
   callToAction: string;
-  includeLogo: boolean;
   showTableNumber: boolean;
 }
 
@@ -109,7 +107,6 @@ const initialBatchSettings: BatchSettings = {
   formatTemplate: "tent-card-4x6",
   colorTheme: "light",
   callToAction: "SCAN TO ORDER",
-  includeLogo: true,
   showTableNumber: true,
 };
 
@@ -265,7 +262,7 @@ function TableManagementContent({
       let comparison = 0;
       switch (sortBy) {
         case "number":
-          comparison = parseInt(a.tableNumber) - parseInt(b.tableNumber);
+          comparison = parseInt(a.tableNumber, 10) - parseInt(b.tableNumber, 10);
           break;
         case "created":
           comparison = a._creationTime - b._creationTime;
@@ -281,8 +278,8 @@ function TableManagementContent({
   }, [tables, searchQuery, statusFilter, sortBy, sortOrder]);
 
   const handleGenerateTables = useCallback(async () => {
-    const start = parseInt(generateForm.startId);
-    const end = parseInt(generateForm.endId);
+    const start = parseInt(generateForm.startId, 10);
+    const end = parseInt(generateForm.endId, 10);
 
     if (isNaN(start) || isNaN(end)) {
       toast.error("Please enter valid numbers for Start and End ID");
@@ -398,10 +395,10 @@ function TableManagementContent({
     const isDark = batchSettings.colorTheme === "dark";
     const bgColor = isDark ? "#1a1a1a" : "#ffffff";
     const textColor = isDark ? "#ffffff" : "#000000";
-    const qrBgColor = isDark ? "#ffffff" : "#ffffff";
-    const qrFgColor = isDark ? "#000000" : "#000000";
+    const qrBgColor = "#ffffff";
 
-    // Generate QR code images for all tables
+    const { jsPDF } = await import("jspdf");
+
     const qrImages = await Promise.all(
       tablesToPrint.map((table) => {
         return new Promise<string>((resolve) => {
@@ -858,19 +855,6 @@ function TableManagementContent({
                 <div className="space-y-3">
                   <div className="flex items-center space-x-2">
                     <Checkbox
-                      id="include-logo"
-                      checked={batchSettings.includeLogo}
-                      onCheckedChange={(checked) =>
-                        dispatch({
-                          type: "SET_BATCH_SETTING",
-                          payload: { includeLogo: checked === true },
-                        })
-                      }
-                    />
-                    <Label htmlFor="include-logo">Include Logo</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
                       id="show-table-number"
                       checked={batchSettings.showTableNumber}
                       onCheckedChange={(checked) =>
@@ -957,7 +941,7 @@ function TableCard({
 }: TableCardProps) {
   return (
     <Card className={isSelected ? "ring-2 ring-primary" : ""}>
-      <CardContent className="pt-4">
+      <CardContent className="pt-6">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
             <Checkbox checked={isSelected} onCheckedChange={onToggleSelect} />
@@ -1089,13 +1073,13 @@ function TableStatsDialog({ open, onOpenChange, tableId }: TableStatsDialogProps
           <div className="space-y-6">
             <div className="grid gap-4 grid-cols-3">
               <Card>
-                <CardContent className="pt-4">
+                <CardContent className="pt-6">
                   <p className="text-sm text-muted-foreground">Total Orders</p>
                   <p className="text-2xl font-bold">{analytics.totalOrders}</p>
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="pt-4">
+                <CardContent className="pt-6">
                   <p className="text-sm text-muted-foreground">Total Revenue</p>
                   <p className="text-2xl font-bold">
                     {formatCurrency(analytics.totalRevenue)}
@@ -1103,7 +1087,7 @@ function TableStatsDialog({ open, onOpenChange, tableId }: TableStatsDialogProps
                 </CardContent>
               </Card>
               <Card>
-                <CardContent className="pt-4">
+                <CardContent className="pt-6">
                   <p className="text-sm text-muted-foreground">Avg Order Value</p>
                   <p className="text-2xl font-bold">
                     {formatCurrency(analytics.avgOrderValue)}
