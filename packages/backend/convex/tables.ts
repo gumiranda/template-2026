@@ -26,12 +26,12 @@ export const getTablesOverview = query({
   handler: async (ctx, args) => {
     const user = await getAuthenticatedUser(ctx);
     if (!user || !isRestaurantStaff(user.role)) {
-      return [];
+      throw new Error("Unauthorized: Only restaurant staff can view tables overview");
     }
 
     const canAccess = await canManageRestaurant(ctx, user._id, args.restaurantId);
     if (!canAccess) {
-      return [];
+      throw new Error("Not authorized to access this restaurant's tables");
     }
 
     const tables = await ctx.db
