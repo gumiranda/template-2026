@@ -246,8 +246,11 @@ export const getOverviewStats = query({
     const legacyActiveCount = allRestaurants.filter((r) => r.status === undefined).length;
 
     const now = Date.now();
-    const sessions = await ctx.db.query("sessions").collect();
-    const activeSessions = sessions.filter((s) => s.expiresAt > now).length;
+    const activeSessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_expires_at", (q) => q.gt("expiresAt", now))
+      .collect();
+    const activeSessionsCount = activeSessions.length;
 
     const allCompletedOrders = await ctx.db
       .query("orders")
@@ -258,7 +261,7 @@ export const getOverviewStats = query({
     return {
       totalRestaurants,
       activeRestaurants: activeRestaurants + legacyActiveCount,
-      activeSessions,
+      activeSessions: activeSessionsCount,
       totalRevenue,
     };
   },

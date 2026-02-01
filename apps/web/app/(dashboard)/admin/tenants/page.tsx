@@ -71,13 +71,13 @@ interface RestaurantForm {
   description: string;
 }
 
-const initialFormState: RestaurantForm = {
+const initialFormState = {
   name: "",
   subdomain: "",
   address: "",
   phone: "",
   description: "",
-};
+} satisfies RestaurantForm;
 
 function OverviewStatCard({
   title,

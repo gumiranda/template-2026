@@ -75,7 +75,8 @@ export default defineSchema({
   })
     .index("by_session_id", ["sessionId"])
     .index("by_table", ["tableId"])
-    .index("by_restaurant", ["restaurantId"]),
+    .index("by_restaurant", ["restaurantId"])
+    .index("by_expires_at", ["expiresAt"]),
 
   carts: defineTable({
     tableId: v.id("tables"),
