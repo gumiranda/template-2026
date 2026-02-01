@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { getAuthenticatedUser, canModifyRestaurant } from "./lib/auth";
+import { getAuthenticatedUser, canModifyRestaurant, isAdmin } from "./lib/auth";
+import { RestaurantStatus } from "./lib/types";
 
 export const list = query({
   args: {},
@@ -13,8 +14,9 @@ export const create = mutation({
   args: {
     name: v.string(),
     address: v.string(),
-    phone: v.string(),
-    description: v.string(),
+    phone: v.optional(v.string()),
+    description: v.optional(v.string()),
+    subdomain: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await getAuthenticatedUser(ctx);
@@ -22,7 +24,31 @@ export const create = mutation({
       throw new Error("Not authenticated");
     }
 
-    return ctx.db.insert("restaurants", { ...args, ownerId: identity._id, isActive: true });
+    if (!isAdmin(identity.role)) {
+      throw new Error("Only admins can create restaurants");
+    }
+
+    // Check if subdomain is unique (if provided)
+    if (args.subdomain) {
+      const existing = await ctx.db
+        .query("restaurants")
+        .withIndex("by_subdomain", (q) => q.eq("subdomain", args.subdomain))
+        .first();
+      if (existing) {
+        throw new Error("Subdomain already in use");
+      }
+    }
+
+    return ctx.db.insert("restaurants", {
+      name: args.name,
+      address: args.address,
+      phone: args.phone,
+      description: args.description,
+      subdomain: args.subdomain,
+      status: RestaurantStatus.ACTIVE,
+      ownerId: identity._id,
+      isActive: true,
+    });
   },
 });
 
@@ -88,5 +114,74 @@ export const listMyRestaurants = query({
       .query("restaurants")
       .withIndex("by_owner", (q) => q.eq("ownerId", currentUser._id))
       .collect();
+  },
+});
+
+export const listAllWithStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser || !isAdmin(currentUser.role)) {
+      return [];
+    }
+
+    const restaurants = await ctx.db.query("restaurants").collect();
+
+    const restaurantsWithStats = await Promise.all(
+      restaurants.map(async (restaurant) => {
+        // Get total revenue from completed orders
+        const orders = await ctx.db
+          .query("orders")
+          .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
+          .collect();
+
+        const totalRevenue = orders
+          .filter((order) => order.status === "completed")
+          .reduce((sum, order) => sum + order.total, 0);
+
+        return {
+          ...restaurant,
+          totalRevenue,
+        };
+      })
+    );
+
+    return restaurantsWithStats;
+  },
+});
+
+export const getOverviewStats = query({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser || !isAdmin(currentUser.role)) {
+      return null;
+    }
+
+    const restaurants = await ctx.db.query("restaurants").collect();
+    const totalRestaurants = restaurants.length;
+
+    // Count active restaurants
+    const activeRestaurants = restaurants.filter(
+      (r) => r.status === RestaurantStatus.ACTIVE || r.status === undefined
+    ).length;
+
+    // Get all active sessions
+    const now = Date.now();
+    const sessions = await ctx.db.query("sessions").collect();
+    const activeSessions = sessions.filter((s) => s.expiresAt > now).length;
+
+    // Calculate total revenue from all completed orders
+    const orders = await ctx.db.query("orders").collect();
+    const totalRevenue = orders
+      .filter((order) => order.status === "completed")
+      .reduce((sum, order) => sum + order.total, 0);
+
+    return {
+      totalRestaurants,
+      activeRestaurants,
+      activeSessions,
+      totalRevenue,
+    };
   },
 });

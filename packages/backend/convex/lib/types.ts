@@ -43,3 +43,15 @@ export function isValidSector(value: string): value is SectorType {
 export function isValidOrderStatus(value: string): value is OrderStatusType {
   return Object.values(OrderStatus).includes(value as OrderStatusType);
 }
+
+export const RestaurantStatus = {
+  ACTIVE: "active",
+  MAINTENANCE: "maintenance",
+  INACTIVE: "inactive",
+} as const;
+
+export type RestaurantStatusType = (typeof RestaurantStatus)[keyof typeof RestaurantStatus];
+
+export function isValidRestaurantStatus(value: string): value is RestaurantStatusType {
+  return Object.values(RestaurantStatus).includes(value as RestaurantStatusType);
+}

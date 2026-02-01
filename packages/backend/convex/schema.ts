@@ -26,9 +26,13 @@ export default defineSchema({
     ownerId: v.id("users"),
     logoUrl: v.optional(v.string()),
     isActive: v.boolean(),
+    subdomain: v.optional(v.string()),
+    status: v.optional(v.string()),
   })
     .index("by_owner", ["ownerId"])
-    .index("by_active", ["isActive"]),
+    .index("by_active", ["isActive"])
+    .index("by_subdomain", ["subdomain"])
+    .index("by_status", ["status"]),
 
   tables: defineTable({
     restaurantId: v.id("restaurants"),
