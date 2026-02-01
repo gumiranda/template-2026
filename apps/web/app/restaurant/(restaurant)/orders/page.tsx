@@ -5,7 +5,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
-import { Badge } from "@workspace/ui/components/badge";
+
 import { OrderStatusBadge } from "@/components/restaurant/order-status-badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 import { CheckCircle2, XCircle } from "lucide-react";

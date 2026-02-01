@@ -11,7 +11,7 @@ import { ShoppingCart, Trash2, CheckCircle2, Bell } from "lucide-react";
 import { toast } from "sonner";
 import { RestaurantId } from "@/types/convex";
 
-interface CartDrawerProps {
+export interface CartDrawerProps {
   restaurantId: RestaurantId;
   tableId: string;
   sessionId: string;

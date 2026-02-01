@@ -19,6 +19,7 @@ import {
 import { ShoppingCart } from "lucide-react";
 
 import CreateTableBtn from "../components/createTable";
+import Link from "next/link";
 export default function TablesPage() {
   const [selectedRestaurantId, setSelectedRestaurantId] = useState<string | null>(null);
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null);
@@ -38,7 +39,7 @@ export default function TablesPage() {
     setIsDialogOpen(false);
     setSelectedTableId(null);
   };
-  console.log("restauranteId",selectedRestaurantId)
+  console.log("restauranteId", selectedRestaurantId)
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -76,26 +77,30 @@ export default function TablesPage() {
 
       {selectedRestaurantId && tablesOverview && tablesOverview.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          
-          
+
+
           {tablesOverview.map((tableOverview) => (
-            <TableCard
-              key={tableOverview.table._id}
-              table={tableOverview.table}
-              cartTotal={tableOverview.total}
-              cartItems={tableOverview.cartItems}
-              activeOrders={tableOverview.orders?.filter((o: any) =>
-                o.status !== "served" && o.status !== "completed"
-              ).length || 0}
-              totalOrders={tableOverview.orders?.length || 0}
-              onCloseBill={() => {
-                setSelectedTableId(tableOverview.table._id);
-                setIsDialogOpen(true);
-              }}
-            />
+            <Link href={`/restaurant/table/${tableOverview.table.tableNumber}`} className="hover:scale-102 transition-transform duration-500">
+              <TableCard
+                key={tableOverview.table._id}
+                table={tableOverview.table}
+                cartTotal={tableOverview.total}
+                cartItems={tableOverview.cartItems}
+                activeOrders={tableOverview.orders?.filter((o: any) =>
+                  o.status !== "served" && o.status !== "completed"
+                ).length || 0}
+                totalOrders={tableOverview.orders?.length || 0}
+                onCloseBill={() => {
+                  setSelectedTableId(tableOverview.table._id);
+                  setIsDialogOpen(true);
+                }}
+              />
+              </Link>
           ))}
-             <CreateTableBtn selectRestaurantId={selectedRestaurantId}></CreateTableBtn>
-        </div>
+
+              <CreateTableBtn selectRestaurantId={selectedRestaurantId}></CreateTableBtn>
+            </div>
+      
       ) : selectedRestaurantId && tablesOverview && tablesOverview.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
@@ -103,11 +108,11 @@ export default function TablesPage() {
               No tables found for this restaurant
             </p>
           </CardContent>
-              <CreateTableBtn selectRestaurantId={selectedRestaurantId}></CreateTableBtn>
+          <CreateTableBtn selectRestaurantId={selectedRestaurantId}></CreateTableBtn>
         </Card>
       ) : null}
-  
-       
+
+
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
