@@ -33,14 +33,20 @@ export const getSessionCart = query({
       .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
       .collect();
 
-    const itemsWithMenuInfo = await Promise.all(
-      items.map(async (item) => {
-        const menuItem = await ctx.db.get(item.menuItemId);
-        return { ...item, menuItem };
-      })
+    // Batch fetch all unique menu items
+    const uniqueMenuIds = [...new Set(items.map((i) => i.menuItemId))];
+    const menuItems = await Promise.all(
+      uniqueMenuIds.map((id) => ctx.db.get(id))
     );
 
-    return itemsWithMenuInfo;
+    // Create Map for O(1) lookups
+    const menuMap = new Map<string, (typeof menuItems)[0]>();
+    uniqueMenuIds.forEach((id, i) => menuMap.set(id.toString(), menuItems[i]!));
+
+    return items.map((item) => ({
+      ...item,
+      menuItem: menuMap.get(item.menuItemId.toString()) ?? null,
+    }));
   },
 });
 
@@ -83,8 +89,6 @@ export const clearSessionCart = mutation({
       .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
       .collect();
 
-    for (const item of items) {
-      await ctx.db.delete(item._id);
-    }
+    await Promise.all(items.map((item) => ctx.db.delete(item._id)));
   },
 });

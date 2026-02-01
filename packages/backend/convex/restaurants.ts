@@ -2,7 +2,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthenticatedUser } from "./lib/auth";
-import { Id } from "./_generated/dataModel";
 
 export const list = query({
     args:{},
@@ -19,10 +18,12 @@ export const create = mutation({
     
     },
     handler: async(ctx, args) => {
-        const isActive = true
-        const identity = await getAuthenticatedUser(ctx) ;
-        
-       return ctx.db.insert("restaurants",{... args,ownerId:identity?._id as Id<"users">, isActive:isActive})
+        const identity = await getAuthenticatedUser(ctx);
+        if (!identity) {
+            throw new Error("Not authenticated");
+        }
+
+        return ctx.db.insert("restaurants", { ...args, ownerId: identity._id, isActive: true });
     },
 }) 
 

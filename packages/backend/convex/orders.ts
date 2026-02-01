@@ -71,16 +71,18 @@ export const createOrder = mutation({
       updatedAt: now,
     });
 
-    for (const item of args.items) {
-      await ctx.db.insert("orderItems", {
-        orderId,
-        menuItemId: item.menuItemId,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.price,
-        totalPrice: item.totalPrice,
-      });
-    }
+    await Promise.all(
+      args.items.map((item) =>
+        ctx.db.insert("orderItems", {
+          orderId,
+          menuItemId: item.menuItemId,
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          totalPrice: item.totalPrice,
+        })
+      )
+    );
 
     return orderId;
   },
