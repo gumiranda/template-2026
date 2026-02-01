@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { requireRestaurantAccess, isAdmin } from "./lib/auth";
+import { requireAdminRestaurantAccess } from "./lib/auth";
 
 export const getMenuByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -19,7 +19,6 @@ export const getMenuByRestaurant = query({
       )
       .collect();
 
-    // Group items by categoryId using Map for O(1) lookups
     const itemsByCategory = new Map<string, typeof allItems>();
     for (const item of allItems) {
       const key = item.categoryId.toString();
@@ -42,13 +41,7 @@ export const createCategory = mutation({
     order: v.number(),
   },
   handler: async (ctx, args) => {
-    // Require authentication and restaurant access
-    const user = await requireRestaurantAccess(ctx, args.restaurantId);
-
-    // Verify user is admin
-    if (!isAdmin(user.role)) {
-      throw new Error("Access denied: Admin role required");
-    }
+    await requireAdminRestaurantAccess(ctx, args.restaurantId);
 
     return await ctx.db.insert("menuCategories", {
       restaurantId: args.restaurantId,
@@ -70,15 +63,8 @@ export const createItem = mutation({
     imageUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Require authentication and restaurant access
-    const user = await requireRestaurantAccess(ctx, args.restaurantId);
+    await requireAdminRestaurantAccess(ctx, args.restaurantId);
 
-    // Verify user is admin
-    if (!isAdmin(user.role)) {
-      throw new Error("Access denied: Admin role required");
-    }
-
-    // Verify category belongs to the same restaurant
     const category = await ctx.db.get(args.categoryId);
     if (!category || category.restaurantId !== args.restaurantId) {
       throw new Error("Invalid category: Category does not belong to this restaurant");
@@ -102,19 +88,12 @@ export const updateItemStatus = mutation({
     isActive: v.boolean(),
   },
   handler: async (ctx, args) => {
-    // Get the menu item to find its restaurant
     const item = await ctx.db.get(args.itemId);
     if (!item) {
       throw new Error("Menu item not found");
     }
 
-    // Require authentication and restaurant access
-    const user = await requireRestaurantAccess(ctx, item.restaurantId);
-
-    // Verify user is admin
-    if (!isAdmin(user.role)) {
-      throw new Error("Access denied: Admin role required");
-    }
+    await requireAdminRestaurantAccess(ctx, item.restaurantId);
 
     return await ctx.db.patch(args.itemId, {
       isActive: args.isActive,
@@ -132,21 +111,13 @@ export const updateItem = mutation({
     categoryId: v.optional(v.id("menuCategories")),
   },
   handler: async (ctx, args) => {
-    // Get the menu item to find its restaurant
     const item = await ctx.db.get(args.itemId);
     if (!item) {
       throw new Error("Menu item not found");
     }
 
-    // Require authentication and restaurant access
-    const user = await requireRestaurantAccess(ctx, item.restaurantId);
+    await requireAdminRestaurantAccess(ctx, item.restaurantId);
 
-    // Verify user is admin
-    if (!isAdmin(user.role)) {
-      throw new Error("Access denied: Admin role required");
-    }
-
-    // If updating categoryId, verify the new category belongs to the same restaurant
     if (args.categoryId) {
       const category = await ctx.db.get(args.categoryId);
       if (!category || category.restaurantId !== item.restaurantId) {
@@ -156,7 +127,7 @@ export const updateItem = mutation({
 
     const { itemId, ...updates } = args;
     const filteredUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([_, value]) => value !== undefined)
+      Object.entries(updates).filter(([, value]) => value !== undefined)
     );
     return await ctx.db.patch(itemId, filteredUpdates);
   },
@@ -167,19 +138,12 @@ export const deleteItem = mutation({
     itemId: v.id("menuItems"),
   },
   handler: async (ctx, args) => {
-    // Get the menu item to find its restaurant
     const item = await ctx.db.get(args.itemId);
     if (!item) {
       throw new Error("Menu item not found");
     }
 
-    // Require authentication and restaurant access
-    const user = await requireRestaurantAccess(ctx, item.restaurantId);
-
-    // Verify user is admin
-    if (!isAdmin(user.role)) {
-      throw new Error("Access denied: Admin role required");
-    }
+    await requireAdminRestaurantAccess(ctx, item.restaurantId);
 
     return await ctx.db.delete(args.itemId);
   },

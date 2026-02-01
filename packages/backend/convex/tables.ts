@@ -1,11 +1,13 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import {
   getAuthenticatedUser,
   isRestaurantStaff,
   canManageRestaurant,
   requireRestaurantAccess,
 } from "./lib/auth";
+import { batchFetchMenuItems } from "./lib/helpers";
 
 export const listByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -22,19 +24,16 @@ export const listByRestaurant = query({
 export const getTablesOverview = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
-    // Authorization check
     const user = await getAuthenticatedUser(ctx);
     if (!user || !isRestaurantStaff(user.role)) {
       return [];
     }
 
-    // Verify user can access this restaurant
     const canAccess = await canManageRestaurant(ctx, user._id, args.restaurantId);
     if (!canAccess) {
       return [];
     }
 
-    // 1. Fetch all tables
     const tables = await ctx.db
       .query("tables")
       .withIndex("by_restaurant", (q) =>
@@ -42,7 +41,6 @@ export const getTablesOverview = query({
       )
       .collect();
 
-    // 2. Fetch all active carts for restaurant
     const allCarts = await ctx.db
       .query("carts")
       .withIndex("by_restaurant", (q) =>
@@ -51,11 +49,9 @@ export const getTablesOverview = query({
       .filter((q) => q.eq(q.field("isActive"), true))
       .collect();
 
-    // Map: tableId -> cart
     const cartByTable = new Map<string, (typeof allCarts)[0]>();
     allCarts.forEach((c) => cartByTable.set(c.tableId.toString(), c));
 
-    // 3. Batch fetch cartItems for all carts
     const cartItemsArrays = await Promise.all(
       allCarts.map((c) =>
         ctx.db
@@ -65,20 +61,17 @@ export const getTablesOverview = query({
       )
     );
     const itemsByCart = new Map<string, (typeof cartItemsArrays)[0]>();
-    allCarts.forEach((c, i) =>
-      itemsByCart.set(c._id.toString(), cartItemsArrays[i]!)
-    );
+    allCarts.forEach((c, i) => {
+      const items = cartItemsArrays[i];
+      if (items) itemsByCart.set(c._id.toString(), items);
+    });
 
-    // 4. Batch fetch menu items for all cart items
     const allCartItems = cartItemsArrays.flat();
-    const uniqueMenuIds = [...new Set(allCartItems.map((i) => i.menuItemId))];
-    const menuItems = await Promise.all(
-      uniqueMenuIds.map((id) => ctx.db.get(id))
+    const menuMap = await batchFetchMenuItems(
+      ctx,
+      allCartItems.map((i) => i.menuItemId)
     );
-    const menuMap = new Map<string, (typeof menuItems)[0]>();
-    uniqueMenuIds.forEach((id, i) => menuMap.set(id.toString(), menuItems[i]!));
 
-    // 5. Fetch all orders for restaurant
     const allOrders = await ctx.db
       .query("orders")
       .withIndex("by_restaurant", (q) =>
@@ -92,11 +85,10 @@ export const getTablesOverview = query({
       ordersByTable.get(key)!.push(o);
     });
 
-    // 6. Assemble overview
     return tables.map((table) => {
       const cart = cartByTable.get(table._id.toString());
       let cartItems: Array<
-        (typeof allCartItems)[0] & { menuItem: (typeof menuItems)[0] | null }
+        (typeof allCartItems)[0] & { menuItem: Doc<"menuItems"> | null }
       > = [];
       let total = 0;
 
@@ -131,7 +123,6 @@ export const createTable = mutation({
     isActive: v.boolean(),
   },
   handler: async (ctx, args) => {
-    // Require authentication and restaurant access
     await requireRestaurantAccess(ctx, args.restaurantId);
 
     return await ctx.db.insert("tables", args);

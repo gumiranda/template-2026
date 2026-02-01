@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthenticatedUser, isRestaurantStaff } from "./lib/auth";
+import { batchFetchMenuItems } from "./lib/helpers";
 
 export const getCart = query({
   args: { tableId: v.id("tables") },
@@ -20,15 +21,10 @@ export const getCart = query({
       .withIndex("by_cart", (q) => q.eq("cartId", cart._id))
       .collect();
 
-    // Batch fetch all unique menu items
-    const uniqueMenuIds = [...new Set(cartItems.map((i) => i.menuItemId))];
-    const menuItems = await Promise.all(
-      uniqueMenuIds.map((id) => ctx.db.get(id))
+    const menuMap = await batchFetchMenuItems(
+      ctx,
+      cartItems.map((i) => i.menuItemId)
     );
-
-    // Create Map for O(1) lookups
-    const menuMap = new Map<string, (typeof menuItems)[0]>();
-    uniqueMenuIds.forEach((id, i) => menuMap.set(id.toString(), menuItems[i]!));
 
     const itemsWithMenu = cartItems.map((item) => ({
       ...item,
@@ -47,13 +43,11 @@ export const addToCart = mutation({
     quantity: v.number(),
   },
   handler: async (ctx, args) => {
-    // Validate table belongs to the restaurant
     const table = await ctx.db.get(args.tableId);
     if (!table || table.restaurantId !== args.restaurantId) {
       throw new Error("Invalid table for this restaurant");
     }
 
-    // Fetch menu item from database to get authoritative price
     const menuItem = await ctx.db.get(args.menuItemId);
     if (!menuItem) {
       throw new Error("Menu item not found");
@@ -98,7 +92,7 @@ export const addToCart = mutation({
       cartId: cart._id,
       menuItemId: args.menuItemId,
       quantity: args.quantity,
-      price: menuItem.price, // Use authoritative price from database
+      price: menuItem.price,
       addedAt: Date.now(),
     });
   },
@@ -107,7 +101,6 @@ export const addToCart = mutation({
 export const clearCart = mutation({
   args: { tableId: v.id("tables") },
   handler: async (ctx, args) => {
-    // Require authenticated staff to clear carts
     const user = await getAuthenticatedUser(ctx);
     if (!user || !isRestaurantStaff(user.role)) {
       throw new Error("Unauthorized: Only restaurant staff can clear carts");

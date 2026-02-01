@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { validateSession, batchFetchMenuItems } from "./lib/helpers";
 
 export const createSession = mutation({
   args: {
@@ -28,33 +29,17 @@ export const createSession = mutation({
 export const getSessionCart = query({
   args: { sessionId: v.string() },
   handler: async (ctx, args) => {
-    // Validate session exists and is not expired
-    const session = await ctx.db
-      .query("sessions")
-      .withIndex("by_session_id", (q) => q.eq("sessionId", args.sessionId))
-      .first();
-
-    if (!session) {
-      throw new Error("Invalid session");
-    }
-    if (session.expiresAt < Date.now()) {
-      throw new Error("Session expired");
-    }
+    await validateSession(ctx, args.sessionId);
 
     const items = await ctx.db
       .query("sessionCartItems")
       .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
       .collect();
 
-    // Batch fetch all unique menu items
-    const uniqueMenuIds = [...new Set(items.map((i) => i.menuItemId))];
-    const menuItems = await Promise.all(
-      uniqueMenuIds.map((id) => ctx.db.get(id))
+    const menuMap = await batchFetchMenuItems(
+      ctx,
+      items.map((i) => i.menuItemId)
     );
-
-    // Create Map for O(1) lookups
-    const menuMap = new Map<string, (typeof menuItems)[0]>();
-    uniqueMenuIds.forEach((id, i) => menuMap.set(id.toString(), menuItems[i]!));
 
     return items.map((item) => ({
       ...item,
@@ -70,20 +55,8 @@ export const addToSessionCart = mutation({
     quantity: v.number(),
   },
   handler: async (ctx, args) => {
-    // Validate session exists and is not expired
-    const session = await ctx.db
-      .query("sessions")
-      .withIndex("by_session_id", (q) => q.eq("sessionId", args.sessionId))
-      .first();
+    const session = await validateSession(ctx, args.sessionId);
 
-    if (!session) {
-      throw new Error("Invalid session");
-    }
-    if (session.expiresAt < Date.now()) {
-      throw new Error("Session expired");
-    }
-
-    // Fetch menu item from database to get authoritative price
     const menuItem = await ctx.db.get(args.menuItemId);
     if (!menuItem) {
       throw new Error("Menu item not found");
@@ -112,7 +85,7 @@ export const addToSessionCart = mutation({
       sessionId: args.sessionId,
       menuItemId: args.menuItemId,
       quantity: args.quantity,
-      price: menuItem.price, // Use authoritative price from database
+      price: menuItem.price,
       addedAt: Date.now(),
     });
   },
@@ -121,15 +94,7 @@ export const addToSessionCart = mutation({
 export const clearSessionCart = mutation({
   args: { sessionId: v.string() },
   handler: async (ctx, args) => {
-    // Validate session exists (prevents clearing arbitrary session carts)
-    const session = await ctx.db
-      .query("sessions")
-      .withIndex("by_session_id", (q) => q.eq("sessionId", args.sessionId))
-      .first();
-
-    if (!session) {
-      throw new Error("Invalid session");
-    }
+    await validateSession(ctx, args.sessionId, false);
 
     const items = await ctx.db
       .query("sessionCartItems")

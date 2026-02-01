@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation, QueryCtx } from "./_generated/server";
-import { Sector, Role, UserStatus } from "./lib/types";
+import { Role, UserStatus, isValidRole, isValidSector } from "./lib/types";
 import { getAuthenticatedUser, isAdmin } from "./lib/auth";
 
 async function fetchPendingUsers(ctx: QueryCtx) {
@@ -109,14 +109,12 @@ export const bootstrap = mutation({
       approvedAt: Date.now(),
     });
 
-    // POST-INSERT VERIFICATION: Check we're still the only superadmin
     const allSuperadmins = await ctx.db
       .query("users")
       .withIndex("by_role", (q) => q.eq("role", Role.SUPERADMIN))
       .collect();
 
     if (allSuperadmins.length > 1) {
-      // Race condition detected - rollback
       await ctx.db.delete(newUserId);
       throw new Error("Race condition detected. Please try again.");
     }
@@ -133,7 +131,6 @@ export const getAllUsers = query({
 
     const users = await ctx.db.query("users").collect();
 
-    // Filter out sensitive fields
     return users.map(({ clerkId, ...safeUser }) => safeUser);
   },
 });
@@ -149,8 +146,7 @@ export const updateUserRole = mutation({
       throw new Error("Only superadmin can change user roles");
     }
 
-    const validRoles = Object.values(Role) as string[];
-    if (!validRoles.includes(args.role)) {
+    if (!isValidRole(args.role)) {
       throw new Error("Invalid role");
     }
 
@@ -189,8 +185,7 @@ export const updateUserSector = mutation({
       throw new Error("Only superadmin or CEO can change user sectors");
     }
 
-    const validSectors = Object.values(Sector) as string[];
-    if (!validSectors.includes(args.sector)) {
+    if (!isValidSector(args.sector)) {
       throw new Error("Invalid sector");
     }
 
@@ -248,8 +243,7 @@ export const approveUser = mutation({
       throw new Error("Not authorized to approve users");
     }
 
-    const validSectors = Object.values(Sector) as string[];
-    if (!validSectors.includes(args.sector)) {
+    if (!isValidSector(args.sector)) {
       throw new Error("Invalid sector");
     }
 

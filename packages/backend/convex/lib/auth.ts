@@ -29,7 +29,6 @@ export async function getAuthenticatedUser(
   return user;
 }
 
-// Helper for mutations requiring approved users
 export async function getApprovedUser(ctx: QueryCtx | MutationCtx) {
   return getAuthenticatedUser(ctx, { requireApproved: true });
 }
@@ -48,10 +47,6 @@ export function canModifyRestaurant(
   return isAdmin(user.role);
 }
 
-/**
- * Check if a user can manage a specific restaurant.
- * Returns true if user is SUPERADMIN or owns the restaurant.
- */
 export async function canManageRestaurant(
   ctx: QueryCtx | MutationCtx,
   userId: Id<"users">,
@@ -60,19 +55,14 @@ export async function canManageRestaurant(
   const user = await ctx.db.get(userId);
   if (!user) return false;
 
-  // SUPERADMIN can manage any restaurant
   if (user.role === Role.SUPERADMIN) return true;
 
-  // Check if user owns the restaurant
   const restaurant = await ctx.db.get(restaurantId);
   if (!restaurant) return false;
 
   return restaurant.ownerId === userId;
 }
 
-/**
- * Require authentication. Throws if user is not authenticated.
- */
 export async function requireAuth(
   ctx: QueryCtx | MutationCtx
 ): Promise<NonNullable<Awaited<ReturnType<typeof getAuthenticatedUser>>>> {
@@ -83,10 +73,6 @@ export async function requireAuth(
   return user;
 }
 
-/**
- * Require authentication and restaurant access.
- * Throws if user is not authenticated or doesn't have access to the restaurant.
- */
 export async function requireRestaurantAccess(
   ctx: QueryCtx | MutationCtx,
   restaurantId: Id<"restaurants">
@@ -96,6 +82,19 @@ export async function requireRestaurantAccess(
   const canManage = await canManageRestaurant(ctx, user._id, restaurantId);
   if (!canManage) {
     throw new Error("Access denied: You don't have permission to manage this restaurant");
+  }
+
+  return user;
+}
+
+export async function requireAdminRestaurantAccess(
+  ctx: QueryCtx | MutationCtx,
+  restaurantId: Id<"restaurants">
+): Promise<NonNullable<Awaited<ReturnType<typeof getAuthenticatedUser>>>> {
+  const user = await requireRestaurantAccess(ctx, restaurantId);
+
+  if (!isAdmin(user.role)) {
+    throw new Error("Access denied: Admin role required");
   }
 
   return user;

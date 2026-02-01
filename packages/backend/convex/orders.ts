@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { OrderStatus } from "./lib/types";
+import { OrderStatus, isValidOrderStatus } from "./lib/types";
 import { getAuthenticatedUser, isRestaurantStaff } from "./lib/auth";
 
 export const getOrdersByRestaurant = query({
@@ -11,15 +11,16 @@ export const getOrdersByRestaurant = query({
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.restaurantId))
       .collect();
 
-    // Batch fetch unique tables
     const uniqueTableIds = [...new Set(orders.map((o) => o.tableId))];
     const tables = await Promise.all(
       uniqueTableIds.map((id) => ctx.db.get(id))
     );
     const tableMap = new Map<string, (typeof tables)[0]>();
-    uniqueTableIds.forEach((id, i) => tableMap.set(id.toString(), tables[i]!));
+    uniqueTableIds.forEach((id, i) => {
+      const table = tables[i];
+      if (table) tableMap.set(id.toString(), table);
+    });
 
-    // Parallel fetch all order items (batched round trip)
     const orderItemsArrays = await Promise.all(
       orders.map((order) =>
         ctx.db
@@ -29,11 +30,11 @@ export const getOrdersByRestaurant = query({
       )
     );
 
-    // Map order items by orderId
     const itemsMap = new Map<string, (typeof orderItemsArrays)[0]>();
-    orders.forEach((order, i) =>
-      itemsMap.set(order._id.toString(), orderItemsArrays[i]!)
-    );
+    orders.forEach((order, i) => {
+      const items = orderItemsArrays[i];
+      if (items) itemsMap.set(order._id.toString(), items);
+    });
 
     return orders.map((order) => ({
       ...order,
@@ -57,13 +58,11 @@ export const createOrder = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    // Verify table belongs to restaurant
     const table = await ctx.db.get(args.tableId);
     if (!table || table.restaurantId !== args.restaurantId) {
       throw new Error("Invalid table");
     }
 
-    // Fetch actual prices from database (SERVER-SIDE) and validate menu items
     const itemsWithServerPrices = await Promise.all(
       args.items.map(async (item) => {
         const menuItem = await ctx.db.get(item.menuItemId);
@@ -84,7 +83,6 @@ export const createOrder = mutation({
       })
     );
 
-    // Calculate total from server prices
     const total = itemsWithServerPrices.reduce((sum, item) => sum + item.totalPrice, 0);
     const now = Date.now();
 
@@ -121,25 +119,20 @@ export const updateOrderStatus = mutation({
     status: v.string(),
   },
   handler: async (ctx, args) => {
-    // Authenticate user
     const user = await getAuthenticatedUser(ctx);
     if (!user) {
       throw new Error("Not authenticated");
     }
 
-    // Validate status against OrderStatus enum
-    const validStatuses = Object.values(OrderStatus);
-    if (!validStatuses.includes(args.status as typeof validStatuses[number])) {
+    if (!isValidOrderStatus(args.status)) {
       throw new Error("Invalid status");
     }
 
-    // Get order and verify it exists
     const order = await ctx.db.get(args.orderId);
     if (!order) {
       throw new Error("Order not found");
     }
 
-    // Authorization: Verify user is restaurant owner or staff
     const restaurant = await ctx.db.get(order.restaurantId);
     if (!restaurant) {
       throw new Error("Restaurant not found");
@@ -152,7 +145,6 @@ export const updateOrderStatus = mutation({
       throw new Error("Not authorized to update order status");
     }
 
-    // Perform update
     await ctx.db.patch(args.orderId, {
       status: args.status,
       updatedAt: Date.now(),
