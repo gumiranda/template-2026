@@ -134,8 +134,8 @@ export const updateOrderStatus = mutation({
   },
   handler: async (ctx, args) => {
     const user = await getAuthenticatedUser(ctx);
-    if (!user) {
-      throw new Error("Not authenticated");
+    if (!user || !isRestaurantStaff(user.role)) {
+      throw new Error("Unauthorized: Only restaurant staff can update orders");
     }
 
     if (!isValidOrderStatus(args.status)) {
@@ -152,11 +152,8 @@ export const updateOrderStatus = mutation({
       throw new Error("Restaurant not found");
     }
 
-    const isOwner = restaurant.ownerId === user._id;
-    const isStaff = isRestaurantStaff(user.role);
-
-    if (!isOwner && !isStaff) {
-      throw new Error("Not authorized to update order status");
+    if (user.role !== Role.SUPERADMIN && restaurant.ownerId !== user._id) {
+      throw new Error("Not authorized to update this restaurant's orders");
     }
 
     await ctx.db.patch(args.orderId, {
