@@ -47,6 +47,14 @@ export function canModifyRestaurant(
   return isAdmin(user.role);
 }
 
+export function canViewRestaurant(
+  user: { _id: Id<"users">; role?: string },
+  restaurant: { ownerId: Id<"users"> }
+): boolean {
+  if (restaurant.ownerId === user._id) return true;
+  return isAdmin(user.role);
+}
+
 export async function canManageRestaurant(
   ctx: QueryCtx | MutationCtx,
   userId: Id<"users">,

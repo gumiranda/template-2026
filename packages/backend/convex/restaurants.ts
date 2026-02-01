@@ -1,8 +1,8 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
-import { getAuthenticatedUser, canModifyRestaurant, isAdmin } from "./lib/auth";
+import { mutation, query, internalMutation } from "./_generated/server";
+import { getAuthenticatedUser, canModifyRestaurant, canViewRestaurant, isAdmin } from "./lib/auth";
 import { RestaurantStatus, OrderStatus } from "./lib/types";
-import { groupBy } from "./lib/helpers";
+import { groupBy, calculateTotalRevenue } from "./lib/helpers";
 
 export const list = query({
   args: {},
@@ -11,13 +11,15 @@ export const list = query({
     if (!currentUser) return [];
 
     if (!isAdmin(currentUser.role)) {
-      return await ctx.db
+      const restaurants = await ctx.db
         .query("restaurants")
         .withIndex("by_owner", (q) => q.eq("ownerId", currentUser._id))
         .collect();
+      return restaurants.filter((r) => r.deletedAt === undefined);
     }
 
-    return await ctx.db.query("restaurants").collect();
+    const restaurants = await ctx.db.query("restaurants").collect();
+    return restaurants.filter((r) => r.deletedAt === undefined);
   },
 });
 
@@ -27,7 +29,6 @@ export const create = mutation({
     address: v.string(),
     phone: v.optional(v.string()),
     description: v.optional(v.string()),
-    subdomain: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const identity = await getAuthenticatedUser(ctx);
@@ -39,25 +40,13 @@ export const create = mutation({
       throw new Error("Only admins can create restaurants");
     }
 
-    if (args.subdomain) {
-      const existing = await ctx.db
-        .query("restaurants")
-        .withIndex("by_subdomain", (q) => q.eq("subdomain", args.subdomain))
-        .first();
-      if (existing) {
-        throw new Error("Subdomain already in use");
-      }
-    }
-
     return ctx.db.insert("restaurants", {
       name: args.name,
       address: args.address,
       phone: args.phone,
       description: args.description,
-      subdomain: args.subdomain,
       status: RestaurantStatus.ACTIVE,
       ownerId: identity._id,
-      isActive: true,
     });
   },
 });
@@ -102,7 +91,15 @@ export const deleteRestaurant = mutation({
       throw new Error("Not authorized to delete this restaurant");
     }
 
-    return await ctx.db.delete(args.id);
+    if (restaurant.deletedAt) {
+      throw new Error("Restaurant already deleted");
+    }
+
+    return await ctx.db.patch(args.id, {
+      deletedAt: Date.now(),
+      deletedBy: currentUser._id,
+      status: RestaurantStatus.INACTIVE,
+    });
   },
 });
 
@@ -117,7 +114,7 @@ export const get = query({
     const restaurant = await ctx.db.get(args.id);
     if (!restaurant) return null;
 
-    if (!canModifyRestaurant(currentUser, restaurant)) {
+    if (!canViewRestaurant(currentUser, restaurant)) {
       return null;
     }
 
@@ -128,7 +125,6 @@ export const get = query({
       address: restaurant.address,
       phone: restaurant.phone,
       description: restaurant.description,
-      subdomain: restaurant.subdomain,
       status: restaurant.status,
       isActive: restaurant.isActive,
     };
@@ -140,10 +136,11 @@ export const listMyRestaurants = query({
   handler: async (ctx) => {
     const currentUser = await getAuthenticatedUser(ctx);
     if (!currentUser) return [];
-    return await ctx.db
+    const restaurants = await ctx.db
       .query("restaurants")
       .withIndex("by_owner", (q) => q.eq("ownerId", currentUser._id))
       .collect();
+    return restaurants.filter((r) => r.deletedAt === undefined);
   },
 });
 
@@ -155,11 +152,12 @@ export const listAllWithStats = query({
       return [];
     }
 
-    const restaurants = await ctx.db.query("restaurants").collect();
+    const allRestaurants = await ctx.db.query("restaurants").collect();
+    const restaurants = allRestaurants.filter((r) => r.deletedAt === undefined);
 
     const completedOrders = await ctx.db
       .query("orders")
-      .filter((q) => q.eq(q.field("status"), OrderStatus.COMPLETED))
+      .withIndex("by_order_status", (q) => q.eq("status", OrderStatus.COMPLETED))
       .collect();
 
     const revenueByRestaurant = groupBy(completedOrders, (order) =>
@@ -168,7 +166,7 @@ export const listAllWithStats = query({
 
     const restaurantsWithStats = restaurants.map((restaurant) => {
       const restaurantOrders = revenueByRestaurant.get(restaurant._id.toString()) ?? [];
-      const totalRevenue = restaurantOrders.reduce((sum, order) => sum + order.total, 0);
+      const totalRevenue = calculateTotalRevenue(restaurantOrders);
 
       return {
         ...restaurant,
@@ -199,7 +197,7 @@ export const getWithStats = query({
       .collect();
 
     const completedOrders = orders.filter((order) => order.status === "completed");
-    const totalRevenue = completedOrders.reduce((sum, order) => sum + order.total, 0);
+    const totalRevenue = calculateTotalRevenue(completedOrders);
     const totalOrders = orders.length;
     const pendingOrders = orders.filter((order) => order.status === "pending").length;
 
@@ -249,9 +247,9 @@ export const getOverviewStats = query({
 
     const allCompletedOrders = await ctx.db
       .query("orders")
-      .filter((q) => q.eq(q.field("status"), OrderStatus.COMPLETED))
+      .withIndex("by_order_status", (q) => q.eq("status", OrderStatus.COMPLETED))
       .collect();
-    const totalRevenue = allCompletedOrders.reduce((sum, order) => sum + order.total, 0);
+    const totalRevenue = calculateTotalRevenue(allCompletedOrders);
 
     return {
       totalRestaurants,
@@ -262,14 +260,9 @@ export const getOverviewStats = query({
   },
 });
 
-export const migrateRestaurantStatus = mutation({
+export const migrateRestaurantStatus = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const currentUser = await getAuthenticatedUser(ctx);
-    if (!currentUser || !isAdmin(currentUser.role)) {
-      throw new Error("Only admins can run migrations");
-    }
-
     const restaurants = await ctx.db.query("restaurants").collect();
     let migratedCount = 0;
 

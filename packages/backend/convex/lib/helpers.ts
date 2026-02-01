@@ -89,3 +89,7 @@ export function groupBy<T>(
 }
 
 export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+
+export function calculateTotalRevenue(orders: Array<{ total: number }>): number {
+  return orders.reduce((sum, order) => sum + order.total, 0);
+}

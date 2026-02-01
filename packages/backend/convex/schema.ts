@@ -25,13 +25,13 @@ export default defineSchema({
     description: v.optional(v.string()),
     ownerId: v.id("users"),
     logoUrl: v.optional(v.string()),
-    isActive: v.boolean(),
-    subdomain: v.optional(v.string()),
+    isActive: v.optional(v.boolean()),
     status: v.optional(v.string()),
+    deletedAt: v.optional(v.number()),
+    deletedBy: v.optional(v.id("users")),
   })
     .index("by_owner", ["ownerId"])
     .index("by_active", ["isActive"])
-    .index("by_subdomain", ["subdomain"])
     .index("by_status", ["status"]),
 
   tables: defineTable({
@@ -119,7 +119,8 @@ export default defineSchema({
     .index("by_restaurant", ["restaurantId"])
     .index("by_table", ["tableId"])
     .index("by_status", ["restaurantId", "status"])
-    .index("by_session", ["sessionId"]),
+    .index("by_session", ["sessionId"])
+    .index("by_order_status", ["status"]),
 
   orderItems: defineTable({
     orderId: v.id("orders"),
