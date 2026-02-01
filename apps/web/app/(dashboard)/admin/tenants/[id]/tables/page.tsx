@@ -382,7 +382,7 @@ function TableManagementContent({
     []
   );
 
-  const handlePrintAll = useCallback(() => {
+  const handlePrintAll = useCallback(async () => {
     const tablesToPrint =
       selectedTableIds.size > 0
         ? filteredAndSortedTables.filter((t) => selectedTableIds.has(t._id))
@@ -393,16 +393,52 @@ function TableManagementContent({
       return;
     }
 
+    toast.info("Generating PDF...");
+
+    const isDark = batchSettings.colorTheme === "dark";
+    const bgColor = isDark ? "#1a1a1a" : "#ffffff";
+    const textColor = isDark ? "#ffffff" : "#000000";
+    const qrBgColor = isDark ? "#ffffff" : "#ffffff";
+    const qrFgColor = isDark ? "#000000" : "#000000";
+
+    // Generate QR code images for all tables
+    const qrImages = await Promise.all(
+      tablesToPrint.map((table) => {
+        return new Promise<string>((resolve) => {
+          const svg = document.getElementById(`qr-hidden-${table._id}`);
+          if (!svg) {
+            resolve("");
+            return;
+          }
+
+          const svgData = new XMLSerializer().serializeToString(svg);
+          const canvas = document.createElement("canvas");
+          const ctx = canvas.getContext("2d");
+          const img = new Image();
+
+          img.onload = () => {
+            canvas.width = 400;
+            canvas.height = 400;
+            if (ctx) {
+              ctx.fillStyle = qrBgColor;
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            }
+            resolve(canvas.toDataURL("image/png"));
+          };
+
+          img.onerror = () => resolve("");
+          img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgData)));
+        });
+      })
+    );
+
     const pdf = new jsPDF({
       orientation: batchSettings.formatTemplate === "tent-card-4x6" ? "landscape" : "portrait",
       unit: "in",
       format:
         batchSettings.formatTemplate === "tent-card-4x6" ? [6, 4] : [2, 2],
     });
-
-    const isDark = batchSettings.colorTheme === "dark";
-    const bgColor = isDark ? "#1a1a1a" : "#ffffff";
-    const textColor = isDark ? "#ffffff" : "#000000";
 
     tablesToPrint.forEach((table, index) => {
       if (index > 0) {
@@ -412,54 +448,55 @@ function TableManagementContent({
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
 
+      // Background
       pdf.setFillColor(bgColor);
       pdf.rect(0, 0, pageWidth, pageHeight, "F");
 
       pdf.setTextColor(textColor);
 
+      const qrImageData = qrImages[index];
+
       if (batchSettings.formatTemplate === "tent-card-4x6") {
         const qrSize = 2;
         const qrX = (pageWidth - qrSize) / 2;
-        const qrY = 0.8;
+        const qrY = 0.6;
 
-        // Draw placeholder box for QR code area
-        pdf.setDrawColor(isDark ? "#333333" : "#cccccc");
-        pdf.setFillColor(isDark ? "#2a2a2a" : "#f5f5f5");
-        pdf.rect(qrX, qrY, qrSize, qrSize, "FD");
+        // Add QR code image
+        if (qrImageData) {
+          pdf.addImage(qrImageData, "PNG", qrX, qrY, qrSize, qrSize);
+        }
 
-        // Add QR URL text in small font for reference
-        pdf.setFontSize(6);
-        pdf.setFont("helvetica", "normal");
-        const urlText = table.qrCode;
-        pdf.text(urlText, pageWidth / 2, qrY + qrSize + 0.15, { align: "center", maxWidth: 5 });
-
-        pdf.setFontSize(18);
+        // Call to action text
+        pdf.setFontSize(16);
         pdf.setFont("helvetica", "bold");
-        pdf.text(batchSettings.callToAction, pageWidth / 2, qrY + qrSize + 0.45, { align: "center" });
+        pdf.text(batchSettings.callToAction, pageWidth / 2, qrY + qrSize + 0.35, { align: "center" });
 
+        // Table number
         if (batchSettings.showTableNumber) {
-          pdf.setFontSize(36);
+          pdf.setFontSize(32);
           const tableText = `TABLE ${table.tableNumber}`;
-          pdf.text(tableText, pageWidth / 2, pageHeight - 0.4, { align: "center" });
+          pdf.text(tableText, pageWidth / 2, pageHeight - 0.35, { align: "center" });
         }
       } else {
-        const qrSize = 1.2;
+        const qrSize = 1.1;
         const qrX = (pageWidth - qrSize) / 2;
-        const qrY = 0.4;
+        const qrY = 0.35;
 
-        pdf.setFontSize(8);
+        // Call to action text
+        pdf.setFontSize(7);
         pdf.setFont("helvetica", "bold");
-        pdf.text(batchSettings.callToAction, pageWidth / 2, 0.25, { align: "center" });
+        pdf.text(batchSettings.callToAction, pageWidth / 2, 0.22, { align: "center" });
 
-        // Draw placeholder box for QR code area
-        pdf.setDrawColor(isDark ? "#333333" : "#cccccc");
-        pdf.setFillColor(isDark ? "#2a2a2a" : "#f5f5f5");
-        pdf.rect(qrX, qrY, qrSize, qrSize, "FD");
+        // Add QR code image
+        if (qrImageData) {
+          pdf.addImage(qrImageData, "PNG", qrX, qrY, qrSize, qrSize);
+        }
 
+        // Table number
         if (batchSettings.showTableNumber) {
-          pdf.setFontSize(12);
+          pdf.setFontSize(10);
           const tableText = `#${table.tableNumber}`;
-          pdf.text(tableText, pageWidth / 2, pageHeight - 0.15, { align: "center" });
+          pdf.text(tableText, pageWidth / 2, pageHeight - 0.12, { align: "center" });
         }
       }
     });
@@ -857,15 +894,19 @@ function TableManagementContent({
         </div>
       </div>
 
-      {tables.map((table) => (
-        <QRCodeSVG
-          key={`hidden-${table._id}`}
-          id={`qr-hidden-${table._id}`}
-          value={table.qrCode}
-          size={200}
-          style={{ display: "none" }}
-        />
-      ))}
+      <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
+        {tables.map((table) => (
+          <QRCodeSVG
+            key={`hidden-${table._id}`}
+            id={`qr-hidden-${table._id}`}
+            value={table.qrCode}
+            size={400}
+            level="H"
+            bgColor="#ffffff"
+            fgColor="#000000"
+          />
+        ))}
+      </div>
 
       <DeleteConfirmDialog
         open={deleteConfirmTableId !== null}
