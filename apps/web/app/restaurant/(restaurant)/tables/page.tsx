@@ -1,51 +1,36 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useCallback, useState } from "react";
+import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
 import { Badge } from "@workspace/ui/components/badge";
-import { DollarSign, Users, CheckCircle2, XCircle, ShoppingCart, Loader2 } from "lucide-react";
-import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@workspace/ui/components/dialog";
+import { DollarSign, Users, CheckCircle2, ShoppingCart, Loader2 } from "lucide-react";
 
+import { useRestaurantSelection } from "@/hooks/use-restaurant-selection";
+import { RestaurantSelectorButtons, RestaurantEmptyState } from "../components/RestaurantSelector";
+import { CloseBillDialog } from "../components/CloseBillDialog";
 import CreateTableBtn from "../components/createTable";
 
 export default function TablesPage() {
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<Id<"restaurants"> | null>(null);
+  const { selectedRestaurantId, setSelectedRestaurantId, restaurants } =
+    useRestaurantSelection();
   const [selectedTableId, setSelectedTableId] = useState<Id<"tables"> | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isClosingBill, setIsClosingBill] = useState(false);
 
-  const restaurants = useQuery(api.restaurants.list);
   const tablesOverview = useQuery(
     api.tables.getTablesOverview,
     selectedRestaurantId ? { restaurantId: selectedRestaurantId } : "skip"
   );
 
-  const clearCart = useMutation(api.carts.clearCart);
+  const handleOpenCloseBill = useCallback((tableId: Id<"tables">) => {
+    setSelectedTableId(tableId);
+    setIsDialogOpen(true);
+  }, []);
 
-  const handleCloseBill = async (tableId: Id<"tables">) => {
-    setIsClosingBill(true);
-    try {
-      await clearCart({ tableId });
-      toast.success("Bill closed successfully!");
-      setIsDialogOpen(false);
-      setSelectedTableId(null);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to close bill");
-    } finally {
-      setIsClosingBill(false);
-    }
-  };
+  const isLoading = selectedRestaurantId && tablesOverview === undefined;
 
   return (
     <div className="space-y-6">
@@ -57,98 +42,63 @@ export default function TablesPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {restaurants &&
-            restaurants.map((restaurant) => (
-              <Button
-                key={restaurant._id}
-                variant={
-                  selectedRestaurantId === restaurant._id ? "default" : "outline"
-                }
-                onClick={() => setSelectedRestaurantId(restaurant._id)}
-              >
-                {restaurant.name}
-              </Button>
-            ))}
+          <RestaurantSelectorButtons
+            restaurants={restaurants}
+            selectedRestaurantId={selectedRestaurantId}
+            onSelect={setSelectedRestaurantId}
+          />
         </div>
       </div>
 
       {!selectedRestaurantId && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">
-              Select a restaurant to view tables
-            </p>
-          </CardContent>
-        </Card>
+        <RestaurantEmptyState message="Select a restaurant to view tables" />
       )}
 
-      {selectedRestaurantId && tablesOverview && tablesOverview.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-
-
-          {tablesOverview.map((tableOverview) => (
-            <TableCard
-              key={tableOverview.table._id}
-              table={tableOverview.table}
-              cartTotal={tableOverview.total}
-              cartItems={tableOverview.cartItems}
-              activeOrders={tableOverview.orders?.filter((o: { status: string }) =>
-                o.status !== "served" && o.status !== "completed"
-              ).length || 0}
-              totalOrders={tableOverview.orders?.length || 0}
-              onCloseBill={() => {
-                setSelectedTableId(tableOverview.table._id);
-                setIsDialogOpen(true);
-              }}
-            />
-          ))}
-             <CreateTableBtn selectRestaurantId={selectedRestaurantId}></CreateTableBtn>
+      {isLoading && (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
-      ) : selectedRestaurantId && tablesOverview && tablesOverview.length === 0 ? (
+      )}
+
+      {selectedRestaurantId && tablesOverview && tablesOverview.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {tablesOverview.map((tableOverview) => {
+            const activeOrders = tableOverview.orders?.filter(
+              (o) => o.status !== "served" && o.status !== "completed"
+            ).length ?? 0;
+
+            return (
+              <TableCard
+                key={tableOverview.table._id}
+                table={tableOverview.table}
+                cartTotal={tableOverview.total}
+                cartItems={tableOverview.cartItems}
+                activeOrders={activeOrders}
+                totalOrders={tableOverview.orders?.length ?? 0}
+                onCloseBill={handleOpenCloseBill}
+              />
+            );
+          })}
+          <CreateTableBtn selectRestaurantId={selectedRestaurantId} />
+        </div>
+      )}
+
+      {selectedRestaurantId && tablesOverview && tablesOverview.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">
               No tables found for this restaurant
             </p>
+            <CreateTableBtn selectRestaurantId={selectedRestaurantId} />
           </CardContent>
-              <CreateTableBtn selectRestaurantId={selectedRestaurantId}></CreateTableBtn>
         </Card>
-      ) : null}
+      )}
 
-
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Close Bill</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to close the bill? This will clear the
-              table's cart.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex gap-3 justify-end">
-            <Button
-              variant="outline"
-              onClick={() => setIsDialogOpen(false)}
-              disabled={isClosingBill}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => selectedTableId && handleCloseBill(selectedTableId)}
-              disabled={isClosingBill}
-            >
-              {isClosingBill ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-              )}
-              Confirm Close Bill
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CloseBillDialog
+        tableId={selectedTableId}
+        open={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+      />
     </div>
   );
 }
@@ -156,10 +106,10 @@ export default function TablesPage() {
 interface TableCardProps {
   table: { _id: Id<"tables">; tableNumber: string; capacity: number };
   cartTotal: number;
-  cartItems: Array<{ _id: string; menuItem?: { name: string }; quantity: number; price: number }>;
+  cartItems: Array<{ _id: string; menuItem?: { name: string } | null; quantity: number; price: number }>;
   activeOrders: number;
   totalOrders: number;
-  onCloseBill: () => void;
+  onCloseBill: (tableId: Id<"tables">) => void;
 }
 
 function TableCard({
@@ -218,24 +168,17 @@ function TableCard({
         <div className="flex items-center justify-between pt-4 border-t">
           <div className="flex items-center gap-2 text-lg font-bold">
             <DollarSign className="h-5 w-5" />
-            <span>R$ {cartTotal.toFixed(2)}</span>
+            <span>R$ {(cartTotal ?? 0).toFixed(2)}</span>
           </div>
-          <Button
-            onClick={onCloseBill}
-            variant={hasItems ? "default" : "outline"}
-          >
-            {hasItems ? (
-              <>
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Close Bill
-              </>
-            ) : (
-              <>
-                <XCircle className="h-4 w-4 mr-2" />
-                No Items
-              </>
-            )}
-          </Button>
+          {hasItems && (
+            <Button
+              onClick={() => onCloseBill(table._id)}
+              variant="default"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Close Bill
+            </Button>
+          )}
         </div>
       </CardContent>
     </Card>

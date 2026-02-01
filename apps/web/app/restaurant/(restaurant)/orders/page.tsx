@@ -11,6 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/componen
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { useRestaurantSelection } from "@/hooks/use-restaurant-selection";
+import { RestaurantSelectorButtons, RestaurantEmptyState } from "../components/RestaurantSelector";
+
 interface OrderItem {
   name: string;
   quantity: number;
@@ -28,8 +31,8 @@ interface Order {
 }
 
 export default function OrdersPage() {
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<Id<"restaurants"> | null>(null);
-  const restaurants = useQuery(api.restaurants.list);
+  const { selectedRestaurantId, setSelectedRestaurantId, restaurants } =
+    useRestaurantSelection();
   const orders = useQuery(
     api.orders.getOrdersByRestaurant,
     selectedRestaurantId
@@ -58,6 +61,8 @@ export default function OrdersPage() {
   const preparingOrders = orders?.filter((o) => o.status === "preparing") || [];
   const readyOrders = orders?.filter((o) => o.status === "ready") || [];
 
+  const isLoading = selectedRestaurantId && orders === undefined;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -68,29 +73,22 @@ export default function OrdersPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {restaurants &&
-            restaurants.map((restaurant) => (
-              <Button
-                key={restaurant._id}
-                variant={
-                  selectedRestaurantId === restaurant._id ? "default" : "outline"
-                }
-                onClick={() => setSelectedRestaurantId(restaurant._id)}
-              >
-                {restaurant.name}
-              </Button>
-            ))}
+          <RestaurantSelectorButtons
+            restaurants={restaurants}
+            selectedRestaurantId={selectedRestaurantId}
+            onSelect={setSelectedRestaurantId}
+          />
         </div>
       </div>
 
       {!selectedRestaurantId && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">
-              Select a restaurant to view orders
-            </p>
-          </CardContent>
-        </Card>
+        <RestaurantEmptyState message="Select a restaurant to view orders" />
+      )}
+
+      {isLoading && (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
       )}
 
       {selectedRestaurantId && orders && (

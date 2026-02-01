@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
 import { QRCodeSVG } from "@/components/restaurant/qr-code-generator";
-import { Download, Printer } from "lucide-react";
+import { Download, Loader2, Printer } from "lucide-react";
+
+import { useRestaurantSelection } from "@/hooks/use-restaurant-selection";
+import { RestaurantSelectorButtons, RestaurantEmptyState } from "../components/RestaurantSelector";
 
 interface Table {
   _id: Id<"tables">;
@@ -16,13 +18,15 @@ interface Table {
 }
 
 export default function QRCodesPage() {
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<Id<"restaurants"> | null>(null);
+  const { selectedRestaurantId, setSelectedRestaurantId, restaurants } =
+    useRestaurantSelection();
 
-  const restaurants = useQuery(api.restaurants.list);
   const tables = useQuery(
     api.tables.listByRestaurant,
     selectedRestaurantId ? { restaurantId: selectedRestaurantId } : "skip"
   );
+
+  const isLoading = selectedRestaurantId && tables === undefined;
 
   const handlePrint = () => {
     const printWindow = window.open("", "_blank");
@@ -67,32 +71,25 @@ export default function QRCodesPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          {restaurants &&
-            restaurants.map((restaurant) => (
-              <Button
-                key={restaurant._id}
-                variant={
-                  selectedRestaurantId === restaurant._id ? "default" : "outline"
-                }
-                onClick={() => setSelectedRestaurantId(restaurant._id)}
-              >
-                {restaurant.name}
-              </Button>
-            ))}
-          </div>
+          <RestaurantSelectorButtons
+            restaurants={restaurants}
+            selectedRestaurantId={selectedRestaurantId}
+            onSelect={setSelectedRestaurantId}
+          />
+        </div>
       </div>
 
       {!selectedRestaurantId && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">
-              Select a restaurant to view QR codes
-            </p>
-          </CardContent>
-        </Card>
+        <RestaurantEmptyState message="Select a restaurant to view QR codes" />
       )}
 
-      {selectedRestaurantId && tables && tables.length > 0 ? (
+      {isLoading && (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {selectedRestaurantId && tables && tables.length > 0 && (
         <>
           <div className="flex gap-2">
             <Button onClick={handlePrint}>
@@ -111,7 +108,9 @@ export default function QRCodesPage() {
             ))}
           </div>
         </>
-      ) : selectedRestaurantId && tables && tables.length === 0 ? (
+      )}
+
+      {selectedRestaurantId && tables && tables.length === 0 && (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">
@@ -119,7 +118,7 @@ export default function QRCodesPage() {
             </p>
           </CardContent>
         </Card>
-      ) : null}
+      )}
     </div>
   );
 }

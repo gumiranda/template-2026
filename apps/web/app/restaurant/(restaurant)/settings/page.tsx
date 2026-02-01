@@ -1,7 +1,6 @@
 "use client";
 
 import { api } from "@workspace/backend/_generated/api";
-import { Id } from "@workspace/backend/_generated/dataModel";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Input } from "@workspace/ui/components/input";
@@ -12,8 +11,12 @@ import { Save, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { useRestaurantSelection } from "@/hooks/use-restaurant-selection";
+import { RestaurantSelectorButtons, RestaurantEmptyState } from "../components/RestaurantSelector";
+
 export default function RestaurantSettingsPage() {
-  const [selectedRestaurantId, setSelectedRestaurantId] = useState<Id<"restaurants"> | null>(null);
+  const { selectedRestaurantId, setSelectedRestaurantId, restaurants } =
+    useRestaurantSelection();
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -22,7 +25,6 @@ export default function RestaurantSettingsPage() {
     description: "",
   });
 
-  const restaurants = useQuery(api.restaurants.list);
   const restaurant = useQuery(
     api.restaurants.get,
     selectedRestaurantId ? { id: selectedRestaurantId } : "skip"
@@ -64,6 +66,8 @@ export default function RestaurantSettingsPage() {
     }
   };
 
+  const isLoading = selectedRestaurantId && restaurant === undefined;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -72,25 +76,22 @@ export default function RestaurantSettingsPage() {
           <p className="text-muted-foreground">Manage restaurant information</p>
         </div>
         <div className="flex gap-2">
-          {restaurants &&
-            restaurants.map((r) => (
-              <Button
-                key={r._id}
-                variant={selectedRestaurantId === r._id ? "default" : "outline"}
-                onClick={() => setSelectedRestaurantId(r._id)}
-              >
-                {r.name}
-              </Button>
-            ))}
+          <RestaurantSelectorButtons
+            restaurants={restaurants}
+            selectedRestaurantId={selectedRestaurantId}
+            onSelect={setSelectedRestaurantId}
+          />
         </div>
       </div>
 
       {!selectedRestaurantId && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">Select a restaurant to manage</p>
-          </CardContent>
-        </Card>
+        <RestaurantEmptyState message="Select a restaurant to manage" />
+      )}
+
+      {isLoading && (
+        <div className="flex justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
       )}
 
       {selectedRestaurantId && restaurant && (

@@ -50,6 +50,7 @@ export const createItem = mutation({
     name: v.string(),
     description: v.optional(v.string()),
     price: v.number(),
+    imageUrl: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     return await ctx.db.insert("menuItems", {
@@ -58,7 +59,47 @@ export const createItem = mutation({
       name: args.name,
       description: args.description,
       price: args.price,
+      imageUrl: args.imageUrl,
       isActive: true,
     });
+  },
+});
+
+export const updateItemStatus = mutation({
+  args: {
+    itemId: v.id("menuItems"),
+    isActive: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.patch(args.itemId, {
+      isActive: args.isActive,
+    });
+  },
+});
+
+export const updateItem = mutation({
+  args: {
+    itemId: v.id("menuItems"),
+    name: v.optional(v.string()),
+    description: v.optional(v.string()),
+    price: v.optional(v.number()),
+    imageUrl: v.optional(v.string()),
+    categoryId: v.optional(v.id("menuCategories")),
+  },
+  handler: async (ctx, args) => {
+    const { itemId, ...updates } = args;
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    );
+    return await ctx.db.patch(itemId, filteredUpdates);
+  },
+});
+
+export const deleteItem = mutation({
+  args: {
+    itemId: v.id("menuItems"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db.delete(args.itemId);
   },
 });
