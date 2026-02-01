@@ -31,3 +31,19 @@ export async function batchFetchMenuItems(
 
   return menuMap;
 }
+
+export async function batchFetchTables(
+  ctx: QueryCtx | MutationCtx,
+  tableIds: Id<"tables">[]
+): Promise<Map<string, Doc<"tables">>> {
+  const uniqueIds = [...new Set(tableIds)];
+  const tables = await Promise.all(uniqueIds.map((id) => ctx.db.get(id)));
+
+  const tableMap = new Map<string, Doc<"tables">>();
+  uniqueIds.forEach((id, i) => {
+    const table = tables[i];
+    if (table) tableMap.set(id.toString(), table);
+  });
+
+  return tableMap;
+}

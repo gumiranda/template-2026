@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { OrderStatus, isValidOrderStatus, Role } from "./lib/types";
 import { getAuthenticatedUser, isRestaurantStaff } from "./lib/auth";
+import { batchFetchTables } from "./lib/helpers";
 
 export const getOrdersByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -25,15 +26,10 @@ export const getOrdersByRestaurant = query({
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.restaurantId))
       .collect();
 
-    const uniqueTableIds = [...new Set(orders.map((o) => o.tableId))];
-    const tables = await Promise.all(
-      uniqueTableIds.map((id) => ctx.db.get(id))
+    const tableMap = await batchFetchTables(
+      ctx,
+      orders.map((o) => o.tableId)
     );
-    const tableMap = new Map<string, (typeof tables)[0]>();
-    uniqueTableIds.forEach((id, i) => {
-      const table = tables[i];
-      if (table) tableMap.set(id.toString(), table);
-    });
 
     const orderItemsArrays = await Promise.all(
       orders.map((order) =>
