@@ -16,7 +16,7 @@ import {
   SidebarMenuButton,
 } from "@workspace/ui/components/sidebar";
 import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
-import type { NavItem } from "@/hooks/use-navigation";
+import { formatBadgeCount, type NavItem } from "@/hooks/use-navigation";
 
 interface AppSidebarProps {
   currentUser: { name?: string } | null | undefined;
@@ -65,7 +65,7 @@ function AppSidebarContent({ currentUser, adminItems, isActive }: AppSidebarProp
                     </SidebarMenuButton>
                     {item.badge && (
                       <SidebarMenuBadge className="bg-destructive text-destructive-foreground">
-                        {item.badge > 9 ? "9+" : item.badge}
+                        {formatBadgeCount(item.badge)}
                       </SidebarMenuBadge>
                     )}
                   </SidebarMenuItem>

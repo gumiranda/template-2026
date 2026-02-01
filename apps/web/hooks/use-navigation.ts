@@ -14,6 +14,10 @@ export interface NavItem {
   badge?: number;
 }
 
+export function formatBadgeCount(count: number): string {
+  return count > 9 ? "9+" : String(count);
+}
+
 export function useNavigation() {
   const pathname = usePathname();
   const currentUser = useQuery(api.users.getCurrentUser);

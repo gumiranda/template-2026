@@ -16,7 +16,7 @@ import { Button } from "@workspace/ui/components/button";
 import { Badge } from "@workspace/ui/components/badge";
 import { Menu } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
-import type { NavItem } from "@/hooks/use-navigation";
+import { formatBadgeCount, type NavItem } from "@/hooks/use-navigation";
 
 interface MobileNavProps {
   currentUser: { name?: string } | null | undefined;
@@ -69,7 +69,7 @@ export function MobileNav({ currentUser, adminItems, isActive }: MobileNavProps)
                     <span className="flex-1">{item.label}</span>
                     {item.badge && (
                       <Badge variant="destructive" className="h-5 min-w-5 px-1 text-xs">
-                        {item.badge > 9 ? "9+" : item.badge}
+                        {formatBadgeCount(item.badge)}
                       </Badge>
                     )}
                   </Link>

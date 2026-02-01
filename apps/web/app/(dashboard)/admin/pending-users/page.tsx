@@ -45,9 +45,17 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { SECTORS } from "@/lib/constants";
+import { AdminGuard } from "@/components/admin-guard";
 
 export default function PendingUsersPage() {
-  const currentUser = useQuery(api.users.getCurrentUser);
+  return (
+    <AdminGuard>
+      {() => <PendingUsersContent />}
+    </AdminGuard>
+  );
+}
+
+function PendingUsersContent() {
   const pendingUsers = useQuery(api.users.getPendingUsers);
   const approveUser = useMutation(api.users.approveUser);
   const rejectUser = useMutation(api.users.rejectUser);
@@ -63,19 +71,6 @@ export default function PendingUsersPage() {
   const [selectedSector, setSelectedSector] = useState<string>("general");
   const [rejectionReason, setRejectionReason] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  const isSuperadmin = currentUser?.role === "superadmin";
-  const isCeo = currentUser?.role === "ceo";
-
-  if (!currentUser || (!isSuperadmin && !isCeo)) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-muted-foreground">
-          You don't have permission to access this page.
-        </p>
-      </div>
-    );
-  }
 
   const handleApprove = async () => {
     if (!approveDialog || !selectedSector) return;

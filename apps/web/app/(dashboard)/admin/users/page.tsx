@@ -39,9 +39,31 @@ import { Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
 import { ROLES, SECTORS, getSectorName } from "@/lib/constants";
 import { RoleBadge } from "@/components/role-badge";
+import { AdminGuard } from "@/components/admin-guard";
 
 export default function AdminUsersPage() {
-  const currentUser = useQuery(api.users.getCurrentUser);
+  return (
+    <AdminGuard>
+      {({ currentUser, isSuperadmin, isCeo }) => (
+        <AdminUsersContent
+          currentUser={currentUser}
+          isSuperadmin={isSuperadmin}
+          isCeo={isCeo}
+        />
+      )}
+    </AdminGuard>
+  );
+}
+
+function AdminUsersContent({
+  currentUser,
+  isSuperadmin,
+  isCeo,
+}: {
+  currentUser: { _id: Id<"users"> };
+  isSuperadmin: boolean;
+  isCeo: boolean;
+}) {
   const users = useQuery(api.users.getAllUsers);
   const updateUserRole = useMutation(api.users.updateUserRole);
   const updateUserSector = useMutation(api.users.updateUserSector);
@@ -55,19 +77,6 @@ export default function AdminUsersPage() {
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [selectedSector, setSelectedSector] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
-
-  const isSuperadmin = currentUser?.role === "superadmin";
-  const isCeo = currentUser?.role === "ceo";
-
-  if (!currentUser || (!isSuperadmin && !isCeo)) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-muted-foreground">
-          You don't have permission to access this page.
-        </p>
-      </div>
-    );
-  }
 
   const handleEditUser = (user: {
     _id: Id<"users">;

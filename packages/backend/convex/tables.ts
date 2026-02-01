@@ -104,12 +104,6 @@ export const getTablesOverview = query({
   },
 });
 
-export const getByIdentifier = query({
-  args: { tableId: v.id("tables") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.tableId);
-  },
-});
 export const createTable = mutation({
   args:{
     restaurantId: v.id("restaurants"),

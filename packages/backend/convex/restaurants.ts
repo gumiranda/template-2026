@@ -50,14 +50,6 @@ export const deleteRestaurant = mutation({
         return await ctx.db.delete(args.id)
     },
 })
-export const getByIdentifier = query({
-    args:{
-        restaurantId:v.id("restaurants")
-    },
-    handler: async(ctx, args)=>{
-        return await ctx.db.query("restaurants").withIndex("by_id", r=> r.eq("_id", args.restaurantId)).first()
-    }
-})
 export const get = query({
     args:{
         id:v.id("restaurants")

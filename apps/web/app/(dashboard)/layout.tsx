@@ -13,7 +13,7 @@ import { MobileNav } from "@/components/mobile-nav";
 import Link from "next/link";
 import { FullPageLoader } from "@/components/full-page-loader";
 import { useAuthRedirect } from "@/hooks/use-auth-redirect";
-import { useNavigation } from "@/hooks/use-navigation";
+import { useNavigation, formatBadgeCount } from "@/hooks/use-navigation";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { currentUser, isSuperadmin, isCeo, isSuperadminOrCeo, pendingUsersCount, adminItems, isActive } =
@@ -56,7 +56,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   variant="destructive"
                   className="h-5 min-w-5 px-1 text-xs"
                 >
-                  {pendingUsersCount > 9 ? "9+" : pendingUsersCount}
+                  {formatBadgeCount(pendingUsersCount)}
                 </Badge>
               </Link>
             )}
