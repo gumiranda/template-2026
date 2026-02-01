@@ -54,13 +54,19 @@ export function useNavigation() {
     ];
   }, [userRole, pendingUsersCount]);
 
-  return {
-    currentUser,
-    isSuperadmin: userRole === "superadmin",
-    isCeo: userRole === "ceo",
-    isSuperadminOrCeo,
-    pendingUsersCount,
-    adminItems,
-    isActive,
-  };
+  const isSuperadmin = userRole === "superadmin";
+  const isCeo = userRole === "ceo";
+
+  return useMemo(
+    () => ({
+      currentUser,
+      isSuperadmin,
+      isCeo,
+      isSuperadminOrCeo,
+      pendingUsersCount,
+      adminItems,
+      isActive,
+    }),
+    [currentUser, isSuperadmin, isCeo, isSuperadminOrCeo, pendingUsersCount, adminItems, isActive]
+  );
 }

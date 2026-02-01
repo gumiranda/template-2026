@@ -12,12 +12,28 @@ import { batchFetchMenuItems, groupBy } from "./lib/helpers";
 export const listByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
-    return await ctx.db
+    // Verify restaurant exists
+    const restaurant = await ctx.db.get(args.restaurantId);
+    if (!restaurant) {
+      throw new Error("Restaurant not found");
+    }
+
+    const tables = await ctx.db
       .query("tables")
       .withIndex("by_restaurant", (q) =>
         q.eq("restaurantId", args.restaurantId)
       )
       .collect();
+
+    // Return only public fields for each table
+    return tables.map((table) => ({
+      _id: table._id,
+      _creationTime: table._creationTime,
+      restaurantId: table.restaurantId,
+      tableNumber: table.tableNumber,
+      capacity: table.capacity,
+      isActive: table.isActive,
+    }));
   },
 });
 

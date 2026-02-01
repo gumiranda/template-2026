@@ -101,7 +101,21 @@ export const get = query({
     id: v.id("restaurants"),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id);
+    const restaurant = await ctx.db.get(args.id);
+    if (!restaurant) return null;
+
+    // Return only public fields - exclude internal data like ownerId
+    return {
+      _id: restaurant._id,
+      _creationTime: restaurant._creationTime,
+      name: restaurant.name,
+      address: restaurant.address,
+      phone: restaurant.phone,
+      description: restaurant.description,
+      subdomain: restaurant.subdomain,
+      status: restaurant.status,
+      isActive: restaurant.isActive,
+    };
   },
 });
 

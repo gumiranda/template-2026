@@ -185,9 +185,7 @@
   }
 }
 
-/* Accessibility Enhancements */
 @layer utilities {
-  /* Screen reader only content */
   .sr-only {
     position: absolute;
     width: 1px;
@@ -212,19 +210,16 @@
     white-space: normal;
   }
 
-  /* Enhanced focus indicators for keyboard navigation */
   *:focus-visible {
-    outline: 2px solid hsl(var(--ring));
+    outline: 2px solid oklch(var(--ring));
     outline-offset: 2px;
     border-radius: 2px;
   }
 
-  /* Remove focus outline for mouse users */
   *:focus:not(:focus-visible) {
     outline: none;
   }
 
-  /* Ensure minimum touch target size (44x44px) for mobile */
   @media (pointer: coarse) {
     button,
     a,
@@ -235,7 +230,6 @@
     }
   }
 
-  /* Reduce motion for users who prefer it */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -247,7 +241,6 @@
     }
   }
 
-  /* High contrast mode support */
   @media (prefers-contrast: high) {
     * {
       border-width: 2px;
@@ -260,12 +253,6 @@
     }
   }
 
-  /* Ensure proper color contrast for text */
-  .text-muted-foreground {
-    color: hsl(var(--muted-foreground));
-  }
-
-  /* Skip link styling */
   .skip-link {
     position: absolute;
     top: -40px;

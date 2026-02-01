@@ -1,6 +1,13 @@
 import type { QueryCtx, MutationCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
 
+// UUID v4 format validation regex
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function isValidSessionId(sessionId: string): boolean {
+  return UUID_REGEX.test(sessionId);
+}
+
 type ValidateSessionOptions = {
   checkExpiry?: boolean;
 };
@@ -11,6 +18,12 @@ export async function validateSession(
   options: ValidateSessionOptions = {}
 ): Promise<Doc<"sessions">> {
   const { checkExpiry = true } = options;
+
+  // Validate session ID format to prevent enumeration attacks
+  if (!isValidSessionId(sessionId)) {
+    throw new Error("Invalid session ID format");
+  }
+
   const session = await ctx.db
     .query("sessions")
     .withIndex("by_session_id", (q) => q.eq("sessionId", sessionId))

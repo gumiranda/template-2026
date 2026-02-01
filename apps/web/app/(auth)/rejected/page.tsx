@@ -29,13 +29,8 @@ export default function RejectedPage() {
   }
 
   const handleSignOut = async () => {
-    try {
-      await signOut();
-      router.push("/sign-in");
-    } catch (error) {
-      console.error("Sign out failed:", error);
-      router.push("/sign-in");
-    }
+    await signOut().catch(() => {});
+    router.push("/sign-in");
   };
 
   return (

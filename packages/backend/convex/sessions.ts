@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { validateSession, batchFetchMenuItems, SESSION_DURATION_MS } from "./lib/helpers";
+import { validateSession, batchFetchMenuItems, SESSION_DURATION_MS, isValidSessionId } from "./lib/helpers";
 
 export const createSession = mutation({
   args: {
@@ -9,6 +9,22 @@ export const createSession = mutation({
     tableId: v.id("tables"),
   },
   handler: async (ctx, args) => {
+    // Validate session ID format (must be UUID v4)
+    if (!isValidSessionId(args.sessionId)) {
+      throw new Error("Invalid session ID format: must be a valid UUID v4");
+    }
+
+    // Validate restaurant and table exist
+    const restaurant = await ctx.db.get(args.restaurantId);
+    if (!restaurant) {
+      throw new Error("Restaurant not found");
+    }
+
+    const table = await ctx.db.get(args.tableId);
+    if (!table || table.restaurantId !== args.restaurantId) {
+      throw new Error("Invalid table for this restaurant");
+    }
+
     const existing = await ctx.db
       .query("sessions")
       .withIndex("by_session_id", (q) => q.eq("sessionId", args.sessionId))

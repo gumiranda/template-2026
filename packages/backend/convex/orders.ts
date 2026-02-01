@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { OrderStatus, isValidOrderStatus, Role } from "./lib/types";
 import { getAuthenticatedUser, isRestaurantStaff } from "./lib/auth";
-import { batchFetchTables } from "./lib/helpers";
+import { batchFetchTables, validateSession } from "./lib/helpers";
 
 export const getOrdersByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -68,9 +68,30 @@ export const createOrder = mutation({
     ),
   },
   handler: async (ctx, args) => {
+    // Validate session - ensures the session exists, is not expired, and matches the restaurant/table
+    const session = await validateSession(ctx, args.sessionId);
+    if (session.restaurantId !== args.restaurantId) {
+      throw new Error("Session does not belong to this restaurant");
+    }
+    if (session.tableId !== args.tableId) {
+      throw new Error("Session does not belong to this table");
+    }
+
     const table = await ctx.db.get(args.tableId);
     if (!table || table.restaurantId !== args.restaurantId) {
       throw new Error("Invalid table");
+    }
+
+    // Validate items array
+    if (args.items.length === 0) {
+      throw new Error("Order must contain at least one item");
+    }
+
+    // Validate quantities are positive
+    for (const item of args.items) {
+      if (item.quantity <= 0 || !Number.isInteger(item.quantity)) {
+        throw new Error("Item quantity must be a positive integer");
+      }
     }
 
     const itemsWithServerPrices = await Promise.all(
