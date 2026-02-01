@@ -29,7 +29,7 @@ export default function RejectedPage() {
   }
 
   const handleSignOut = async () => {
-    await signOut();
+    await signOut().catch(() => {});
     router.push("/sign-in");
   };
 
@@ -37,8 +37,8 @@ export default function RejectedPage() {
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="max-w-md w-full">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 p-3 bg-red-100 dark:bg-red-900/30 rounded-full w-fit">
-            <XCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+          <div className="mx-auto mb-4 p-3 bg-destructive/10 rounded-full w-fit">
+            <XCircle className="h-8 w-8 text-destructive" />
           </div>
           <CardTitle>Access Denied</CardTitle>
         </CardHeader>

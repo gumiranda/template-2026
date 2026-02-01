@@ -23,8 +23,8 @@ export default function PendingApprovalPage() {
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="max-w-md w-full">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 p-3 bg-amber-100 dark:bg-amber-900/30 rounded-full w-fit">
-            <Clock className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+          <div className="mx-auto mb-4 p-3 bg-accent/20 rounded-full w-fit">
+            <Clock className="h-8 w-8 text-accent-foreground" />
           </div>
           <CardTitle>Awaiting Approval</CardTitle>
         </CardHeader>

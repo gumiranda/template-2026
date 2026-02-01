@@ -11,6 +11,7 @@
 import type * as carts from "../carts.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_helpers from "../lib/helpers.js";
 import type * as lib_types from "../lib/types.js";
 import type * as menu from "../menu.js";
 import type * as orders from "../orders.js";
@@ -38,6 +39,7 @@ declare const fullApi: ApiFromModules<{
   carts: typeof carts;
   http: typeof http;
   "lib/auth": typeof lib_auth;
+  "lib/helpers": typeof lib_helpers;
   "lib/types": typeof lib_types;
   menu: typeof menu;
   orders: typeof orders;

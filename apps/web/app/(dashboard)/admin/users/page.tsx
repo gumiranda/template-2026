@@ -37,18 +37,35 @@ import {
 } from "@workspace/ui/components/dialog";
 import { Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
-import { ROLES, SECTORS } from "@/lib/constants";
+import { ROLES, SECTORS, getSectorName } from "@/lib/constants";
 import { RoleBadge } from "@/components/role-badge";
-
-function getSectorName(sector: string | undefined) {
-  if (!sector) return "-";
-  const found = SECTORS.find((s) => s.id === sector);
-  return found?.name ?? sector;
-}
+import { AdminGuard } from "@/components/admin-guard";
 
 export default function AdminUsersPage() {
-  const currentUser = useQuery(api.users.getCurrentUser);
-  const users = useQuery(api.users.getAllUsers);
+  return (
+    <AdminGuard>
+      {({ currentUser, isSuperadmin, isCeo }) => (
+        <AdminUsersContent
+          currentUser={currentUser}
+          isSuperadmin={isSuperadmin}
+          isCeo={isCeo}
+        />
+      )}
+    </AdminGuard>
+  );
+}
+
+function AdminUsersContent({
+  currentUser,
+  isSuperadmin,
+  isCeo,
+}: {
+  currentUser: { _id: Id<"users"> };
+  isSuperadmin: boolean;
+  isCeo: boolean;
+}) {
+  const usersResult = useQuery(api.users.getAllUsers, {});
+  const users = usersResult?.users;
   const updateUserRole = useMutation(api.users.updateUserRole);
   const updateUserSector = useMutation(api.users.updateUserSector);
 
@@ -61,19 +78,6 @@ export default function AdminUsersPage() {
   const [selectedRole, setSelectedRole] = useState<string>("");
   const [selectedSector, setSelectedSector] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
-
-  const isSuperadmin = currentUser?.role === "superadmin";
-  const isCeo = currentUser?.role === "ceo";
-
-  if (!currentUser || (!isSuperadmin && !isCeo)) {
-    return (
-      <div className="flex min-h-[400px] items-center justify-center">
-        <p className="text-muted-foreground">
-          You don't have permission to access this page.
-        </p>
-      </div>
-    );
-  }
 
   const handleEditUser = (user: {
     _id: Id<"users">;
@@ -153,7 +157,7 @@ export default function AdminUsersPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {users === undefined ? (
+          {usersResult === undefined ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
@@ -168,7 +172,7 @@ export default function AdminUsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
+                {users?.map((user) => (
                   <TableRow key={user._id}>
                     <TableCell className="font-medium">{user.name}</TableCell>
                     <TableCell><RoleBadge role={user.role} /></TableCell>

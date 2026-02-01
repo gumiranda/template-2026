@@ -1,32 +1,28 @@
 import { Badge } from "@workspace/ui/components/badge";
-import { Shield, Crown, User } from "lucide-react";
+import { ROLES } from "@/lib/constants";
 
 interface RoleBadgeProps {
   role?: string;
 }
 
+type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
+
+const ROLE_VARIANTS: Record<string, BadgeVariant> = {
+  superadmin: "default",
+  ceo: "secondary",
+  waiter: "outline",
+  user: "secondary",
+};
+
 export function RoleBadge({ role }: RoleBadgeProps) {
-  switch (role) {
-    case "superadmin":
-      return (
-        <Badge variant="default" className="bg-purple-600">
-          <Shield className="mr-1 h-3 w-3" />
-          Superadmin
-        </Badge>
-      );
-    case "ceo":
-      return (
-        <Badge variant="default" className="bg-amber-600">
-          <Crown className="mr-1 h-3 w-3" />
-          CEO
-        </Badge>
-      );
-    default:
-      return (
-        <Badge variant="secondary">
-          <User className="mr-1 h-3 w-3" />
-          User
-        </Badge>
-      );
-  }
+  const roleConfig = ROLES.find((r) => r.id === role) ?? ROLES.find((r) => r.id === "user")!;
+  const Icon = roleConfig.icon;
+  const variant = ROLE_VARIANTS[role ?? "user"] ?? "secondary";
+
+  return (
+    <Badge variant={variant}>
+      <Icon className="mr-1 h-3 w-3" />
+      {roleConfig.name}
+    </Badge>
+  );
 }

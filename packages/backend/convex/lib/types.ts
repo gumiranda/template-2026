@@ -31,3 +31,27 @@ export const OrderStatus = {
 } as const;
 
 export type OrderStatusType = (typeof OrderStatus)[keyof typeof OrderStatus];
+
+export function isValidRole(value: string): value is RoleType {
+  return Object.values(Role).includes(value as RoleType);
+}
+
+export function isValidSector(value: string): value is SectorType {
+  return Object.values(Sector).includes(value as SectorType);
+}
+
+export function isValidOrderStatus(value: string): value is OrderStatusType {
+  return Object.values(OrderStatus).includes(value as OrderStatusType);
+}
+
+export const RestaurantStatus = {
+  ACTIVE: "active",
+  MAINTENANCE: "maintenance",
+  INACTIVE: "inactive",
+} as const;
+
+export type RestaurantStatusType = (typeof RestaurantStatus)[keyof typeof RestaurantStatus];
+
+export function isValidRestaurantStatus(value: string): value is RestaurantStatusType {
+  return Object.values(RestaurantStatus).includes(value as RestaurantStatusType);
+}
