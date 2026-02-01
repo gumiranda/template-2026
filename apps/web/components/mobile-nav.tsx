@@ -16,11 +16,16 @@ import { Button } from "@workspace/ui/components/button";
 import { Badge } from "@workspace/ui/components/badge";
 import { Menu } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
-import { useNavigation } from "@/hooks/use-navigation";
+import type { NavItem } from "@/hooks/use-navigation";
 
-export function MobileNav() {
+interface MobileNavProps {
+  currentUser: { name?: string } | null | undefined;
+  adminItems: NavItem[];
+  isActive: (href: string) => boolean;
+}
+
+export function MobileNav({ currentUser, adminItems, isActive }: MobileNavProps) {
   const [open, setOpen] = useState(false);
-  const { currentUser, adminItems, isActive } = useNavigation();
 
   return (
     <Drawer open={open} onOpenChange={setOpen} direction="left">

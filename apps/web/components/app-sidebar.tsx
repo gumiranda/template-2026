@@ -16,20 +16,25 @@ import {
   SidebarMenuButton,
 } from "@workspace/ui/components/sidebar";
 import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
-import { useNavigation } from "@/hooks/use-navigation";
+import type { NavItem } from "@/hooks/use-navigation";
 
-export function AppSidebar() {
+interface AppSidebarProps {
+  currentUser: { name?: string } | null | undefined;
+  adminItems: NavItem[];
+  isActive: (href: string) => boolean;
+}
+
+export function AppSidebar({ currentUser, adminItems, isActive }: AppSidebarProps) {
   const isMobile = useIsMobile();
 
   if (isMobile) {
     return null;
   }
 
-  return <AppSidebarContent />;
+  return <AppSidebarContent currentUser={currentUser} adminItems={adminItems} isActive={isActive} />;
 }
 
-function AppSidebarContent() {
-  const { currentUser, adminItems, isActive } = useNavigation();
+function AppSidebarContent({ currentUser, adminItems, isActive }: AppSidebarProps) {
 
   return (
     <Sidebar>

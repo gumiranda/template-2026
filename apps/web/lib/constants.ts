@@ -10,3 +10,9 @@ export const ROLES = [
 export const SECTORS = [
   { id: "general", name: "General", icon: Users },
 ] as const;
+
+export function getSectorName(sector: string | undefined): string {
+  if (!sector) return "-";
+  const found = SECTORS.find((s) => s.id === sector);
+  return found?.name ?? sector;
+}

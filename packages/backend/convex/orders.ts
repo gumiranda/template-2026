@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import { OrderStatus } from "./lib/types";
 
 export const getOrdersByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -47,7 +48,7 @@ export const createOrder = mutation({
       restaurantId: args.restaurantId,
       tableId: args.tableId,
       sessionId: args.sessionId,
-      status: "pending",
+      status: OrderStatus.PENDING,
       total,
       createdAt: now,
       updatedAt: now,

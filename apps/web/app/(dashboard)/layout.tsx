@@ -16,7 +16,7 @@ import { useAuthRedirect } from "@/hooks/use-auth-redirect";
 import { useNavigation } from "@/hooks/use-navigation";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { currentUser, isSuperadmin, isCeo, isSuperadminOrCeo, pendingUsersCount } =
+  const { currentUser, isSuperadmin, isCeo, isSuperadminOrCeo, pendingUsersCount, adminItems, isActive } =
     useNavigation();
 
   const { hasSuperadmin, isLoading } = useAuthRedirect({
@@ -37,11 +37,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar currentUser={currentUser} adminItems={adminItems} isActive={isActive} />
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background px-4">
           <div className="flex items-center gap-2">
-            <MobileNav />
+            <MobileNav currentUser={currentUser} adminItems={adminItems} isActive={isActive} />
             <SidebarTrigger className="hidden md:flex" />
             {(isSuperadmin || isCeo) && <RoleBadge role={currentUser.role} />}
           </div>

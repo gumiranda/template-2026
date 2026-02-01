@@ -37,14 +37,8 @@ import {
 } from "@workspace/ui/components/dialog";
 import { Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
-import { ROLES, SECTORS } from "@/lib/constants";
+import { ROLES, SECTORS, getSectorName } from "@/lib/constants";
 import { RoleBadge } from "@/components/role-badge";
-
-function getSectorName(sector: string | undefined) {
-  if (!sector) return "-";
-  const found = SECTORS.find((s) => s.id === sector);
-  return found?.name ?? sector;
-}
 
 export default function AdminUsersPage() {
   const currentUser = useQuery(api.users.getCurrentUser);
