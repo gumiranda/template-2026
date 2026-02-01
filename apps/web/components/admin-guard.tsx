@@ -6,12 +6,14 @@ import { api } from "@workspace/backend/_generated/api";
 import { Doc } from "@workspace/backend/_generated/dataModel";
 import { Role } from "@workspace/backend/lib/types";
 
+interface AdminGuardRenderProps {
+  currentUser: Doc<"users">;
+  isSuperadmin: boolean;
+  isCeo: boolean;
+}
+
 interface AdminGuardProps {
-  children: (props: {
-    currentUser: Doc<"users">;
-    isSuperadmin: boolean;
-    isCeo: boolean;
-  }) => React.ReactNode;
+  children: ((props: AdminGuardRenderProps) => React.ReactNode) | (() => React.ReactNode);
 }
 
 export function AdminGuard({ children }: AdminGuardProps) {
@@ -32,7 +34,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <p className="text-muted-foreground">
-          You don't have permission to access this page.
+          You don&apos;t have permission to access this page.
         </p>
       </div>
     );

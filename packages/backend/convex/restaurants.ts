@@ -235,22 +235,17 @@ export const getOverviewStats = query({
       return null;
     }
 
-    const activeRestaurantsList = await ctx.db
-      .query("restaurants")
-      .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.ACTIVE))
-      .collect();
-    const activeRestaurants = activeRestaurantsList.length;
-
     const allRestaurants = await ctx.db.query("restaurants").collect();
     const totalRestaurants = allRestaurants.length;
-    const legacyActiveCount = allRestaurants.filter((r) => r.status === undefined).length;
+    const activeRestaurants = allRestaurants.filter(
+      (r) => r.status === RestaurantStatus.ACTIVE || r.status === undefined
+    ).length;
 
     const now = Date.now();
     const activeSessions = await ctx.db
       .query("sessions")
       .withIndex("by_expires_at", (q) => q.gt("expiresAt", now))
       .collect();
-    const activeSessionsCount = activeSessions.length;
 
     const allCompletedOrders = await ctx.db
       .query("orders")
@@ -260,9 +255,31 @@ export const getOverviewStats = query({
 
     return {
       totalRestaurants,
-      activeRestaurants: activeRestaurants + legacyActiveCount,
-      activeSessions: activeSessionsCount,
+      activeRestaurants,
+      activeSessions: activeSessions.length,
       totalRevenue,
     };
+  },
+});
+
+export const migrateRestaurantStatus = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser || !isAdmin(currentUser.role)) {
+      throw new Error("Only admins can run migrations");
+    }
+
+    const restaurants = await ctx.db.query("restaurants").collect();
+    let migratedCount = 0;
+
+    for (const restaurant of restaurants) {
+      if (restaurant.status === undefined) {
+        await ctx.db.patch(restaurant._id, { status: RestaurantStatus.ACTIVE });
+        migratedCount++;
+      }
+    }
+
+    return { migratedCount };
   },
 });
