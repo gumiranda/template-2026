@@ -65,7 +65,6 @@ import { AdminGuard } from "@/components/admin-guard";
 
 interface RestaurantForm {
   name: string;
-  subdomain: string;
   address: string;
   phone: string;
   description: string;
@@ -73,7 +72,6 @@ interface RestaurantForm {
 
 const initialFormState = {
   name: "",
-  subdomain: "",
   address: "",
   phone: "",
   description: "",
@@ -163,33 +161,6 @@ function RestaurantFormDialog({
                 setFormData((prev) => ({ ...prev, name: e.target.value }))
               }
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor={`${idPrefix}subdomain`}>Subdomain</Label>
-            <div className="flex items-center">
-              <Input
-                id={`${idPrefix}subdomain`}
-                placeholder="my-restaurant"
-                value={formData.subdomain}
-                disabled={isEdit}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
-                  }))
-                }
-                className={`rounded-r-none ${isEdit ? "bg-muted" : ""}`}
-              />
-              <span className="inline-flex items-center rounded-r-md border border-l-0 border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
-                .restaurantix.com
-              </span>
-            </div>
-            {isEdit && (
-              <p className="text-xs text-muted-foreground">
-                Subdomain cannot be changed after creation
-              </p>
-            )}
           </div>
 
           <div className="space-y-2">
@@ -289,8 +260,7 @@ function TenantOverviewContent() {
   const filteredRestaurants = useMemo(() => {
     return restaurants?.filter((restaurant) => {
       const matchesSearch =
-        restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        restaurant.subdomain?.toLowerCase().includes(searchQuery.toLowerCase());
+        restaurant.name.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesStatus =
         statusFilter === "all" ||
@@ -317,7 +287,6 @@ function TenantOverviewContent() {
         address: formData.address.trim(),
         phone: formData.phone.trim() || undefined,
         description: formData.description.trim() || undefined,
-        subdomain: formData.subdomain.trim() || undefined,
       });
       toast.success("Restaurant created successfully");
       setIsCreateModalOpen(false);
@@ -335,7 +304,6 @@ function TenantOverviewContent() {
     setEditingRestaurantId(restaurant._id);
     setEditFormData({
       name: restaurant.name,
-      subdomain: restaurant.subdomain ?? "",
       address: restaurant.address,
       phone: restaurant.phone ?? "",
       description: restaurant.description ?? "",
@@ -512,11 +480,6 @@ function TenantOverviewContent() {
                           </Avatar>
                           <div>
                             <div className="font-medium">{restaurant.name}</div>
-                            {restaurant.subdomain && (
-                              <div className="text-sm text-muted-foreground">
-                                {restaurant.subdomain}.restaurantix.com
-                              </div>
-                            )}
                           </div>
                         </div>
                       </TableCell>

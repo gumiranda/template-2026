@@ -25,7 +25,6 @@ import {
   ArrowLeft,
   MapPin,
   Phone,
-  Globe,
   DollarSign,
   ShoppingCart,
   UtensilsCrossed,
@@ -202,17 +201,10 @@ function RestaurantDetailsContent({
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <InfoCard icon={MapPin} label="Address" value={restaurant.address} />
         {restaurant.phone && (
           <InfoCard icon={Phone} label="Phone" value={restaurant.phone} />
-        )}
-        {restaurant.subdomain && (
-          <InfoCard
-            icon={Globe}
-            label="Subdomain"
-            value={`${restaurant.subdomain}.restaurantix.com`}
-          />
         )}
       </div>
 
