@@ -30,10 +30,79 @@ import {
   ShoppingCart,
   UtensilsCrossed,
   LayoutGrid,
+  LucideIcon,
 } from "lucide-react";
 import { getRestaurantStatus } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 import { AdminGuard } from "@/components/admin-guard";
+
+function BackToTenantsButton({ variant = "ghost" }: { variant?: "ghost" | "icon" }) {
+  const router = useRouter();
+
+  if (variant === "icon") {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={() => router.push("/admin/tenants")}
+      >
+        <ArrowLeft className="h-4 w-4" />
+      </Button>
+    );
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      onClick={() => router.push("/admin/tenants")}
+      className="mb-4"
+    >
+      <ArrowLeft className="mr-2 h-4 w-4" />
+      Back to Tenants
+    </Button>
+  );
+}
+
+function InfoCard({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+  return (
+    <Card>
+      <CardContent className="pt-6">
+        <div className="flex items-start gap-3">
+          <Icon className="h-5 w-5 text-muted-foreground mt-0.5" />
+          <div>
+            <p className="text-sm font-medium">{label}</p>
+            <p className="text-sm text-muted-foreground">{value}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+  subtext,
+  icon: Icon,
+}: {
+  title: string;
+  value: string | number;
+  subtext: string;
+  icon: LucideIcon;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        <div className="text-2xl font-bold">{value}</div>
+        <p className="text-xs text-muted-foreground">{subtext}</p>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function RestaurantDetailsPage({
   params,
@@ -41,22 +110,13 @@ export default function RestaurantDetailsPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const router = useRouter();
 
-  // Validate ID format before rendering content
   if (!isValidConvexId(id)) {
     return (
       <AdminGuard>
         {() => (
           <div className="space-y-6">
-            <Button
-              variant="ghost"
-              onClick={() => router.push("/admin/tenants")}
-              className="mb-4"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Tenants
-            </Button>
+            <BackToTenantsButton />
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-medium">Invalid restaurant ID</h3>
@@ -82,7 +142,6 @@ function RestaurantDetailsContent({
 }: {
   restaurantId: Id<"restaurants">;
 }) {
-  const router = useRouter();
   const restaurant = useQuery(api.restaurants.getWithStats, { id: restaurantId });
 
   if (restaurant === undefined) {
@@ -96,14 +155,7 @@ function RestaurantDetailsContent({
   if (restaurant === null) {
     return (
       <div className="space-y-6">
-        <Button
-          variant="ghost"
-          onClick={() => router.push("/admin/tenants")}
-          className="mb-4"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Tenants
-        </Button>
+        <BackToTenantsButton />
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium">Restaurant not found</h3>
@@ -123,13 +175,7 @@ function RestaurantDetailsContent({
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => router.push("/admin/tenants")}
-          >
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          <BackToTenantsButton variant="icon" />
           <Avatar className="h-16 w-16">
             <AvatarImage src={restaurant.logoUrl} />
             <AvatarFallback className="bg-muted text-lg">
@@ -157,115 +203,45 @@ function RestaurantDetailsContent({
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <MapPin className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">Address</p>
-                <p className="text-sm text-muted-foreground">
-                  {restaurant.address}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+        <InfoCard icon={MapPin} label="Address" value={restaurant.address} />
         {restaurant.phone && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-3">
-                <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium">Phone</p>
-                  <p className="text-sm text-muted-foreground">
-                    {restaurant.phone}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <InfoCard icon={Phone} label="Phone" value={restaurant.phone} />
         )}
-
         {restaurant.subdomain && (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-3">
-                <Globe className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div>
-                  <p className="text-sm font-medium">Subdomain</p>
-                  <p className="text-sm text-muted-foreground">
-                    {restaurant.subdomain}.restaurantix.com
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <InfoCard
+            icon={Globe}
+            label="Subdomain"
+            value={`${restaurant.subdomain}.restaurantix.com`}
+          />
         )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(restaurant.stats.totalRevenue)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              From {restaurant.stats.completedOrders} completed orders
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {restaurant.stats.totalOrders}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {restaurant.stats.pendingOrders} pending
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Tables</CardTitle>
-            <LayoutGrid className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {restaurant.stats.tablesCount}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Registered tables
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Menu Items</CardTitle>
-            <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {restaurant.stats.menuItemsCount}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Available items
-            </p>
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Total Revenue"
+          value={formatCurrency(restaurant.stats.totalRevenue)}
+          subtext={`From ${restaurant.stats.completedOrders} completed orders`}
+          icon={DollarSign}
+        />
+        <StatCard
+          title="Total Orders"
+          value={restaurant.stats.totalOrders}
+          subtext={`${restaurant.stats.pendingOrders} pending`}
+          icon={ShoppingCart}
+        />
+        <StatCard
+          title="Tables"
+          value={restaurant.stats.tablesCount}
+          subtext="Registered tables"
+          icon={LayoutGrid}
+        />
+        <StatCard
+          title="Menu Items"
+          value={restaurant.stats.menuItemsCount}
+          subtext="Available items"
+          icon={UtensilsCrossed}
+        />
       </div>
-
     </div>
   );
 }

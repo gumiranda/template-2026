@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Dispatch, SetStateAction } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@workspace/backend/_generated/api";
@@ -53,6 +53,7 @@ import {
   Users,
   DollarSign,
   Pencil,
+  LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -77,6 +78,189 @@ const initialFormState: RestaurantForm = {
   phone: "",
   description: "",
 };
+
+function OverviewStatCard({
+  title,
+  value,
+  subtext,
+  icon: Icon,
+  isLoading,
+}: {
+  title: string;
+  value: string | number;
+  subtext: string;
+  icon: LucideIcon;
+  isLoading: boolean;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground" />
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Loader2 className="h-6 w-6 animate-spin" />
+        ) : (
+          <>
+            <div className="text-2xl font-bold">{value}</div>
+            <p className="text-xs text-muted-foreground">{subtext}</p>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+interface RestaurantFormDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  formData: RestaurantForm;
+  setFormData: Dispatch<SetStateAction<RestaurantForm>>;
+  onSubmit: () => void;
+  onCancel: () => void;
+  isSubmitting: boolean;
+  isEdit?: boolean;
+}
+
+function RestaurantFormDialog({
+  open,
+  onOpenChange,
+  formData,
+  setFormData,
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  isEdit = false,
+}: RestaurantFormDialogProps) {
+  const idPrefix = isEdit ? "edit-" : "";
+  const TitleIcon = isEdit ? Pencil : Building2;
+  const title = isEdit ? "Edit Restaurant" : "Create New Restaurant";
+  const submitText = isEdit ? "Save Changes" : "Create Restaurant";
+  const submittingText = isEdit ? "Saving..." : "Creating...";
+  const SubmitIcon = isEdit ? Pencil : Plus;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <TitleIcon className="h-5 w-5" />
+            {title}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}name`}>
+              Name <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id={`${idPrefix}name`}
+              placeholder="Restaurant name"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}subdomain`}>Subdomain</Label>
+            <div className="flex items-center">
+              <Input
+                id={`${idPrefix}subdomain`}
+                placeholder="my-restaurant"
+                value={formData.subdomain}
+                disabled={isEdit}
+                onChange={(e) =>
+                  setFormData((prev) => ({
+                    ...prev,
+                    subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+                  }))
+                }
+                className={`rounded-r-none ${isEdit ? "bg-muted" : ""}`}
+              />
+              <span className="inline-flex items-center rounded-r-md border border-l-0 border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
+                .restaurantix.com
+              </span>
+            </div>
+            {isEdit && (
+              <p className="text-xs text-muted-foreground">
+                Subdomain cannot be changed after creation
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}address`}>
+              Address <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id={`${idPrefix}address`}
+              placeholder="123 Main St, City, State"
+              value={formData.address}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, address: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}phone`}>Phone</Label>
+            <Input
+              id={`${idPrefix}phone`}
+              placeholder="+1 (555) 123-4567"
+              value={formData.phone}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, phone: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}description`}>Description</Label>
+            <Textarea
+              id={`${idPrefix}description`}
+              placeholder="A brief description of the restaurant..."
+              value={formData.description}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, description: e.target.value }))
+              }
+              rows={3}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {submittingText}
+              </>
+            ) : (
+              <>
+                <SubmitIcon className="mr-2 h-4 w-4" />
+                {submitText}
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function TenantOverviewPage() {
   return (
@@ -199,6 +383,17 @@ function TenantOverviewContent() {
     router.push(`/admin/tenants/${restaurantId}`);
   };
 
+  const handleCancelCreate = () => {
+    setIsCreateModalOpen(false);
+    setFormData(initialFormState);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditModalOpen(false);
+    setEditingRestaurantId(null);
+    setEditFormData(initialFormState);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -217,64 +412,27 @@ function TenantOverviewContent() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Restaurants</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {stats === undefined ? (
-              <Loader2 className="h-6 w-6 animate-spin" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{stats?.totalRestaurants ?? 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  {stats?.activeRestaurants ?? 0} active
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {stats === undefined ? (
-              <Loader2 className="h-6 w-6 animate-spin" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{stats?.activeSessions ?? 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  Current active sessions
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {stats === undefined ? (
-              <Loader2 className="h-6 w-6 animate-spin" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">
-                  {formatCurrency(stats?.totalRevenue ?? 0)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  From all completed orders
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <OverviewStatCard
+          title="Total Restaurants"
+          value={stats?.totalRestaurants ?? 0}
+          subtext={`${stats?.activeRestaurants ?? 0} active`}
+          icon={Building2}
+          isLoading={stats === undefined}
+        />
+        <OverviewStatCard
+          title="Active Sessions"
+          value={stats?.activeSessions ?? 0}
+          subtext="Current active sessions"
+          icon={Users}
+          isLoading={stats === undefined}
+        />
+        <OverviewStatCard
+          title="Total Revenue"
+          value={formatCurrency(stats?.totalRevenue ?? 0)}
+          subtext="From all completed orders"
+          icon={DollarSign}
+          isLoading={stats === undefined}
+        />
       </div>
 
       <Card>
@@ -403,236 +561,26 @@ function TenantOverviewContent() {
         </CardContent>
       </Card>
 
-      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Create New Restaurant
-            </DialogTitle>
-          </DialogHeader>
+      <RestaurantFormDialog
+        open={isCreateModalOpen}
+        onOpenChange={setIsCreateModalOpen}
+        formData={formData}
+        setFormData={setFormData}
+        onSubmit={handleCreateRestaurant}
+        onCancel={handleCancelCreate}
+        isSubmitting={isSubmitting}
+      />
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">
-                Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="name"
-                placeholder="Restaurant name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, name: e.target.value }))
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="subdomain">Subdomain</Label>
-              <div className="flex items-center">
-                <Input
-                  id="subdomain"
-                  placeholder="my-restaurant"
-                  value={formData.subdomain}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
-                    }))
-                  }
-                  className="rounded-r-none"
-                />
-                <span className="inline-flex items-center rounded-r-md border border-l-0 border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
-                  .restaurantix.com
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">
-                Address <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="address"
-                placeholder="123 Main St, City, State"
-                value={formData.address}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, address: e.target.value }))
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                placeholder="+1 (555) 123-4567"
-                value={formData.phone}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, phone: e.target.value }))
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="A brief description of the restaurant..."
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, description: e.target.value }))
-                }
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsCreateModalOpen(false);
-                setFormData(initialFormState);
-              }}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateRestaurant}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Restaurant
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Pencil className="h-5 w-5" />
-              Edit Restaurant
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="edit-name">
-                Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="edit-name"
-                placeholder="Restaurant name"
-                value={editFormData.name}
-                onChange={(e) =>
-                  setEditFormData((prev) => ({ ...prev, name: e.target.value }))
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-subdomain">Subdomain</Label>
-              <div className="flex items-center">
-                <Input
-                  id="edit-subdomain"
-                  placeholder="my-restaurant"
-                  value={editFormData.subdomain}
-                  disabled
-                  className="rounded-r-none bg-muted"
-                />
-                <span className="inline-flex items-center rounded-r-md border border-l-0 border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
-                  .restaurantix.com
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Subdomain cannot be changed after creation
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-address">
-                Address <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="edit-address"
-                placeholder="123 Main St, City, State"
-                value={editFormData.address}
-                onChange={(e) =>
-                  setEditFormData((prev) => ({ ...prev, address: e.target.value }))
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-phone">Phone</Label>
-              <Input
-                id="edit-phone"
-                placeholder="+1 (555) 123-4567"
-                value={editFormData.phone}
-                onChange={(e) =>
-                  setEditFormData((prev) => ({ ...prev, phone: e.target.value }))
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="edit-description">Description</Label>
-              <Textarea
-                id="edit-description"
-                placeholder="A brief description of the restaurant..."
-                value={editFormData.description}
-                onChange={(e) =>
-                  setEditFormData((prev) => ({ ...prev, description: e.target.value }))
-                }
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsEditModalOpen(false);
-                setEditingRestaurantId(null);
-                setEditFormData(initialFormState);
-              }}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleEditRestaurant}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Save Changes
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RestaurantFormDialog
+        open={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        formData={editFormData}
+        setFormData={setEditFormData}
+        onSubmit={handleEditRestaurant}
+        onCancel={handleCancelEdit}
+        isSubmitting={isSubmitting}
+        isEdit
+      />
     </div>
   );
 }

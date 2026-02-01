@@ -17,7 +17,6 @@ interface AdminGuardProps {
 export function AdminGuard({ children }: AdminGuardProps) {
   const currentUser = useQuery(api.users.getCurrentUser);
 
-  // Show loading state while user data is being fetched
   if (currentUser === undefined) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">

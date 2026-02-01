@@ -1,10 +1,8 @@
 import type { QueryCtx, MutationCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
 
-// UUID v4 format validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-// Convex ID format validation regex (alphanumeric, typically starts with a letter)
 const CONVEX_ID_REGEX = /^[a-z][a-z0-9]{31}$/;
 
 export function isValidSessionId(sessionId: string): boolean {
@@ -12,7 +10,6 @@ export function isValidSessionId(sessionId: string): boolean {
 }
 
 export function isValidConvexId(id: string): boolean {
-  // Convex IDs are 32-character alphanumeric strings starting with a letter
   return CONVEX_ID_REGEX.test(id);
 }
 
