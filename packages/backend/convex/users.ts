@@ -1,7 +1,21 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, QueryCtx } from "./_generated/server";
 import { Sector, Role, UserStatus } from "./lib/types";
 import { getAuthenticatedUser, isAdmin } from "./lib/auth";
+
+async function fetchPendingUsers(ctx: QueryCtx) {
+  const [pendingUsers, noStatusUsers] = await Promise.all([
+    ctx.db
+      .query("users")
+      .withIndex("by_status", (q) => q.eq("status", UserStatus.PENDING))
+      .collect(),
+    ctx.db
+      .query("users")
+      .withIndex("by_status", (q) => q.eq("status", undefined))
+      .collect(),
+  ]);
+  return [...pendingUsers, ...noStatusUsers];
+}
 
 export const getCurrentUser = query({
   args: {},
@@ -186,15 +200,7 @@ export const getPendingUsers = query({
     const currentUser = await getAuthenticatedUser(ctx);
     if (!currentUser || !isAdmin(currentUser.role)) return [];
 
-    const pendingUsers = await ctx.db
-      .query("users")
-      .withIndex("by_status", (q) => q.eq("status", UserStatus.PENDING))
-      .collect();
-    const noStatusUsers = await ctx.db
-      .query("users")
-      .withIndex("by_status", (q) => q.eq("status", undefined))
-      .collect();
-    return [...pendingUsers, ...noStatusUsers];
+    return fetchPendingUsers(ctx);
   },
 });
 
@@ -204,15 +210,8 @@ export const getPendingUsersCount = query({
     const currentUser = await getAuthenticatedUser(ctx);
     if (!currentUser || !isAdmin(currentUser.role)) return 0;
 
-    const pendingUsers = await ctx.db
-      .query("users")
-      .withIndex("by_status", (q) => q.eq("status", UserStatus.PENDING))
-      .collect();
-    const noStatusUsers = await ctx.db
-      .query("users")
-      .withIndex("by_status", (q) => q.eq("status", undefined))
-      .collect();
-    return pendingUsers.length + noStatusUsers.length;
+    const pendingUsers = await fetchPendingUsers(ctx);
+    return pendingUsers.length;
   },
 });
 

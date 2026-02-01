@@ -16,6 +16,7 @@ export const listByRestaurant = query({
 export const getTablesOverview = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
+    // 1. Fetch all tables
     const tables = await ctx.db
       .query("tables")
       .withIndex("by_restaurant", (q) =>
@@ -23,46 +24,83 @@ export const getTablesOverview = query({
       )
       .collect();
 
-    const overview = await Promise.all(
-      tables.map(async (table) => {
-        const cart = await ctx.db
-          .query("carts")
-          .withIndex("by_table", (q) => q.eq("tableId", table._id))
-          .filter((q) => q.eq(q.field("isActive"), true))
-          .first();
+    // 2. Fetch all active carts for restaurant
+    const allCarts = await ctx.db
+      .query("carts")
+      .withIndex("by_restaurant", (q) =>
+        q.eq("restaurantId", args.restaurantId)
+      )
+      .filter((q) => q.eq(q.field("isActive"), true))
+      .collect();
 
-        let cartItems: any[] = [];
-        let total = 0;
+    // Map: tableId -> cart
+    const cartByTable = new Map<string, (typeof allCarts)[0]>();
+    allCarts.forEach((c) => cartByTable.set(c.tableId.toString(), c));
 
-        if (cart) {
-          const items = await ctx.db
-            .query("cartItems")
-            .withIndex("by_cart", (q) => q.eq("cartId", cart._id))
-            .collect();
-
-          cartItems = await Promise.all(
-            items.map(async (item) => {
-              const menuItem = await ctx.db.get(item.menuItemId);
-              return { ...item, menuItem };
-            })
-          );
-
-          total = cartItems.reduce(
-            (sum, item) => sum + item.price * item.quantity,
-            0
-          );
-        }
-
-        const orders = await ctx.db
-          .query("orders")
-          .withIndex("by_table", (q) => q.eq("tableId", table._id))
-          .collect();
-
-        return { table, cartItems, total, orders };
-      })
+    // 3. Batch fetch cartItems for all carts
+    const cartItemsArrays = await Promise.all(
+      allCarts.map((c) =>
+        ctx.db
+          .query("cartItems")
+          .withIndex("by_cart", (q) => q.eq("cartId", c._id))
+          .collect()
+      )
+    );
+    const itemsByCart = new Map<string, (typeof cartItemsArrays)[0]>();
+    allCarts.forEach((c, i) =>
+      itemsByCart.set(c._id.toString(), cartItemsArrays[i])
     );
 
-    return overview;
+    // 4. Batch fetch menu items for all cart items
+    const allCartItems = cartItemsArrays.flat();
+    const uniqueMenuIds = [...new Set(allCartItems.map((i) => i.menuItemId))];
+    const menuItems = await Promise.all(
+      uniqueMenuIds.map((id) => ctx.db.get(id))
+    );
+    const menuMap = new Map<string, (typeof menuItems)[0]>();
+    uniqueMenuIds.forEach((id, i) => menuMap.set(id.toString(), menuItems[i]));
+
+    // 5. Fetch all orders for restaurant
+    const allOrders = await ctx.db
+      .query("orders")
+      .withIndex("by_restaurant", (q) =>
+        q.eq("restaurantId", args.restaurantId)
+      )
+      .collect();
+    const ordersByTable = new Map<string, typeof allOrders>();
+    allOrders.forEach((o) => {
+      const key = o.tableId.toString();
+      if (!ordersByTable.has(key)) ordersByTable.set(key, []);
+      ordersByTable.get(key)!.push(o);
+    });
+
+    // 6. Assemble overview
+    return tables.map((table) => {
+      const cart = cartByTable.get(table._id.toString());
+      let cartItems: Array<
+        (typeof allCartItems)[0] & { menuItem: (typeof menuItems)[0] | null }
+      > = [];
+      let total = 0;
+
+      if (cart) {
+        const rawItems = itemsByCart.get(cart._id.toString()) ?? [];
+        cartItems = rawItems.map((item) => ({
+          ...item,
+          menuItem: menuMap.get(item.menuItemId.toString()) ?? null,
+        }));
+        total = cartItems.reduce(
+          (sum, item) => sum + item.price * item.quantity,
+          0
+        );
+      }
+
+      return {
+        table,
+        cartItems,
+        total,
+        orders: ordersByTable.get(table._id.toString()) ?? [],
+      };
+    });
   },
 });
 

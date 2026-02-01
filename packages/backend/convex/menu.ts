@@ -11,17 +11,25 @@ export const getMenuByRestaurant = query({
       )
       .collect();
 
-    const categoriesWithItems = await Promise.all(
-      categories.map(async (category) => {
-        const items = await ctx.db
-          .query("menuItems")
-          .withIndex("by_category", (q) => q.eq("categoryId", category._id))
-          .collect();
-        return { ...category, items };
-      })
-    );
+    const allItems = await ctx.db
+      .query("menuItems")
+      .withIndex("by_restaurant", (q) =>
+        q.eq("restaurantId", args.restaurantId)
+      )
+      .collect();
 
-    return categoriesWithItems;
+    // Group items by categoryId using Map for O(1) lookups
+    const itemsByCategory = new Map<string, typeof allItems>();
+    for (const item of allItems) {
+      const key = item.categoryId.toString();
+      if (!itemsByCategory.has(key)) itemsByCategory.set(key, []);
+      itemsByCategory.get(key)!.push(item);
+    }
+
+    return categories.map((category) => ({
+      ...category,
+      items: itemsByCategory.get(category._id.toString()) ?? [],
+    }));
   },
 });
 

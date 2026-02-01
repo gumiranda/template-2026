@@ -19,12 +19,20 @@ export const getCart = query({
       .withIndex("by_cart", (q) => q.eq("cartId", cart._id))
       .collect();
 
-    const itemsWithMenu = await Promise.all(
-      cartItems.map(async (item) => {
-        const menuItem = await ctx.db.get(item.menuItemId);
-        return { ...item, menuItem };
-      })
+    // Batch fetch all unique menu items
+    const uniqueMenuIds = [...new Set(cartItems.map((i) => i.menuItemId))];
+    const menuItems = await Promise.all(
+      uniqueMenuIds.map((id) => ctx.db.get(id))
     );
+
+    // Create Map for O(1) lookups
+    const menuMap = new Map<string, (typeof menuItems)[0]>();
+    uniqueMenuIds.forEach((id, i) => menuMap.set(id.toString(), menuItems[i]!));
+
+    const itemsWithMenu = cartItems.map((item) => ({
+      ...item,
+      menuItem: menuMap.get(item.menuItemId.toString()) ?? null,
+    }));
 
     return { ...cart, items: itemsWithMenu };
   },

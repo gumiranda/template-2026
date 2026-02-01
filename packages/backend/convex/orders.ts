@@ -10,18 +10,35 @@ export const getOrdersByRestaurant = query({
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.restaurantId))
       .collect();
 
-    const ordersWithDetails = await Promise.all(
-      orders.map(async (order) => {
-        const table = await ctx.db.get(order.tableId);
-        const items = await ctx.db
+    // Batch fetch unique tables
+    const uniqueTableIds = [...new Set(orders.map((o) => o.tableId))];
+    const tables = await Promise.all(
+      uniqueTableIds.map((id) => ctx.db.get(id))
+    );
+    const tableMap = new Map<string, (typeof tables)[0]>();
+    uniqueTableIds.forEach((id, i) => tableMap.set(id.toString(), tables[i]));
+
+    // Parallel fetch all order items (batched round trip)
+    const orderItemsArrays = await Promise.all(
+      orders.map((order) =>
+        ctx.db
           .query("orderItems")
           .withIndex("by_order", (q) => q.eq("orderId", order._id))
-          .collect();
-        return { ...order, table, items };
-      })
+          .collect()
+      )
     );
 
-    return ordersWithDetails;
+    // Map order items by orderId
+    const itemsMap = new Map<string, (typeof orderItemsArrays)[0]>();
+    orders.forEach((order, i) =>
+      itemsMap.set(order._id.toString(), orderItemsArrays[i])
+    );
+
+    return orders.map((order) => ({
+      ...order,
+      table: tableMap.get(order.tableId.toString()) ?? null,
+      items: itemsMap.get(order._id.toString()) ?? [],
+    }));
   },
 });
 
