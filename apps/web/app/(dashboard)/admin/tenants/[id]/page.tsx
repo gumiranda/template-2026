@@ -31,6 +31,7 @@ import {
   LayoutGrid,
 } from "lucide-react";
 import { getRestaurantStatus } from "@/lib/constants";
+import { formatCurrency } from "@/lib/utils";
 import { AdminGuard } from "@/components/admin-guard";
 
 export default function RestaurantDetailsPage({
@@ -54,13 +55,6 @@ function RestaurantDetailsContent({
 }) {
   const router = useRouter();
   const restaurant = useQuery(api.restaurants.getWithStats, { id: restaurantId });
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(value);
-  };
 
   if (restaurant === undefined) {
     return (
@@ -98,7 +92,6 @@ function RestaurantDetailsContent({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-start gap-4">
           <Button
@@ -134,7 +127,6 @@ function RestaurantDetailsContent({
         </div>
       </div>
 
-      {/* Info Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardContent className="pt-6">
@@ -183,7 +175,6 @@ function RestaurantDetailsContent({
         )}
       </div>
 
-      {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

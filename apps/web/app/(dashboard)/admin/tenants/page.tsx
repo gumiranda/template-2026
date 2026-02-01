@@ -49,7 +49,6 @@ import {
   Plus,
   Search,
   Filter,
-  Download,
   ExternalLink,
   Users,
   DollarSign,
@@ -60,6 +59,7 @@ import {
   RESTAURANT_STATUSES,
   getRestaurantStatus,
 } from "@/lib/constants";
+import { formatCurrency } from "@/lib/utils";
 import { AdminGuard } from "@/components/admin-guard";
 
 interface RestaurantForm {
@@ -78,39 +78,19 @@ const initialFormState: RestaurantForm = {
   description: "",
 };
 
-interface EditingRestaurant {
-  _id: Id<"restaurants">;
-  name: string;
-  subdomain?: string;
-  address: string;
-  phone?: string;
-  description?: string;
-}
-
 export default function TenantOverviewPage() {
   return (
     <AdminGuard>
-      {({ currentUser, isSuperadmin }) => (
-        <TenantOverviewContent
-          currentUser={currentUser}
-          isSuperadmin={isSuperadmin}
-        />
-      )}
+      {() => <TenantOverviewContent />}
     </AdminGuard>
   );
 }
 
-function TenantOverviewContent({
-  currentUser,
-  isSuperadmin,
-}: {
-  currentUser: { _id: Id<"users"> };
-  isSuperadmin: boolean;
-}) {
+function TenantOverviewContent() {
   const router = useRouter();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingRestaurant, setEditingRestaurant] = useState<EditingRestaurant | null>(null);
+  const [editingRestaurantId, setEditingRestaurantId] = useState<Id<"restaurants"> | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [formData, setFormData] = useState<RestaurantForm>(initialFormState);
@@ -165,8 +145,8 @@ function TenantOverviewContent({
     }
   };
 
-  const handleOpenEditModal = (restaurant: EditingRestaurant) => {
-    setEditingRestaurant(restaurant);
+  const handleOpenEditModal = (restaurant: NonNullable<typeof restaurants>[number]) => {
+    setEditingRestaurantId(restaurant._id);
     setEditFormData({
       name: restaurant.name,
       subdomain: restaurant.subdomain ?? "",
@@ -178,7 +158,7 @@ function TenantOverviewContent({
   };
 
   const handleEditRestaurant = async () => {
-    if (!editingRestaurant) return;
+    if (!editingRestaurantId) return;
 
     if (!editFormData.name.trim()) {
       toast.error("Restaurant name is required");
@@ -192,7 +172,7 @@ function TenantOverviewContent({
     setIsSubmitting(true);
     try {
       await updateRestaurant({
-        id: editingRestaurant._id,
+        id: editingRestaurantId,
         options: {
           name: editFormData.name.trim(),
           address: editFormData.address.trim(),
@@ -202,7 +182,7 @@ function TenantOverviewContent({
       });
       toast.success("Restaurant updated successfully");
       setIsEditModalOpen(false);
-      setEditingRestaurant(null);
+      setEditingRestaurantId(null);
       setEditFormData(initialFormState);
     } catch (error) {
       toast.error(
@@ -217,16 +197,8 @@ function TenantOverviewContent({
     router.push(`/admin/tenants/${restaurantId}`);
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(value);
-  };
-
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Tenant Overview</h1>
@@ -243,7 +215,6 @@ function TenantOverviewContent({
         </Button>
       </div>
 
-      {/* Metric Cards */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -305,7 +276,6 @@ function TenantOverviewContent({
         </Card>
       </div>
 
-      {/* Search and Filters */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -335,15 +305,11 @@ function TenantOverviewContent({
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="icon">
-                <Download className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Restaurants Table */}
       <Card>
         <CardContent className="pt-6">
           {restaurants === undefined ? (
@@ -436,7 +402,6 @@ function TenantOverviewContent({
         </CardContent>
       </Card>
 
-      {/* Create Restaurant Modal */}
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -554,7 +519,6 @@ function TenantOverviewContent({
         </DialogContent>
       </Dialog>
 
-      {/* Edit Restaurant Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
@@ -643,7 +607,7 @@ function TenantOverviewContent({
               variant="outline"
               onClick={() => {
                 setIsEditModalOpen(false);
-                setEditingRestaurant(null);
+                setEditingRestaurantId(null);
                 setEditFormData(initialFormState);
               }}
               disabled={isSubmitting}

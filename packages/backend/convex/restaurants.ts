@@ -28,7 +28,6 @@ export const create = mutation({
       throw new Error("Only admins can create restaurants");
     }
 
-    // Check if subdomain is unique (if provided)
     if (args.subdomain) {
       const existing = await ctx.db
         .query("restaurants")
@@ -104,7 +103,6 @@ export const get = query({
     const restaurant = await ctx.db.get(args.id);
     if (!restaurant) return null;
 
-    // Return only public fields - exclude internal data like ownerId
     return {
       _id: restaurant._id,
       _creationTime: restaurant._creationTime,
@@ -143,7 +141,6 @@ export const listAllWithStats = query({
 
     const restaurantsWithStats = await Promise.all(
       restaurants.map(async (restaurant) => {
-        // Get total revenue from completed orders
         const orders = await ctx.db
           .query("orders")
           .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
@@ -177,7 +174,6 @@ export const getWithStats = query({
     const restaurant = await ctx.db.get(args.id);
     if (!restaurant) return null;
 
-    // Get orders for this restaurant
     const orders = await ctx.db
       .query("orders")
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
@@ -188,13 +184,11 @@ export const getWithStats = query({
     const totalOrders = orders.length;
     const pendingOrders = orders.filter((order) => order.status === "pending").length;
 
-    // Get tables count
     const tables = await ctx.db
       .query("tables")
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
       .collect();
 
-    // Get menu items count
     const menuItems = await ctx.db
       .query("menuItems")
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
@@ -225,17 +219,14 @@ export const getOverviewStats = query({
     const restaurants = await ctx.db.query("restaurants").collect();
     const totalRestaurants = restaurants.length;
 
-    // Count active restaurants
     const activeRestaurants = restaurants.filter(
       (r) => r.status === RestaurantStatus.ACTIVE || r.status === undefined
     ).length;
 
-    // Get all active sessions
     const now = Date.now();
     const sessions = await ctx.db.query("sessions").collect();
     const activeSessions = sessions.filter((s) => s.expiresAt > now).length;
 
-    // Calculate total revenue from all completed orders
     const orders = await ctx.db.query("orders").collect();
     const totalRevenue = orders
       .filter((order) => order.status === "completed")
