@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, Dispatch, SetStateAction } from "react";
+import { useReducer, useMemo, Dispatch, SetStateAction } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@workspace/backend/_generated/api";
@@ -65,12 +65,99 @@ interface RestaurantForm {
   description: string;
 }
 
-const initialFormState = {
+const initialFormData: RestaurantForm = {
   name: "",
   address: "",
   phone: "",
   description: "",
-} satisfies RestaurantForm;
+};
+
+interface PageState {
+  isCreateModalOpen: boolean;
+  isEditModalOpen: boolean;
+  editingRestaurantId: Id<"restaurants"> | null;
+  searchQuery: string;
+  statusFilter: string;
+  formData: RestaurantForm;
+  editFormData: RestaurantForm;
+  isCreateSubmitting: boolean;
+  isEditSubmitting: boolean;
+}
+
+type PageAction =
+  | { type: "OPEN_CREATE_MODAL" }
+  | { type: "CLOSE_CREATE_MODAL" }
+  | { type: "CREATE_SUCCESS" }
+  | { type: "OPEN_EDIT_MODAL"; payload: { id: Id<"restaurants">; data: RestaurantForm } }
+  | { type: "CLOSE_EDIT_MODAL" }
+  | { type: "EDIT_SUCCESS" }
+  | { type: "SET_SEARCH_QUERY"; payload: string }
+  | { type: "SET_STATUS_FILTER"; payload: string }
+  | { type: "SET_FORM_DATA"; payload: RestaurantForm }
+  | { type: "SET_EDIT_FORM_DATA"; payload: RestaurantForm }
+  | { type: "SET_CREATE_SUBMITTING"; payload: boolean }
+  | { type: "SET_EDIT_SUBMITTING"; payload: boolean };
+
+const initialState: PageState = {
+  isCreateModalOpen: false,
+  isEditModalOpen: false,
+  editingRestaurantId: null,
+  searchQuery: "",
+  statusFilter: "all",
+  formData: initialFormData,
+  editFormData: initialFormData,
+  isCreateSubmitting: false,
+  isEditSubmitting: false,
+};
+
+function pageReducer(state: PageState, action: PageAction): PageState {
+  switch (action.type) {
+    case "OPEN_CREATE_MODAL":
+      return { ...state, isCreateModalOpen: true };
+    case "CLOSE_CREATE_MODAL":
+      if (state.isCreateSubmitting) return state;
+      return { ...state, isCreateModalOpen: false, formData: initialFormData };
+    case "CREATE_SUCCESS":
+      return { ...state, isCreateModalOpen: false, formData: initialFormData, isCreateSubmitting: false };
+    case "OPEN_EDIT_MODAL":
+      return {
+        ...state,
+        isEditModalOpen: true,
+        editingRestaurantId: action.payload.id,
+        editFormData: action.payload.data,
+      };
+    case "CLOSE_EDIT_MODAL":
+      if (state.isEditSubmitting) return state;
+      return {
+        ...state,
+        isEditModalOpen: false,
+        editingRestaurantId: null,
+        editFormData: initialFormData,
+      };
+    case "EDIT_SUCCESS":
+      return {
+        ...state,
+        isEditModalOpen: false,
+        editingRestaurantId: null,
+        editFormData: initialFormData,
+        isEditSubmitting: false,
+      };
+    case "SET_SEARCH_QUERY":
+      return { ...state, searchQuery: action.payload };
+    case "SET_STATUS_FILTER":
+      return { ...state, statusFilter: action.payload };
+    case "SET_FORM_DATA":
+      return { ...state, formData: action.payload };
+    case "SET_EDIT_FORM_DATA":
+      return { ...state, editFormData: action.payload };
+    case "SET_CREATE_SUBMITTING":
+      return { ...state, isCreateSubmitting: action.payload };
+    case "SET_EDIT_SUBMITTING":
+      return { ...state, isEditSubmitting: action.payload };
+    default:
+      return state;
+  }
+}
 
 function validateRestaurantForm(form: RestaurantForm): string | null {
   if (!form.name.trim()) return "Restaurant name is required";
@@ -211,14 +298,18 @@ export default function TenantOverviewPage() {
 
 function TenantOverviewContent() {
   const router = useRouter();
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingRestaurantId, setEditingRestaurantId] = useState<Id<"restaurants"> | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [formData, setFormData] = useState<RestaurantForm>(initialFormState);
-  const [editFormData, setEditFormData] = useState<RestaurantForm>(initialFormState);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [state, dispatch] = useReducer(pageReducer, initialState);
+  const {
+    isCreateModalOpen,
+    isEditModalOpen,
+    editingRestaurantId,
+    searchQuery,
+    statusFilter,
+    formData,
+    editFormData,
+    isCreateSubmitting,
+    isEditSubmitting,
+  } = state;
 
   const stats = useQuery(api.restaurants.getOverviewStats);
   const restaurants = useQuery(api.restaurants.listAllWithStats);
@@ -245,7 +336,7 @@ function TenantOverviewContent() {
       return;
     }
 
-    setIsSubmitting(true);
+    dispatch({ type: "SET_CREATE_SUBMITTING", payload: true });
     try {
       await createRestaurant({
         name: formData.name.trim(),
@@ -254,26 +345,28 @@ function TenantOverviewContent() {
         description: formData.description.trim() || undefined,
       });
       toast.success("Restaurant created successfully");
-      setIsCreateModalOpen(false);
-      setFormData(initialFormState);
+      dispatch({ type: "CREATE_SUCCESS" });
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to create restaurant"
       );
-    } finally {
-      setIsSubmitting(false);
+      dispatch({ type: "SET_CREATE_SUBMITTING", payload: false });
     }
   };
 
   const handleOpenEditModal = (restaurant: NonNullable<typeof restaurants>[number]) => {
-    setEditingRestaurantId(restaurant._id);
-    setEditFormData({
-      name: restaurant.name,
-      address: restaurant.address,
-      phone: restaurant.phone ?? "",
-      description: restaurant.description ?? "",
+    dispatch({
+      type: "OPEN_EDIT_MODAL",
+      payload: {
+        id: restaurant._id,
+        data: {
+          name: restaurant.name,
+          address: restaurant.address,
+          phone: restaurant.phone ?? "",
+          description: restaurant.description ?? "",
+        },
+      },
     });
-    setIsEditModalOpen(true);
   };
 
   const handleEditRestaurant = async () => {
@@ -285,7 +378,7 @@ function TenantOverviewContent() {
       return;
     }
 
-    setIsSubmitting(true);
+    dispatch({ type: "SET_EDIT_SUBMITTING", payload: true });
     try {
       await updateRestaurant({
         id: editingRestaurantId,
@@ -297,15 +390,12 @@ function TenantOverviewContent() {
         },
       });
       toast.success("Restaurant updated successfully");
-      setIsEditModalOpen(false);
-      setEditingRestaurantId(null);
-      setEditFormData(initialFormState);
+      dispatch({ type: "EDIT_SUCCESS" });
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to update restaurant"
       );
-    } finally {
-      setIsSubmitting(false);
+      dispatch({ type: "SET_EDIT_SUBMITTING", payload: false });
     }
   };
 
@@ -314,14 +404,21 @@ function TenantOverviewContent() {
   };
 
   const handleCancelCreate = () => {
-    setIsCreateModalOpen(false);
-    setFormData(initialFormState);
+    dispatch({ type: "CLOSE_CREATE_MODAL" });
   };
 
   const handleCancelEdit = () => {
-    setIsEditModalOpen(false);
-    setEditingRestaurantId(null);
-    setEditFormData(initialFormState);
+    dispatch({ type: "CLOSE_EDIT_MODAL" });
+  };
+
+  const setFormData: Dispatch<SetStateAction<RestaurantForm>> = (action) => {
+    const newData = typeof action === "function" ? action(formData) : action;
+    dispatch({ type: "SET_FORM_DATA", payload: newData });
+  };
+
+  const setEditFormData: Dispatch<SetStateAction<RestaurantForm>> = (action) => {
+    const newData = typeof action === "function" ? action(editFormData) : action;
+    dispatch({ type: "SET_EDIT_FORM_DATA", payload: newData });
   };
 
   return (
@@ -334,7 +431,7 @@ function TenantOverviewContent() {
           </p>
         </div>
         <Button
-          onClick={() => setIsCreateModalOpen(true)}
+          onClick={() => dispatch({ type: "OPEN_CREATE_MODAL" })}
         >
           <Plus className="mr-2 h-4 w-4" />
           Create New Restaurant
@@ -374,13 +471,13 @@ function TenantOverviewContent() {
                 <Input
                   placeholder="Search restaurants..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => dispatch({ type: "SET_SEARCH_QUERY", payload: e.target.value })}
                   className="pl-9"
                 />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(value) => dispatch({ type: "SET_STATUS_FILTER", payload: value })}>
                 <SelectTrigger className="w-[140px]">
                   <Filter className="mr-2 h-4 w-4" />
                   <SelectValue placeholder="Status" />
@@ -488,22 +585,22 @@ function TenantOverviewContent() {
 
       <RestaurantFormDialog
         open={isCreateModalOpen}
-        onOpenChange={setIsCreateModalOpen}
+        onOpenChange={(open) => dispatch({ type: open ? "OPEN_CREATE_MODAL" : "CLOSE_CREATE_MODAL" })}
         formData={formData}
         setFormData={setFormData}
         onSubmit={handleCreateRestaurant}
         onCancel={handleCancelCreate}
-        isSubmitting={isSubmitting}
+        isSubmitting={isCreateSubmitting}
       />
 
       <RestaurantFormDialog
         open={isEditModalOpen}
-        onOpenChange={setIsEditModalOpen}
+        onOpenChange={(open) => { if (!open) dispatch({ type: "CLOSE_EDIT_MODAL" }); }}
         formData={editFormData}
         setFormData={setEditFormData}
         onSubmit={handleEditRestaurant}
         onCancel={handleCancelEdit}
-        isSubmitting={isSubmitting}
+        isSubmitting={isEditSubmitting}
         isEdit
       />
     </div>
