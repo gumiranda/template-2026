@@ -48,7 +48,7 @@ export const getTablesOverview = query({
     );
     const itemsByCart = new Map<string, (typeof cartItemsArrays)[0]>();
     allCarts.forEach((c, i) =>
-      itemsByCart.set(c._id.toString(), cartItemsArrays[i])
+      itemsByCart.set(c._id.toString(), cartItemsArrays[i]!)
     );
 
     // 4. Batch fetch menu items for all cart items
@@ -58,7 +58,7 @@ export const getTablesOverview = query({
       uniqueMenuIds.map((id) => ctx.db.get(id))
     );
     const menuMap = new Map<string, (typeof menuItems)[0]>();
-    uniqueMenuIds.forEach((id, i) => menuMap.set(id.toString(), menuItems[i]));
+    uniqueMenuIds.forEach((id, i) => menuMap.set(id.toString(), menuItems[i]!));
 
     // 5. Fetch all orders for restaurant
     const allOrders = await ctx.db

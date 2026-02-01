@@ -16,7 +16,7 @@ export const getOrdersByRestaurant = query({
       uniqueTableIds.map((id) => ctx.db.get(id))
     );
     const tableMap = new Map<string, (typeof tables)[0]>();
-    uniqueTableIds.forEach((id, i) => tableMap.set(id.toString(), tables[i]));
+    uniqueTableIds.forEach((id, i) => tableMap.set(id.toString(), tables[i]!));
 
     // Parallel fetch all order items (batched round trip)
     const orderItemsArrays = await Promise.all(
@@ -31,7 +31,7 @@ export const getOrdersByRestaurant = query({
     // Map order items by orderId
     const itemsMap = new Map<string, (typeof orderItemsArrays)[0]>();
     orders.forEach((order, i) =>
-      itemsMap.set(order._id.toString(), orderItemsArrays[i])
+      itemsMap.set(order._id.toString(), orderItemsArrays[i]!)
     );
 
     return orders.map((order) => ({
