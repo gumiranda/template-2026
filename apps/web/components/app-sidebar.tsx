@@ -1,10 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
-import { api } from "@workspace/backend/_generated/api";
 import {
   Sidebar,
   SidebarContent,
@@ -18,42 +15,21 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
 } from "@workspace/ui/components/sidebar";
-import {
-  LayoutDashboard,
-  UserCog,
-  Users,
-  Building2,
-} from "lucide-react";
+import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
+import { useNavigation } from "@/hooks/use-navigation";
 
 export function AppSidebar() {
-  const pathname = usePathname();
-  const currentUser = useQuery(api.users.getCurrentUser);
+  const isMobile = useIsMobile();
 
-  const isSuperadmin = currentUser?.role === "superadmin";
-  const isCeo = currentUser?.role === "ceo";
-  const isSuperadminOrCeo = isSuperadmin || isCeo;
+  if (isMobile) {
+    return null;
+  }
 
-  const pendingUsersCount = useQuery(
-    api.users.getPendingUsersCount,
-    isSuperadminOrCeo ? {} : "skip"
-  );
+  return <AppSidebarContent />;
+}
 
-  const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
-    return pathname === href || pathname.startsWith(href + "/");
-  };
-
-  const adminItems = [
-    { label: "Dashboard", href: "/", icon: LayoutDashboard, show: true },
-    { label: "Users", href: "/admin/users", icon: UserCog, show: isSuperadminOrCeo },
-    {
-      label: "Pending Users",
-      href: "/admin/pending-users",
-      icon: Users,
-      show: isSuperadminOrCeo,
-      badge: pendingUsersCount && pendingUsersCount > 0 ? pendingUsersCount : undefined,
-    },
-  ];
+function AppSidebarContent() {
+  const { currentUser, adminItems, isActive } = useNavigation();
 
   return (
     <Sidebar>

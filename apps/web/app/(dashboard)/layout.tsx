@@ -1,7 +1,5 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { api } from "@workspace/backend/_generated/api";
 import {
   SidebarProvider,
   SidebarInset,
@@ -11,25 +9,19 @@ import { Badge } from "@workspace/ui/components/badge";
 import { UserPlus } from "lucide-react";
 import { RoleBadge } from "@/components/role-badge";
 import { AppSidebar } from "@/components/app-sidebar";
+import { MobileNav } from "@/components/mobile-nav";
 import Link from "next/link";
 import { FullPageLoader } from "@/components/full-page-loader";
 import { useAuthRedirect } from "@/hooks/use-auth-redirect";
+import { useNavigation } from "@/hooks/use-navigation";
 
-const Layout = ({ children }: { children: React.ReactNode }) => {
-  const currentUser = useQuery(api.users.getCurrentUser);
+export default function Layout({ children }: { children: React.ReactNode }) {
+  const { currentUser, isSuperadmin, isCeo, isSuperadminOrCeo, pendingUsersCount } =
+    useNavigation();
 
   const { hasSuperadmin, isLoading } = useAuthRedirect({
     whenApproved: undefined,
   });
-
-  const isSuperadmin = currentUser?.role === "superadmin";
-  const isCeo = currentUser?.role === "ceo";
-  const isSuperadminOrCeo = isSuperadmin || isCeo;
-
-  const pendingUsersCount = useQuery(
-    api.users.getPendingUsersCount,
-    isSuperadminOrCeo ? {} : "skip"
-  );
 
   if (isLoading) {
     return <FullPageLoader />;
@@ -49,7 +41,8 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       <SidebarInset>
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b bg-background px-4">
           <div className="flex items-center gap-2">
-            <SidebarTrigger />
+            <MobileNav />
+            <SidebarTrigger className="hidden md:flex" />
             {(isSuperadmin || isCeo) && <RoleBadge role={currentUser.role} />}
           </div>
           <div className="flex items-center gap-4">
@@ -73,6 +66,4 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
       </SidebarInset>
     </SidebarProvider>
   );
-};
-
-export default Layout;
+}
