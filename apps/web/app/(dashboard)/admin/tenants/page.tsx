@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
+import { useRouter } from "next/navigation";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import {
@@ -49,10 +50,10 @@ import {
   Search,
   Filter,
   Download,
-  Settings,
   ExternalLink,
   Users,
   DollarSign,
+  Pencil,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -61,7 +62,7 @@ import {
 } from "@/lib/constants";
 import { AdminGuard } from "@/components/admin-guard";
 
-interface CreateRestaurantForm {
+interface RestaurantForm {
   name: string;
   subdomain: string;
   address: string;
@@ -69,13 +70,22 @@ interface CreateRestaurantForm {
   description: string;
 }
 
-const initialFormState: CreateRestaurantForm = {
+const initialFormState: RestaurantForm = {
   name: "",
   subdomain: "",
   address: "",
   phone: "",
   description: "",
 };
+
+interface EditingRestaurant {
+  _id: Id<"restaurants">;
+  name: string;
+  subdomain?: string;
+  address: string;
+  phone?: string;
+  description?: string;
+}
 
 export default function TenantOverviewPage() {
   return (
@@ -97,15 +107,20 @@ function TenantOverviewContent({
   currentUser: { _id: Id<"users"> };
   isSuperadmin: boolean;
 }) {
+  const router = useRouter();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingRestaurant, setEditingRestaurant] = useState<EditingRestaurant | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [formData, setFormData] = useState<CreateRestaurantForm>(initialFormState);
+  const [formData, setFormData] = useState<RestaurantForm>(initialFormState);
+  const [editFormData, setEditFormData] = useState<RestaurantForm>(initialFormState);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const stats = useQuery(api.restaurants.getOverviewStats);
   const restaurants = useQuery(api.restaurants.listAllWithStats);
   const createRestaurant = useMutation(api.restaurants.create);
+  const updateRestaurant = useMutation(api.restaurants.update);
 
   const filteredRestaurants = restaurants?.filter((restaurant) => {
     const matchesSearch =
@@ -148,6 +163,58 @@ function TenantOverviewContent({
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleOpenEditModal = (restaurant: EditingRestaurant) => {
+    setEditingRestaurant(restaurant);
+    setEditFormData({
+      name: restaurant.name,
+      subdomain: restaurant.subdomain ?? "",
+      address: restaurant.address,
+      phone: restaurant.phone ?? "",
+      description: restaurant.description ?? "",
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditRestaurant = async () => {
+    if (!editingRestaurant) return;
+
+    if (!editFormData.name.trim()) {
+      toast.error("Restaurant name is required");
+      return;
+    }
+    if (!editFormData.address.trim()) {
+      toast.error("Address is required");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await updateRestaurant({
+        id: editingRestaurant._id,
+        options: {
+          name: editFormData.name.trim(),
+          address: editFormData.address.trim(),
+          phone: editFormData.phone.trim(),
+          description: editFormData.description.trim(),
+        },
+      });
+      toast.success("Restaurant updated successfully");
+      setIsEditModalOpen(false);
+      setEditingRestaurant(null);
+      setEditFormData(initialFormState);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update restaurant"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleManageRestaurant = (restaurantId: Id<"restaurants">) => {
+    router.push(`/admin/tenants/${restaurantId}`);
   };
 
   const formatCurrency = (value: number) => {
@@ -342,11 +409,19 @@ function TenantOverviewContent({
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button variant="outline" size="sm">
-                            <Settings className="mr-1 h-3 w-3" />
-                            Configure
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenEditModal(restaurant)}
+                          >
+                            <Pencil className="mr-1 h-3 w-3" />
+                            Edit
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleManageRestaurant(restaurant._id)}
+                          >
                             <ExternalLink className="mr-1 h-3 w-3" />
                             Manage
                           </Button>
@@ -472,6 +547,122 @@ function TenantOverviewContent({
                 <>
                   <Plus className="mr-2 h-4 w-4" />
                   Create Restaurant
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Restaurant Modal */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5" />
+              Edit Restaurant
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">
+                Name <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="edit-name"
+                placeholder="Restaurant name"
+                value={editFormData.name}
+                onChange={(e) =>
+                  setEditFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-subdomain">Subdomain</Label>
+              <div className="flex items-center">
+                <Input
+                  id="edit-subdomain"
+                  placeholder="my-restaurant"
+                  value={editFormData.subdomain}
+                  disabled
+                  className="rounded-r-none bg-muted"
+                />
+                <span className="inline-flex items-center rounded-r-md border border-l-0 border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
+                  .restaurantix.com
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Subdomain cannot be changed after creation
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-address">
+                Address <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="edit-address"
+                placeholder="123 Main St, City, State"
+                value={editFormData.address}
+                onChange={(e) =>
+                  setEditFormData((prev) => ({ ...prev, address: e.target.value }))
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Phone</Label>
+              <Input
+                id="edit-phone"
+                placeholder="+1 (555) 123-4567"
+                value={editFormData.phone}
+                onChange={(e) =>
+                  setEditFormData((prev) => ({ ...prev, phone: e.target.value }))
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-description">Description</Label>
+              <Textarea
+                id="edit-description"
+                placeholder="A brief description of the restaurant..."
+                value={editFormData.description}
+                onChange={(e) =>
+                  setEditFormData((prev) => ({ ...prev, description: e.target.value }))
+                }
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingRestaurant(null);
+                setEditFormData(initialFormState);
+              }}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditRestaurant}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Save Changes
                 </>
               )}
             </Button>

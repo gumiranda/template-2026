@@ -164,6 +164,56 @@ export const listAllWithStats = query({
   },
 });
 
+export const getWithStats = query({
+  args: {
+    id: v.id("restaurants"),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser || !isAdmin(currentUser.role)) {
+      return null;
+    }
+
+    const restaurant = await ctx.db.get(args.id);
+    if (!restaurant) return null;
+
+    // Get orders for this restaurant
+    const orders = await ctx.db
+      .query("orders")
+      .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
+      .collect();
+
+    const completedOrders = orders.filter((order) => order.status === "completed");
+    const totalRevenue = completedOrders.reduce((sum, order) => sum + order.total, 0);
+    const totalOrders = orders.length;
+    const pendingOrders = orders.filter((order) => order.status === "pending").length;
+
+    // Get tables count
+    const tables = await ctx.db
+      .query("tables")
+      .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
+      .collect();
+
+    // Get menu items count
+    const menuItems = await ctx.db
+      .query("menuItems")
+      .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
+      .collect();
+
+    return {
+      ...restaurant,
+      stats: {
+        totalRevenue,
+        totalOrders,
+        pendingOrders,
+        completedOrders: completedOrders.length,
+        tablesCount: tables.length,
+        menuItemsCount: menuItems.length,
+      },
+    };
+  },
+});
+
 export const getOverviewStats = query({
   args: {},
   handler: async (ctx) => {
