@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { usePaginatedQuery, useMutation } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import {
@@ -64,8 +64,12 @@ function AdminUsersContent({
   isSuperadmin: boolean;
   isCeo: boolean;
 }) {
-  const usersResult = useQuery(api.users.getAllUsers, {});
-  const users = usersResult?.users;
+  const { results: users, status: paginationStatus, loadMore } = usePaginatedQuery(
+    api.users.getAllUsers,
+    {},
+    { initialNumItems: 50 }
+  );
+  const usersResult = paginationStatus !== "LoadingFirstPage" ? users : undefined;
   const updateUserRole = useMutation(api.users.updateUserRole);
   const updateUserSector = useMutation(api.users.updateUserSector);
 
@@ -103,7 +107,7 @@ function AdminUsersContent({
       if (isSuperadmin && selectedRole !== editingUser.role) {
         await updateUserRole({
           userId: editingUser.id,
-          role: selectedRole,
+          role: selectedRole as "superadmin" | "ceo" | "user" | "waiter",
         });
       }
 

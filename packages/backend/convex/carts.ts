@@ -29,8 +29,9 @@ export const getCart = query({
 
     const cart = await ctx.db
       .query("carts")
-      .withIndex("by_table", (q) => q.eq("tableId", args.tableId))
-      .filter((q) => q.eq(q.field("isActive"), true))
+      .withIndex("by_tableId_and_isActive", (q) =>
+        q.eq("tableId", args.tableId).eq("isActive", true)
+      )
       .first();
 
     if (!cart) {
@@ -96,8 +97,9 @@ export const addToCart = mutation({
 
     let cart = await ctx.db
       .query("carts")
-      .withIndex("by_table", (q) => q.eq("tableId", args.tableId))
-      .filter((q) => q.eq(q.field("isActive"), true))
+      .withIndex("by_tableId_and_isActive", (q) =>
+        q.eq("tableId", args.tableId).eq("isActive", true)
+      )
       .first();
 
     if (!cart) {
@@ -112,8 +114,9 @@ export const addToCart = mutation({
 
     const existing = await ctx.db
       .query("cartItems")
-      .withIndex("by_cart", (q) => q.eq("cartId", cart!._id))
-      .filter((q) => q.eq(q.field("menuItemId"), args.menuItemId))
+      .withIndex("by_cartId_and_menuItemId", (q) =>
+        q.eq("cartId", cart!._id).eq("menuItemId", args.menuItemId)
+      )
       .first();
 
     if (existing) {
@@ -157,8 +160,9 @@ export const clearCart = mutation({
 
     const cart = await ctx.db
       .query("carts")
-      .withIndex("by_table", (q) => q.eq("tableId", args.tableId))
-      .filter((q) => q.eq(q.field("isActive"), true))
+      .withIndex("by_tableId_and_isActive", (q) =>
+        q.eq("tableId", args.tableId).eq("isActive", true)
+      )
       .first();
 
     if (!cart) return { deletedCount: 0 };

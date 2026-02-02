@@ -1,13 +1,41 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
+const roleValidator = v.union(
+  v.literal("superadmin"),
+  v.literal("ceo"),
+  v.literal("user"),
+  v.literal("waiter")
+);
+
+const userStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("approved"),
+  v.literal("rejected")
+);
+
+const orderStatusValidator = v.union(
+  v.literal("pending"),
+  v.literal("confirmed"),
+  v.literal("preparing"),
+  v.literal("ready"),
+  v.literal("served"),
+  v.literal("completed")
+);
+
+const restaurantStatusValidator = v.union(
+  v.literal("active"),
+  v.literal("maintenance"),
+  v.literal("inactive")
+);
+
 export default defineSchema({
   users: defineTable({
     name: v.string(),
     clerkId: v.string(),
-    role: v.optional(v.string()),
+    role: v.optional(roleValidator),
     sector: v.optional(v.string()),
-    status: v.optional(v.string()),
+    status: v.optional(userStatusValidator),
     approvedBy: v.optional(v.id("users")),
     approvedAt: v.optional(v.number()),
     rejectedBy: v.optional(v.id("users")),
@@ -26,13 +54,14 @@ export default defineSchema({
     ownerId: v.id("users"),
     logoUrl: v.optional(v.string()),
     isActive: v.optional(v.boolean()),
-    status: v.optional(v.string()),
+    status: v.optional(restaurantStatusValidator),
     deletedAt: v.optional(v.number()),
     deletedBy: v.optional(v.id("users")),
   })
     .index("by_owner", ["ownerId"])
     .index("by_active", ["isActive"])
-    .index("by_status", ["status"]),
+    .index("by_status", ["status"])
+    .index("by_owner_and_deletedAt", ["ownerId", "deletedAt"]),
 
   tables: defineTable({
     restaurantId: v.id("restaurants"),
@@ -42,7 +71,7 @@ export default defineSchema({
     isActive: v.boolean(),
   })
     .index("by_restaurant", ["restaurantId"])
-    .index("by_table_number", ["restaurantId", "tableNumber"]),
+    .index("by_restaurantId_and_tableNumber", ["restaurantId", "tableNumber"]),
 
   menuCategories: defineTable({
     restaurantId: v.id("restaurants"),
@@ -52,7 +81,7 @@ export default defineSchema({
     isActive: v.boolean(),
   })
     .index("by_restaurant", ["restaurantId"])
-    .index("by_restaurant_order", ["restaurantId", "order"]),
+    .index("by_restaurantId_and_order", ["restaurantId", "order"]),
 
   menuItems: defineTable({
     restaurantId: v.id("restaurants"),
@@ -85,7 +114,9 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_table", ["tableId"])
-    .index("by_restaurant", ["restaurantId"]),
+    .index("by_restaurant", ["restaurantId"])
+    .index("by_tableId_and_isActive", ["tableId", "isActive"])
+    .index("by_restaurantId_and_isActive", ["restaurantId", "isActive"]),
 
   cartItems: defineTable({
     cartId: v.id("carts"),
@@ -95,7 +126,8 @@ export default defineSchema({
     addedAt: v.number(),
   })
     .index("by_cart", ["cartId"])
-    .index("by_menu_item", ["menuItemId"]),
+    .index("by_menu_item", ["menuItemId"])
+    .index("by_cartId_and_menuItemId", ["cartId", "menuItemId"]),
 
   sessionCartItems: defineTable({
     sessionId: v.string(),
@@ -105,22 +137,23 @@ export default defineSchema({
     addedAt: v.number(),
   })
     .index("by_session", ["sessionId"])
-    .index("by_menu_item", ["menuItemId"]),
+    .index("by_menu_item", ["menuItemId"])
+    .index("by_sessionId_and_menuItemId", ["sessionId", "menuItemId"]),
 
   orders: defineTable({
     restaurantId: v.id("restaurants"),
     tableId: v.id("tables"),
     sessionId: v.string(),
-    status: v.string(),
+    status: orderStatusValidator,
     total: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_restaurant", ["restaurantId"])
     .index("by_table", ["tableId"])
-    .index("by_status", ["restaurantId", "status"])
+    .index("by_restaurantId_and_status", ["restaurantId", "status"])
     .index("by_session", ["sessionId"])
-    .index("by_order_status", ["status"]),
+    .index("by_status", ["status"]),
 
   orderItems: defineTable({
     orderId: v.id("orders"),

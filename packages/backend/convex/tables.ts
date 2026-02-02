@@ -59,10 +59,9 @@ export const getTablesOverview = query({
 
     const allCarts = await ctx.db
       .query("carts")
-      .withIndex("by_restaurant", (q) =>
-        q.eq("restaurantId", args.restaurantId)
+      .withIndex("by_restaurantId_and_isActive", (q) =>
+        q.eq("restaurantId", args.restaurantId).eq("isActive", true)
       )
-      .filter((q) => q.eq(q.field("isActive"), true))
       .collect();
 
     const cartByTable = new Map<string, (typeof allCarts)[0]>();
@@ -250,8 +249,9 @@ export const getTableAnalytics = query({
         createdAt: order.createdAt,
       }));
 
+    const completedCount = orders.filter((o) => o.status === "completed").length;
     const avgOrderValue =
-      totalOrders > 0 ? totalRevenue / orders.filter((o) => o.status === "completed").length || 0 : 0;
+      completedCount > 0 ? totalRevenue / completedCount : 0;
 
     return {
       table: {
@@ -361,13 +361,15 @@ export const deleteTable = mutation({
 
     await requireRestaurantAccess(ctx, table.restaurantId);
 
+    const now = Date.now();
     const activeSessions = await ctx.db
       .query("sessions")
       .withIndex("by_table", (q) => q.eq("tableId", args.tableId))
-      .filter((q) => q.gt(q.field("expiresAt"), Date.now()))
       .collect();
 
-    if (activeSessions.length > 0) {
+    const hasActiveSessions = activeSessions.some((s) => s.expiresAt > now);
+
+    if (hasActiveSessions) {
       throw new Error("Cannot delete table with active sessions");
     }
 

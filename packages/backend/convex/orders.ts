@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { OrderStatus, isValidOrderStatus, Role } from "./lib/types";
+import { OrderStatus, Role } from "./lib/types";
 import { getAuthenticatedUser, isRestaurantStaff } from "./lib/auth";
 import { batchFetchTables, validateSession } from "./lib/helpers";
 
@@ -147,16 +147,19 @@ export const createOrder = mutation({
 export const updateOrderStatus = mutation({
   args: {
     orderId: v.id("orders"),
-    status: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("confirmed"),
+      v.literal("preparing"),
+      v.literal("ready"),
+      v.literal("served"),
+      v.literal("completed")
+    ),
   },
   handler: async (ctx, args) => {
     const user = await getAuthenticatedUser(ctx);
     if (!user || !isRestaurantStaff(user.role)) {
       throw new Error("Unauthorized: Only restaurant staff can update orders");
-    }
-
-    if (!isValidOrderStatus(args.status)) {
-      throw new Error("Invalid status");
     }
 
     const order = await ctx.db.get(args.orderId);

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
-import { query, mutation, QueryCtx } from "./_generated/server";
-import { Role, UserStatus, isValidRole, isValidSector } from "./lib/types";
+import { query, mutation, internalMutation, QueryCtx } from "./_generated/server";
+import { paginationOptsValidator } from "convex/server";
+import { Role, UserStatus, isValidSector } from "./lib/types";
 import { getAuthenticatedUser, isAdmin } from "./lib/auth";
 
 async function fetchPendingUsers(ctx: QueryCtx) {
@@ -125,30 +126,25 @@ export const bootstrap = mutation({
 
 export const getAllUsers = query({
   args: {
-    paginationOpts: v.optional(
-      v.object({
-        cursor: v.optional(v.string()),
-        numItems: v.optional(v.number()),
-      })
-    ),
+    paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
     const currentUser = await getAuthenticatedUser(ctx);
     if (!currentUser || !isAdmin(currentUser.role)) {
-      return { users: [], nextCursor: null };
+      return {
+        page: [],
+        isDone: true,
+        continueCursor: "" as string,
+      };
     }
 
-    const numItems = args.paginationOpts?.numItems ?? 50;
     const result = await ctx.db
       .query("users")
-      .paginate({ numItems, cursor: args.paginationOpts?.cursor ?? null });
-
-    const users = result.page.map(({ clerkId, ...safeUser }) => safeUser);
+      .paginate(args.paginationOpts);
 
     return {
-      users,
-      nextCursor: result.continueCursor,
-      isDone: result.isDone,
+      ...result,
+      page: result.page.map(({ clerkId, ...safeUser }) => safeUser),
     };
   },
 });
@@ -156,16 +152,17 @@ export const getAllUsers = query({
 export const updateUserRole = mutation({
   args: {
     userId: v.id("users"),
-    role: v.string(),
+    role: v.union(
+      v.literal("superadmin"),
+      v.literal("ceo"),
+      v.literal("user"),
+      v.literal("waiter")
+    ),
   },
   handler: async (ctx, args) => {
     const currentUser = await getAuthenticatedUser(ctx);
     if (!currentUser || currentUser.role !== Role.SUPERADMIN) {
       throw new Error("Only superadmin can change user roles");
-    }
-
-    if (!isValidRole(args.role)) {
-      throw new Error("Invalid role");
     }
 
     const targetUser = await ctx.db.get(args.userId);
@@ -177,14 +174,13 @@ export const updateUserRole = mutation({
       throw new Error("Cannot change your own role");
     }
 
-    const updateData: { role: string; sector?: string } = { role: args.role };
-
     // SUPERADMIN and CEO roles have global access, so sector assignment is not applicable
     if (args.role === Role.SUPERADMIN || args.role === Role.CEO) {
-      updateData.sector = undefined;
+      await ctx.db.patch(args.userId, { role: args.role, sector: undefined });
+    } else {
+      await ctx.db.patch(args.userId, { role: args.role });
     }
 
-    await ctx.db.patch(args.userId, updateData);
     return true;
   },
 });
@@ -323,14 +319,9 @@ export const rejectUser = mutation({
   },
 });
 
-export const migrateExistingUsers = mutation({
+export const migrateExistingUsers = internalMutation({
   args: {},
   handler: async (ctx) => {
-    const currentUser = await getAuthenticatedUser(ctx);
-    if (!currentUser || currentUser.role !== Role.SUPERADMIN) {
-      throw new Error("Only superadmin can run migration");
-    }
-
     const usersWithoutStatus = await ctx.db
       .query("users")
       .withIndex("by_status", (q) => q.eq("status", undefined))

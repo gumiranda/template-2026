@@ -11,15 +11,18 @@ export const list = query({
     if (!currentUser) return [];
 
     if (!isAdmin(currentUser.role)) {
-      const restaurants = await ctx.db
+      return await ctx.db
         .query("restaurants")
-        .withIndex("by_owner", (q) => q.eq("ownerId", currentUser._id))
+        .withIndex("by_owner_and_deletedAt", (q) =>
+          q.eq("ownerId", currentUser._id).eq("deletedAt", undefined)
+        )
         .collect();
-      return restaurants.filter((r) => r.deletedAt === undefined);
     }
 
-    const restaurants = await ctx.db.query("restaurants").collect();
-    return restaurants.filter((r) => r.deletedAt === undefined);
+    return await ctx.db
+      .query("restaurants")
+      .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.ACTIVE))
+      .collect();
   },
 });
 
@@ -136,11 +139,12 @@ export const listMyRestaurants = query({
   handler: async (ctx) => {
     const currentUser = await getAuthenticatedUser(ctx);
     if (!currentUser) return [];
-    const restaurants = await ctx.db
+    return await ctx.db
       .query("restaurants")
-      .withIndex("by_owner", (q) => q.eq("ownerId", currentUser._id))
+      .withIndex("by_owner_and_deletedAt", (q) =>
+        q.eq("ownerId", currentUser._id).eq("deletedAt", undefined)
+      )
       .collect();
-    return restaurants.filter((r) => r.deletedAt === undefined);
   },
 });
 
@@ -152,12 +156,14 @@ export const listAllWithStats = query({
       return [];
     }
 
-    const allRestaurants = await ctx.db.query("restaurants").collect();
-    const restaurants = allRestaurants.filter((r) => r.deletedAt === undefined);
+    const restaurants = await ctx.db
+      .query("restaurants")
+      .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.ACTIVE))
+      .collect();
 
     const completedOrders = await ctx.db
       .query("orders")
-      .withIndex("by_order_status", (q) => q.eq("status", OrderStatus.COMPLETED))
+      .withIndex("by_status", (q) => q.eq("status", OrderStatus.COMPLETED))
       .collect();
 
     const revenueByRestaurant = groupBy(completedOrders, (order) =>
@@ -191,15 +197,26 @@ export const getWithStats = query({
     const restaurant = await ctx.db.get(args.id);
     if (!restaurant) return null;
 
-    const orders = await ctx.db
+    const completedOrders = await ctx.db
+      .query("orders")
+      .withIndex("by_restaurantId_and_status", (q) =>
+        q.eq("restaurantId", restaurant._id).eq("status", OrderStatus.COMPLETED)
+      )
+      .collect();
+
+    const pendingOrders = await ctx.db
+      .query("orders")
+      .withIndex("by_restaurantId_and_status", (q) =>
+        q.eq("restaurantId", restaurant._id).eq("status", OrderStatus.PENDING)
+      )
+      .collect();
+
+    const allOrders = await ctx.db
       .query("orders")
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
       .collect();
 
-    const completedOrders = orders.filter((order) => order.status === "completed");
     const totalRevenue = calculateTotalRevenue(completedOrders);
-    const totalOrders = orders.length;
-    const pendingOrders = orders.filter((order) => order.status === "pending").length;
 
     const tables = await ctx.db
       .query("tables")
@@ -215,8 +232,8 @@ export const getWithStats = query({
       ...restaurant,
       stats: {
         totalRevenue,
-        totalOrders,
-        pendingOrders,
+        totalOrders: allOrders.length,
+        pendingOrders: pendingOrders.length,
         completedOrders: completedOrders.length,
         tablesCount: tables.length,
         menuItemsCount: menuItems.length,
@@ -233,11 +250,23 @@ export const getOverviewStats = query({
       return null;
     }
 
-    const allRestaurants = await ctx.db.query("restaurants").collect();
-    const totalRestaurants = allRestaurants.length;
-    const activeRestaurants = allRestaurants.filter(
-      (r) => r.status === RestaurantStatus.ACTIVE || r.status === undefined
-    ).length;
+    const activeRestaurants = await ctx.db
+      .query("restaurants")
+      .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.ACTIVE))
+      .collect();
+
+    const inactiveRestaurants = await ctx.db
+      .query("restaurants")
+      .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.INACTIVE))
+      .collect();
+
+    const maintenanceRestaurants = await ctx.db
+      .query("restaurants")
+      .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.MAINTENANCE))
+      .collect();
+
+    const totalRestaurants =
+      activeRestaurants.length + inactiveRestaurants.length + maintenanceRestaurants.length;
 
     const now = Date.now();
     const activeSessions = await ctx.db
@@ -247,13 +276,13 @@ export const getOverviewStats = query({
 
     const allCompletedOrders = await ctx.db
       .query("orders")
-      .withIndex("by_order_status", (q) => q.eq("status", OrderStatus.COMPLETED))
+      .withIndex("by_status", (q) => q.eq("status", OrderStatus.COMPLETED))
       .collect();
     const totalRevenue = calculateTotalRevenue(allCompletedOrders);
 
     return {
       totalRestaurants,
-      activeRestaurants,
+      activeRestaurants: activeRestaurants.length,
       activeSessions: activeSessions.length,
       totalRevenue,
     };

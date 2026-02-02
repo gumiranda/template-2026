@@ -86,8 +86,9 @@ export const addToSessionCart = mutation({
 
     const existing = await ctx.db
       .query("sessionCartItems")
-      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
-      .filter((q) => q.eq(q.field("menuItemId"), args.menuItemId))
+      .withIndex("by_sessionId_and_menuItemId", (q) =>
+        q.eq("sessionId", args.sessionId).eq("menuItemId", args.menuItemId)
+      )
       .first();
 
     if (existing) {
