@@ -149,7 +149,7 @@ function RestaurantDetailsContent({
         <div className="flex items-start gap-4">
           <BackToTenantsButton variant="icon" />
           <Avatar className="h-16 w-16">
-            <AvatarImage src={restaurant.logoUrl} />
+            <AvatarImage src={restaurant.logoUrl ?? undefined} />
             <AvatarFallback className="bg-muted text-lg">
               {restaurant.name.slice(0, 2).toUpperCase()}
             </AvatarFallback>

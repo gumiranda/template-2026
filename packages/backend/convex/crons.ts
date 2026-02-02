@@ -9,4 +9,10 @@ crons.interval(
   internal.cleanup.deleteExpiredSessions
 );
 
+crons.interval(
+  "cleanup abandoned carts",
+  { hours: 6 },
+  internal.cleanup.deleteAbandonedCarts
+);
+
 export default crons;

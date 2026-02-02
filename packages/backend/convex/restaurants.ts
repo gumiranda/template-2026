@@ -3,6 +3,7 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { getAuthenticatedUser, canModifyRestaurant, canViewRestaurant, isAdmin } from "./lib/auth";
 import { RestaurantStatus, OrderStatus } from "./lib/types";
 import { groupBy, calculateTotalRevenue } from "./lib/helpers";
+import { resolveStorageUrl } from "./files";
 
 export const list = query({
   args: {},
@@ -32,6 +33,7 @@ export const create = mutation({
     address: v.string(),
     phone: v.optional(v.string()),
     description: v.optional(v.string()),
+    logoId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
     const identity = await getAuthenticatedUser(ctx);
@@ -48,6 +50,7 @@ export const create = mutation({
       address: args.address,
       phone: args.phone,
       description: args.description,
+      logoId: args.logoId,
       status: RestaurantStatus.ACTIVE,
       ownerId: identity._id,
     });
@@ -62,6 +65,7 @@ export const update = mutation({
       address: v.string(),
       phone: v.string(),
       description: v.string(),
+      logoId: v.optional(v.id("_storage")),
     }),
   },
   handler: async (ctx, args) => {
@@ -73,6 +77,11 @@ export const update = mutation({
 
     if (!canModifyRestaurant(currentUser, restaurant)) {
       throw new Error("Not authorized to update this restaurant");
+    }
+
+    // If replacing logo, delete old one from storage
+    if (args.options.logoId && restaurant.logoId && restaurant.logoId !== args.options.logoId) {
+      await ctx.storage.delete(restaurant.logoId);
     }
 
     return await ctx.db.patch(args.id, args.options);
@@ -121,6 +130,8 @@ export const get = query({
       return null;
     }
 
+    const logoUrl = await resolveStorageUrl(ctx, restaurant.logoId) ?? restaurant.logoUrl ?? null;
+
     return {
       _id: restaurant._id,
       _creationTime: restaurant._creationTime,
@@ -130,6 +141,7 @@ export const get = query({
       description: restaurant.description,
       status: restaurant.status,
       isActive: restaurant.isActive,
+      logoUrl,
     };
   },
 });
@@ -170,15 +182,19 @@ export const listAllWithStats = query({
       order.restaurantId.toString()
     );
 
-    const restaurantsWithStats = restaurants.map((restaurant) => {
-      const restaurantOrders = revenueByRestaurant.get(restaurant._id.toString()) ?? [];
-      const totalRevenue = calculateTotalRevenue(restaurantOrders);
+    const restaurantsWithStats = await Promise.all(
+      restaurants.map(async (restaurant) => {
+        const restaurantOrders = revenueByRestaurant.get(restaurant._id.toString()) ?? [];
+        const totalRevenue = calculateTotalRevenue(restaurantOrders);
+        const logoUrl = await resolveStorageUrl(ctx, restaurant.logoId) ?? restaurant.logoUrl ?? null;
 
-      return {
-        ...restaurant,
-        totalRevenue,
-      };
-    });
+        return {
+          ...restaurant,
+          logoUrl,
+          totalRevenue,
+        };
+      })
+    );
 
     return restaurantsWithStats;
   },
@@ -228,8 +244,11 @@ export const getWithStats = query({
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
       .collect();
 
+    const logoUrl = await resolveStorageUrl(ctx, restaurant.logoId) ?? restaurant.logoUrl ?? null;
+
     return {
       ...restaurant,
+      logoUrl,
       stats: {
         totalRevenue,
         totalOrders: allOrders.length,
@@ -286,6 +305,25 @@ export const getOverviewStats = query({
       activeSessions: activeSessions.length,
       totalRevenue,
     };
+  },
+});
+
+export const searchRestaurants = query({
+  args: {
+    searchQuery: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const currentUser = await getAuthenticatedUser(ctx);
+    if (!currentUser || !isAdmin(currentUser.role)) {
+      return [];
+    }
+
+    return await ctx.db
+      .query("restaurants")
+      .withSearchIndex("search_by_name", (q) =>
+        q.search("name", args.searchQuery).eq("status", RestaurantStatus.ACTIVE)
+      )
+      .take(20);
   },
 });
 

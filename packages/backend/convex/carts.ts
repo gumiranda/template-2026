@@ -107,7 +107,6 @@ export const addToCart = mutation({
         tableId: args.tableId,
         restaurantId: args.restaurantId,
         isActive: true,
-        createdAt: Date.now(),
       });
       cart = (await ctx.db.get(cartId))!;
     }

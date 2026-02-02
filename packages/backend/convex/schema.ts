@@ -52,6 +52,8 @@ export default defineSchema({
     phone: v.optional(v.string()),
     description: v.optional(v.string()),
     ownerId: v.id("users"),
+    logoId: v.optional(v.id("_storage")),
+    // Deprecated: use logoId instead. Kept for backward compatibility with existing data.
     logoUrl: v.optional(v.string()),
     isActive: v.optional(v.boolean()),
     status: v.optional(restaurantStatusValidator),
@@ -61,7 +63,11 @@ export default defineSchema({
     .index("by_owner", ["ownerId"])
     .index("by_active", ["isActive"])
     .index("by_status", ["status"])
-    .index("by_owner_and_deletedAt", ["ownerId", "deletedAt"]),
+    .index("by_owner_and_deletedAt", ["ownerId", "deletedAt"])
+    .searchIndex("search_by_name", {
+      searchField: "name",
+      filterFields: ["status"],
+    }),
 
   tables: defineTable({
     restaurantId: v.id("restaurants"),
@@ -89,17 +95,24 @@ export default defineSchema({
     name: v.string(),
     description: v.optional(v.string()),
     price: v.number(),
+    imageId: v.optional(v.id("_storage")),
+    // Deprecated: use imageId instead. Kept for backward compatibility with existing data.
     imageUrl: v.optional(v.string()),
     isActive: v.boolean(),
   })
     .index("by_restaurant", ["restaurantId"])
-    .index("by_category", ["categoryId"]),
+    .index("by_category", ["categoryId"])
+    .searchIndex("search_by_name", {
+      searchField: "name",
+      filterFields: ["restaurantId", "isActive"],
+    }),
 
   sessions: defineTable({
     sessionId: v.string(),
     restaurantId: v.id("restaurants"),
     tableId: v.id("tables"),
-    createdAt: v.number(),
+    // Deprecated: use _creationTime instead. Kept optional for backward compatibility.
+    createdAt: v.optional(v.number()),
     expiresAt: v.number(),
   })
     .index("by_session_id", ["sessionId"])
@@ -111,7 +124,8 @@ export default defineSchema({
     tableId: v.id("tables"),
     restaurantId: v.id("restaurants"),
     isActive: v.boolean(),
-    createdAt: v.number(),
+    // Deprecated: use _creationTime instead. Kept optional for backward compatibility.
+    createdAt: v.optional(v.number()),
   })
     .index("by_table", ["tableId"])
     .index("by_restaurant", ["restaurantId"])

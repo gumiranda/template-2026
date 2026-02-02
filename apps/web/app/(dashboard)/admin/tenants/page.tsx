@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer, useMemo, Dispatch, SetStateAction } from "react";
+import { useReducer, useMemo, useRef, Dispatch, SetStateAction } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
 import { api } from "@workspace/backend/_generated/api";
@@ -48,6 +48,8 @@ import {
   Users,
   DollarSign,
   Pencil,
+  Upload,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -57,12 +59,15 @@ import {
 import { formatCurrency } from "@/lib/utils";
 import { AdminGuard } from "@/components/admin-guard";
 import { StatCard } from "@/components/stat-card";
+import { useUploadFile } from "@/hooks/use-upload-file";
 
 interface RestaurantForm {
   name: string;
   address: string;
   phone: string;
   description: string;
+  logoFile: File | null;
+  logoPreview: string | null;
 }
 
 const initialFormData: RestaurantForm = {
@@ -70,6 +75,8 @@ const initialFormData: RestaurantForm = {
   address: "",
   phone: "",
   description: "",
+  logoFile: null,
+  logoPreview: null,
 };
 
 interface PageState {
@@ -192,6 +199,34 @@ function RestaurantFormDialog({
   const submitText = isEdit ? "Save Changes" : "Create Restaurant";
   const submittingText = isEdit ? "Saving..." : "Creating...";
   const SubmitIcon = isEdit ? Pencil : Plus;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setFormData((prev) => ({ ...prev, logoFile: file, logoPreview: preview }));
+  };
+
+  const handleRemoveLogo = () => {
+    if (formData.logoPreview) {
+      URL.revokeObjectURL(formData.logoPreview);
+    }
+    setFormData((prev) => ({ ...prev, logoFile: null, logoPreview: null }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -204,6 +239,56 @@ function RestaurantFormDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Logo</Label>
+            <div className="flex items-center gap-4">
+              {formData.logoPreview ? (
+                <div className="relative">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={formData.logoPreview} />
+                    <AvatarFallback className="bg-muted">
+                      {formData.name.slice(0, 2).toUpperCase() || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="absolute -top-1 -right-1 rounded-full bg-destructive p-0.5 text-destructive-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <Avatar className="h-16 w-16">
+                  <AvatarFallback className="bg-muted">
+                    {formData.name.slice(0, 2).toUpperCase() || "?"}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoSelect}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="mr-2 h-3 w-3" />
+                  {formData.logoPreview ? "Change" : "Upload"}
+                </Button>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Max 5MB. PNG, JPG, or WebP.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor={`${idPrefix}name`}>
               Name <span className="text-red-500">*</span>
@@ -315,6 +400,7 @@ function TenantOverviewContent() {
   const restaurants = useQuery(api.restaurants.listAllWithStats);
   const createRestaurant = useMutation(api.restaurants.create);
   const updateRestaurant = useMutation(api.restaurants.update);
+  const { uploadFile } = useUploadFile();
 
   const filteredRestaurants = useMemo(() => {
     return restaurants?.filter((restaurant) => {
@@ -338,11 +424,17 @@ function TenantOverviewContent() {
 
     dispatch({ type: "SET_CREATE_SUBMITTING", payload: true });
     try {
+      let logoId: Id<"_storage"> | undefined;
+      if (formData.logoFile) {
+        logoId = await uploadFile(formData.logoFile);
+      }
+
       await createRestaurant({
         name: formData.name.trim(),
         address: formData.address.trim(),
         phone: formData.phone.trim() || undefined,
         description: formData.description.trim() || undefined,
+        logoId,
       });
       toast.success("Restaurant created successfully");
       dispatch({ type: "CREATE_SUCCESS" });
@@ -364,6 +456,8 @@ function TenantOverviewContent() {
           address: restaurant.address,
           phone: restaurant.phone ?? "",
           description: restaurant.description ?? "",
+          logoFile: null,
+          logoPreview: restaurant.logoUrl ?? null,
         },
       },
     });
@@ -380,6 +474,11 @@ function TenantOverviewContent() {
 
     dispatch({ type: "SET_EDIT_SUBMITTING", payload: true });
     try {
+      let logoId: Id<"_storage"> | undefined;
+      if (editFormData.logoFile) {
+        logoId = await uploadFile(editFormData.logoFile);
+      }
+
       await updateRestaurant({
         id: editingRestaurantId,
         options: {
@@ -387,6 +486,7 @@ function TenantOverviewContent() {
           address: editFormData.address.trim(),
           phone: editFormData.phone.trim(),
           description: editFormData.description.trim(),
+          logoId,
         },
       });
       toast.success("Restaurant updated successfully");
@@ -532,7 +632,7 @@ function TenantOverviewContent() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarImage src={restaurant.logoUrl} />
+                            <AvatarImage src={restaurant.logoUrl ?? undefined} />
                             <AvatarFallback className="bg-muted">
                               {restaurant.name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>

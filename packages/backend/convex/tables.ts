@@ -9,10 +9,12 @@ import {
 } from "./lib/auth";
 import { batchFetchMenuItems, groupBy } from "./lib/helpers";
 
+// NOTE: This query is intentionally public (no auth check) to support the
+// QR code flow where unauthenticated customers scan a table's QR code and
+// need to see table info. Only public fields are returned (no qrCode).
 export const listByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
-    // Verify restaurant exists
     const restaurant = await ctx.db.get(args.restaurantId);
     if (!restaurant) {
       throw new Error("Restaurant not found");
@@ -25,7 +27,6 @@ export const listByRestaurant = query({
       )
       .collect();
 
-    // Return only public fields for each table
     return tables.map((table) => ({
       _id: table._id,
       _creationTime: table._creationTime,
