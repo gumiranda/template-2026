@@ -84,6 +84,10 @@ export const addToCart = mutation({
       throw new Error("Not authorized to modify this restaurant's carts");
     }
 
+    if (args.quantity <= 0 || !Number.isInteger(args.quantity)) {
+      throw new Error("Quantity must be a positive integer");
+    }
+
     const menuItem = await ctx.db.get(args.menuItemId);
     if (!menuItem) {
       throw new Error("Menu item not found");
@@ -108,7 +112,11 @@ export const addToCart = mutation({
         restaurantId: args.restaurantId,
         isActive: true,
       });
-      cart = (await ctx.db.get(cartId))!;
+      const newCart = await ctx.db.get(cartId);
+      if (!newCart) {
+        throw new Error("Failed to create cart");
+      }
+      cart = newCart;
     }
 
     const existing = await ctx.db

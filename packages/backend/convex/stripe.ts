@@ -208,6 +208,9 @@ export const createCheckoutSession = action({
     const stripe = getStripe();
     const priceId = args.priceId ?? process.env.STRIPE_PRICE_ID;
     if (!priceId) throw new Error("STRIPE_PRICE_ID not configured");
+    if (!priceId.startsWith("price_")) {
+      throw new Error("Invalid price ID format");
+    }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.HOSTING_URL;
     if (!baseUrl) throw new Error("App URL not configured");

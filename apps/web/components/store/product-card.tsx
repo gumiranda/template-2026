@@ -15,7 +15,6 @@ interface ProductCardProps {
     discountPercentage: number;
     discountedPrice: number;
     imageUrl: string | null;
-    restaurantId?: Id<"restaurants">;
     restaurantName?: string;
   };
 }

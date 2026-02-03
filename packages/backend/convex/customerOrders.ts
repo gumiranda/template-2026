@@ -27,6 +27,9 @@ export const createDeliveryOrder = mutation({
     if (args.items.length === 0) {
       throw new Error("Order must contain at least one item");
     }
+    if (args.items.length > 100) {
+      throw new Error("Order cannot contain more than 100 items");
+    }
 
     if (!args.deliveryAddress.trim()) {
       throw new Error("Delivery address is required");

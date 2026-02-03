@@ -81,6 +81,10 @@ export const addToSessionCart = mutation({
     quantity: v.number(),
   },
   handler: async (ctx, args) => {
+    if (args.quantity <= 0 || !Number.isInteger(args.quantity)) {
+      throw new Error("Quantity must be a positive integer");
+    }
+
     const session = await validateSession(ctx, args.sessionId);
 
     const menuItem = await ctx.db.get(args.menuItemId);
@@ -121,6 +125,8 @@ export const addToSessionCart = mutation({
 export const clearSessionCart = mutation({
   args: { sessionId: v.string() },
   handler: async (ctx, args) => {
+    // checkExpiry: false — allow clearing carts from expired sessions
+    // to support cleanup after order completion (session may expire during checkout)
     await validateSession(ctx, args.sessionId, { checkExpiry: false });
 
     const items = await ctx.db

@@ -35,6 +35,21 @@ export const createBanner = mutation({
       throw new Error("Only admins can create banners");
     }
 
+    // Validate linkUrl to prevent javascript: protocol injection
+    if (args.linkUrl) {
+      const isRelative = args.linkUrl.startsWith("/");
+      if (!isRelative) {
+        try {
+          const parsed = new URL(args.linkUrl);
+          if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+            throw new Error("Invalid protocol");
+          }
+        } catch {
+          throw new Error("linkUrl must be a relative path or a valid HTTP/HTTPS URL");
+        }
+      }
+    }
+
     return ctx.db.insert("promoBanners", {
       title: args.title,
       imageId: args.imageId,
@@ -60,6 +75,21 @@ export const updateBanner = mutation({
     const user = await getAuthenticatedUser(ctx);
     if (!user || !isAdmin(user.role)) {
       throw new Error("Only admins can update banners");
+    }
+
+    // Validate linkUrl to prevent javascript: protocol injection
+    if (args.linkUrl) {
+      const isRelative = args.linkUrl.startsWith("/");
+      if (!isRelative) {
+        try {
+          const parsed = new URL(args.linkUrl);
+          if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+            throw new Error("Invalid protocol");
+          }
+        } catch {
+          throw new Error("linkUrl must be a relative path or a valid HTTP/HTTPS URL");
+        }
+      }
     }
 
     const { id, ...updates } = args;

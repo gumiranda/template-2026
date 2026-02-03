@@ -18,9 +18,10 @@ function SuccessContent() {
     if (sessionId && !synced) {
       syncAfterSuccess({ sessionId })
         .then(() => setSynced(true))
-        .catch(console.error);
+        .catch(() => {});
     }
-  }, [sessionId, synced, syncAfterSuccess]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, synced]);
 
   return synced ? (
     <div className="space-y-4">

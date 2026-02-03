@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useMemo, useCallback } from "react";
+import { use, useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import Link from "next/link";
 import { api } from "@workspace/backend/_generated/api";
@@ -168,7 +168,7 @@ function MenuBuilderContent({
   }, [selectedCategoryId, sortedCategories]);
 
   // Auto-select first category
-  useMemo(() => {
+  useEffect(() => {
     const first = sortedCategories[0];
     if (first && !selectedCategoryId) {
       setSelectedCategoryId(first._id);

@@ -4,6 +4,25 @@ import { useQuery, useAction } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import { useCallback, useState } from "react";
 
+const ALLOWED_STRIPE_HOSTS = [
+  "checkout.stripe.com",
+  "billing.stripe.com",
+];
+
+function isAllowedStripeUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === "https:" &&
+      ALLOWED_STRIPE_HOSTS.some(
+        (host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`)
+      )
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function useSubscription() {
   const subscriptionData = useQuery(api.stripe.getSubscriptionStatus);
   const createCheckout = useAction(api.stripe.createCheckoutSession);
@@ -15,7 +34,9 @@ export function useSubscription() {
       setIsLoading(true);
       try {
         const url = await createCheckout({ priceId });
-        if (url) window.location.href = url;
+        if (url && isAllowedStripeUrl(url)) {
+          window.location.href = url;
+        }
       } finally {
         setIsLoading(false);
       }
@@ -27,7 +48,9 @@ export function useSubscription() {
     setIsLoading(true);
     try {
       const url = await createPortal();
-      if (url) window.location.href = url;
+      if (url && isAllowedStripeUrl(url)) {
+        window.location.href = url;
+      }
     } finally {
       setIsLoading(false);
     }

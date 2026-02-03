@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import type { Id } from "@workspace/backend/_generated/dataModel";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 export function useToggleFavorite() {
   const favorites = useQuery(api.favorites.getUserFavorites) ?? [];
@@ -23,17 +23,20 @@ export function useToggleFavorite() {
   }
 
   // Compute optimistic list: flip pending items
-  const optimisticFavorites: Id<"restaurants">[] = [];
-  for (const id of favorites) {
-    if (!pendingToggles.has(id)) {
-      optimisticFavorites.push(id);
+  const optimisticFavorites = useMemo(() => {
+    const result: Id<"restaurants">[] = [];
+    for (const id of favorites) {
+      if (!pendingToggles.has(id)) {
+        result.push(id);
+      }
     }
-  }
-  for (const id of pendingToggles) {
-    if (!favorites.includes(id as Id<"restaurants">)) {
-      optimisticFavorites.push(id as Id<"restaurants">);
+    for (const id of pendingToggles) {
+      if (!favorites.includes(id as Id<"restaurants">)) {
+        result.push(id as Id<"restaurants">);
+      }
     }
-  }
+    return result;
+  }, [favorites, pendingToggles]);
 
   const isFavorite = useCallback(
     (restaurantId: Id<"restaurants">) =>

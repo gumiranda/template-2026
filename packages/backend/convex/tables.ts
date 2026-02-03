@@ -281,6 +281,16 @@ export const batchCreateTables = mutation({
   handler: async (ctx, args) => {
     await requireRestaurantAccess(ctx, args.restaurantId);
 
+    // Validate baseUrl is a proper HTTP(S) URL to prevent injection
+    try {
+      const parsed = new URL(args.baseUrl);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        throw new Error("Invalid protocol");
+      }
+    } catch {
+      throw new Error("baseUrl must be a valid HTTP or HTTPS URL");
+    }
+
     if (args.startId < 1) {
       throw new Error("Start ID must be at least 1");
     }

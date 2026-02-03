@@ -92,6 +92,10 @@ export const createItem = mutation({
   handler: async (ctx, args) => {
     await requireAdminRestaurantAccess(ctx, args.restaurantId);
 
+    if (args.price <= 0) {
+      throw new Error("Price must be greater than zero");
+    }
+
     const category = await ctx.db.get(args.categoryId);
     if (!category || category.restaurantId !== args.restaurantId) {
       throw new Error("Invalid category: Category does not belong to this restaurant");
@@ -144,6 +148,10 @@ export const updateItem = mutation({
     }
 
     await requireAdminRestaurantAccess(ctx, item.restaurantId);
+
+    if (args.price !== undefined && args.price <= 0) {
+      throw new Error("Price must be greater than zero");
+    }
 
     if (args.categoryId) {
       const category = await ctx.db.get(args.categoryId);

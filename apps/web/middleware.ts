@@ -12,6 +12,13 @@ const isPublicRoute = createRouteMatcher([
   "/success(.*)",
 ]);
 
+const securityHeaders = {
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+};
+
 export default clerkMiddleware(async (auth, req) => {
   if (req.nextUrl.pathname.startsWith('/org-selection')) {
     return NextResponse.redirect(new URL('/', req.url));
@@ -20,6 +27,12 @@ export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {
     await auth.protect();
   }
+
+  const response = NextResponse.next();
+  for (const [key, value] of Object.entries(securityHeaders)) {
+    response.headers.set(key, value);
+  }
+  return response;
 });
 
 export const config = {

@@ -90,6 +90,9 @@ export const createOrder = mutation({
     if (args.items.length === 0) {
       throw new Error("Order must contain at least one item");
     }
+    if (args.items.length > 100) {
+      throw new Error("Order cannot contain more than 100 items");
+    }
 
     // Validate quantities are positive
     for (const item of args.items) {
