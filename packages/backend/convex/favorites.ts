@@ -10,6 +10,11 @@ export const toggleFavorite = mutation({
     const user = await getAuthenticatedUser(ctx);
     if (!user) throw new Error("Authentication required");
 
+    const restaurant = await ctx.db.get(args.restaurantId);
+    if (!restaurant || restaurant.deletedAt) {
+      throw new Error("Restaurant not found");
+    }
+
     const existing = await ctx.db
       .query("favoriteRestaurants")
       .withIndex("by_user_and_restaurant", (q) =>

@@ -1,8 +1,10 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { requireAdminRestaurantAccess } from "./lib/auth";
+import { requireAdminRestaurantAccess, requireRestaurantStaffAccess } from "./lib/auth";
 import { groupBy } from "./lib/helpers";
 import { resolveImageUrl } from "./files";
+
+const MAX_DESCRIPTION_LENGTH = 1000;
 
 const VALID_ICON_IDS = [
   "utensils-crossed",
@@ -30,12 +32,14 @@ function validateIcon(icon: string | undefined): string | undefined {
   return trimmed;
 }
 
-// NOTE: This query intentionally returns all items (active and inactive) for the
-// admin panel, where staff needs to see and manage the full menu inventory.
+// NOTE: This query returns all items (active and inactive) for the admin panel.
+// Requires staff auth to prevent exposing inactive/draft items to the public.
 // For the customer-facing menu, use customerMenu.getPublicMenuByRestaurant instead.
 export const getMenuByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
+    await requireRestaurantStaffAccess(ctx, args.restaurantId);
+
     const categories = await ctx.db
       .query("menuCategories")
       .withIndex("by_restaurant", (q) =>
@@ -105,6 +109,10 @@ export const createCategory = mutation({
       throw new Error("Category name must be between 1 and 200 characters");
     }
 
+    if (args.description && args.description.length > MAX_DESCRIPTION_LENGTH) {
+      throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
+    }
+
     if (args.order < 0) {
       throw new Error("Order must be a non-negative number");
     }
@@ -143,6 +151,10 @@ export const createItem = mutation({
     const name = args.name.trim();
     if (!name || name.length > 200) {
       throw new Error("Item name must be between 1 and 200 characters");
+    }
+
+    if (args.description && args.description.length > MAX_DESCRIPTION_LENGTH) {
+      throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
     }
 
     if (args.price <= 0) {
@@ -218,6 +230,10 @@ export const updateItem = mutation({
     }
 
     await requireAdminRestaurantAccess(ctx, item.restaurantId);
+
+    if (args.description !== undefined && args.description.length > MAX_DESCRIPTION_LENGTH) {
+      throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
+    }
 
     if (args.price !== undefined && args.price <= 0) {
       throw new Error("Price must be greater than zero");
@@ -306,6 +322,10 @@ export const updateCategory = mutation({
       args = { ...args, name: trimmedName };
     }
 
+    if (args.description !== undefined && args.description.length > MAX_DESCRIPTION_LENGTH) {
+      throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
+    }
+
     const validatedIcon = validateIcon(args.icon);
     args = { ...args, icon: validatedIcon };
 
@@ -351,6 +371,8 @@ export const getItemById = query({
   handler: async (ctx, args) => {
     const item = await ctx.db.get(args.itemId);
     if (!item) return null;
+
+    await requireRestaurantStaffAccess(ctx, item.restaurantId);
 
     const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
 

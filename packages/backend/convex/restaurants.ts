@@ -5,6 +5,9 @@ import { RestaurantStatus, OrderStatus } from "./lib/types";
 import { groupBy, calculateTotalRevenue } from "./lib/helpers";
 import { resolveImageUrl, resolveStorageUrl } from "./files";
 
+const MAX_DESCRIPTION_LENGTH = 1000;
+const STATS_QUERY_LIMIT = 10000;
+
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -53,6 +56,10 @@ export const create = mutation({
     const address = args.address.trim();
     if (!address || address.length > 500) {
       throw new Error("Address must be between 1 and 500 characters");
+    }
+
+    if (args.description && args.description.length > MAX_DESCRIPTION_LENGTH) {
+      throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
     }
 
     if (args.phone !== undefined) {
@@ -104,6 +111,10 @@ export const update = mutation({
     const address = args.options.address.trim();
     if (!address || address.length > 500) {
       throw new Error("Address must be between 1 and 500 characters");
+    }
+
+    if (args.options.description.length > MAX_DESCRIPTION_LENGTH) {
+      throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
     }
 
     const phone = args.options.phone.trim();
@@ -177,7 +188,6 @@ export const get = query({
       phone: restaurant.phone,
       description: restaurant.description,
       status: restaurant.status,
-      isActive: restaurant.isActive,
       logoUrl,
     };
   },
@@ -257,25 +267,13 @@ export const getWithStats = query({
     const restaurant = await ctx.db.get(args.id);
     if (!restaurant) return null;
 
-    const completedOrders = await ctx.db
-      .query("orders")
-      .withIndex("by_restaurantId_and_status", (q) =>
-        q.eq("restaurantId", restaurant._id).eq("status", OrderStatus.COMPLETED)
-      )
-      .collect();
-
-    const pendingOrders = await ctx.db
-      .query("orders")
-      .withIndex("by_restaurantId_and_status", (q) =>
-        q.eq("restaurantId", restaurant._id).eq("status", OrderStatus.PENDING)
-      )
-      .collect();
-
     const allOrders = await ctx.db
       .query("orders")
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
       .collect();
 
+    const completedOrders = allOrders.filter((o) => o.status === OrderStatus.COMPLETED);
+    const pendingOrders = allOrders.filter((o) => o.status === OrderStatus.PENDING);
     const totalRevenue = calculateTotalRevenue(completedOrders);
 
     const tables = await ctx.db
@@ -317,7 +315,7 @@ export const getOverviewStats = query({
 
     const allRestaurants = await ctx.db
       .query("restaurants")
-      .take(10000);
+      .take(STATS_QUERY_LIMIT);
 
     const statusCounts = groupBy(allRestaurants, (r) => r.status ?? "active");
     const activeCount = statusCounts.get(RestaurantStatus.ACTIVE)?.length ?? 0;
@@ -327,15 +325,15 @@ export const getOverviewStats = query({
     const activeSessions = await ctx.db
       .query("sessions")
       .withIndex("by_expires_at", (q) => q.gt("expiresAt", now))
-      .take(10000);
+      .take(STATS_QUERY_LIMIT);
 
     const allCompletedOrders = await ctx.db
       .query("orders")
       .withIndex("by_status", (q) => q.eq("status", OrderStatus.COMPLETED))
-      .take(10000);
+      .take(STATS_QUERY_LIMIT);
     const totalRevenue = calculateTotalRevenue(allCompletedOrders);
 
-    const allTables = await ctx.db.query("tables").take(10000);
+    const allTables = await ctx.db.query("tables").take(STATS_QUERY_LIMIT);
 
     return {
       totalRestaurants,

@@ -2,9 +2,23 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { OrderStatus } from "./lib/types";
+import type { OrderStatusType } from "./lib/types";
 import { requireRestaurantStaffAccess } from "./lib/auth";
-import { batchFetchTables, validateSession, validateOrderItems } from "./lib/helpers";
+import { batchFetchTables, batchFetchMenuItems, validateSession, validateOrderItems } from "./lib/helpers";
 import { orderStatusValidator } from "./schema";
+
+const MAX_NOTES_LENGTH = 500;
+
+const VALID_STATUS_TRANSITIONS: Record<OrderStatusType, OrderStatusType[]> = {
+  [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELED],
+  [OrderStatus.CONFIRMED]: [OrderStatus.PREPARING, OrderStatus.CANCELED],
+  [OrderStatus.PREPARING]: [OrderStatus.READY, OrderStatus.CANCELED],
+  [OrderStatus.READY]: [OrderStatus.SERVED, OrderStatus.DELIVERING, OrderStatus.CANCELED],
+  [OrderStatus.SERVED]: [OrderStatus.COMPLETED],
+  [OrderStatus.DELIVERING]: [OrderStatus.COMPLETED, OrderStatus.CANCELED],
+  [OrderStatus.COMPLETED]: [],
+  [OrderStatus.CANCELED]: [],
+};
 
 export const getOrdersByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -77,25 +91,32 @@ export const createOrder = mutation({
 
     validateOrderItems(args.items);
 
-    const itemsWithServerPrices = await Promise.all(
-      args.items.map(async (item) => {
-        const menuItem = await ctx.db.get(item.menuItemId);
-        if (!menuItem || menuItem.restaurantId !== args.restaurantId) {
-          throw new Error("Invalid menu item");
-        }
-        if (!menuItem.isActive) {
-          throw new Error(`Menu item "${menuItem.name}" is no longer available`);
-        }
-        return {
-          menuItemId: item.menuItemId,
-          name: menuItem.name,
-          quantity: item.quantity,
-          price: menuItem.price,
-          totalPrice: menuItem.price * item.quantity,
-          notes: item.notes,
-        };
-      })
-    );
+    for (const item of args.items) {
+      if (item.notes && item.notes.length > MAX_NOTES_LENGTH) {
+        throw new Error(`Notes must be ${MAX_NOTES_LENGTH} characters or less`);
+      }
+    }
+
+    const menuItemIds = args.items.map((item) => item.menuItemId);
+    const menuMap = await batchFetchMenuItems(ctx, menuItemIds);
+
+    const itemsWithServerPrices = args.items.map((item) => {
+      const menuItem = menuMap.get(item.menuItemId.toString());
+      if (!menuItem || menuItem.restaurantId !== args.restaurantId) {
+        throw new Error("Invalid menu item");
+      }
+      if (!menuItem.isActive) {
+        throw new Error(`Menu item "${menuItem.name}" is no longer available`);
+      }
+      return {
+        menuItemId: item.menuItemId,
+        name: menuItem.name,
+        quantity: item.quantity,
+        price: menuItem.price,
+        totalPrice: menuItem.price * item.quantity,
+        notes: item.notes,
+      };
+    });
 
     const total = itemsWithServerPrices.reduce((sum, item) => sum + item.totalPrice, 0);
     const now = Date.now();
@@ -139,6 +160,16 @@ export const updateOrderStatus = mutation({
     }
 
     await requireRestaurantStaffAccess(ctx, order.restaurantId);
+
+    const currentStatus = order.status as OrderStatusType;
+    const newStatus = args.status as OrderStatusType;
+    const allowedTransitions = VALID_STATUS_TRANSITIONS[currentStatus];
+
+    if (!allowedTransitions || !allowedTransitions.includes(newStatus)) {
+      throw new Error(
+        `Invalid status transition: cannot change from "${currentStatus}" to "${newStatus}"`
+      );
+    }
 
     await ctx.db.patch(args.orderId, {
       status: args.status,

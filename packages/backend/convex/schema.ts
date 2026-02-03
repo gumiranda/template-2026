@@ -72,7 +72,6 @@ export default defineSchema({
     coverImageId: v.optional(v.id("_storage")),
   })
     .index("by_owner", ["ownerId"])
-    .index("by_active", ["isActive"])
     .index("by_status", ["status"])
     .index("by_owner_and_deletedAt", ["ownerId", "deletedAt"])
     .searchIndex("search_by_name", {

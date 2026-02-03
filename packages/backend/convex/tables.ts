@@ -8,6 +8,9 @@ import {
   requireRestaurantAccess,
 } from "./lib/auth";
 import { batchFetchMenuItems, groupBy } from "./lib/helpers";
+import { OrderStatus } from "./lib/types";
+
+const MAX_RECENT_ORDERS = 10;
 
 // NOTE: This query is intentionally public (no auth check) to support the
 // QR code flow where unauthenticated customers scan a table's QR code and
@@ -252,7 +255,7 @@ export const getTableAnalytics = query({
 
     const totalOrders = orders.length;
     const totalRevenue = orders
-      .filter((o) => o.status === "completed")
+      .filter((o) => o.status === OrderStatus.COMPLETED)
       .reduce((sum, o) => sum + o.total, 0);
 
     const ordersByStatus = orders.reduce(
@@ -265,7 +268,7 @@ export const getTableAnalytics = query({
 
     const recentOrders = orders
       .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, 10)
+      .slice(0, MAX_RECENT_ORDERS)
       .map((order) => ({
         _id: order._id,
         status: order.status,
@@ -273,7 +276,7 @@ export const getTableAnalytics = query({
         createdAt: order.createdAt,
       }));
 
-    const completedCount = orders.filter((o) => o.status === "completed").length;
+    const completedCount = orders.filter((o) => o.status === OrderStatus.COMPLETED).length;
     const avgOrderValue =
       completedCount > 0 ? totalRevenue / completedCount : 0;
 

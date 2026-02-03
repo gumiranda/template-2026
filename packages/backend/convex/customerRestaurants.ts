@@ -4,6 +4,9 @@ import { RestaurantStatus } from "./lib/types";
 import { resolveImageUrl, resolveStorageUrl } from "./files";
 import { toPublicRestaurant } from "./lib/helpers";
 
+const MAX_PUBLIC_RESTAURANTS = 50;
+const MAX_RECOMMENDED = 10;
+
 export const listPublicRestaurants = query({
   args: {},
   handler: async (ctx) => {
@@ -12,7 +15,7 @@ export const listPublicRestaurants = query({
       .withIndex("by_status", (q) =>
         q.eq("status", RestaurantStatus.ACTIVE)
       )
-      .collect();
+      .take(MAX_PUBLIC_RESTAURANTS);
 
     const activeRestaurants = restaurants.filter((r) => !r.deletedAt);
 
@@ -142,14 +145,14 @@ export const getRecommendedRestaurants = query({
       .withIndex("by_status", (q) =>
         q.eq("status", RestaurantStatus.ACTIVE)
       )
-      .collect();
+      .take(MAX_PUBLIC_RESTAURANTS);
 
     const activeRestaurants = restaurants.filter((r) => !r.deletedAt);
 
     // Sort by rating descending
     activeRestaurants.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
 
-    const top = activeRestaurants.slice(0, 10);
+    const top = activeRestaurants.slice(0, MAX_RECOMMENDED);
 
     return Promise.all(
       top.map((r) => toPublicRestaurant(ctx, r))
