@@ -2,18 +2,20 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 
+type RedirectOption = string | false;
+
 type AuthRedirectOptions = {
-  whenApproved?: string;
-  whenPending?: string;
-  whenRejected?: string;
-  whenNoUser?: string;
-  whenNoSuperadmin?: string;
+  whenApproved?: RedirectOption;
+  whenPending?: RedirectOption;
+  whenRejected?: RedirectOption;
+  whenNoUser?: RedirectOption;
+  whenNoSuperadmin?: RedirectOption;
 };
 
-const defaultOptions: AuthRedirectOptions = {
+const defaultOptions: Required<AuthRedirectOptions> = {
   whenApproved: "/dashboard",
   whenPending: "/pending-approval",
   whenRejected: "/rejected",
@@ -23,6 +25,7 @@ const defaultOptions: AuthRedirectOptions = {
 
 export function useAuthRedirect(options: AuthRedirectOptions = {}) {
   const router = useRouter();
+  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const currentUser = useQuery(api.users.getCurrentUser);
   const hasSuperadmin = useQuery(api.users.hasSuperadmin);
 
@@ -33,6 +36,8 @@ export function useAuthRedirect(options: AuthRedirectOptions = {}) {
   const whenNoSuperadmin = options.whenNoSuperadmin ?? defaultOptions.whenNoSuperadmin;
 
   useEffect(() => {
+    if (isAuthLoading) return;
+
     if (hasSuperadmin === false && whenNoSuperadmin) {
       router.push(whenNoSuperadmin);
       return;
@@ -56,13 +61,14 @@ export function useAuthRedirect(options: AuthRedirectOptions = {}) {
     if (currentUser?.status === "approved" && whenApproved) {
       router.push(whenApproved);
     }
-  }, [currentUser, hasSuperadmin, router, whenApproved, whenPending, whenRejected, whenNoUser, whenNoSuperadmin]);
+  }, [isAuthLoading, currentUser, hasSuperadmin, router, whenApproved, whenPending, whenRejected, whenNoUser, whenNoSuperadmin]);
 
-  const isLoading = currentUser === undefined || hasSuperadmin === undefined;
+  const isLoading = isAuthLoading || currentUser === undefined || hasSuperadmin === undefined;
 
   return {
     currentUser,
     hasSuperadmin,
     isLoading,
+    isAuthenticated,
   };
 }

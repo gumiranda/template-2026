@@ -17,8 +17,8 @@ export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const registerAttempted = useRef(false);
 
-  const { currentUser, hasSuperadmin, isLoading } = useAuthRedirect({
-    whenNoUser: undefined,
+  const { currentUser, hasSuperadmin, isLoading, isAuthenticated } = useAuthRedirect({
+    whenNoUser: false,
     whenApproved: "/",
     whenPending: "/pending-approval",
     whenRejected: "/rejected",
@@ -29,6 +29,7 @@ export default function RegisterPage() {
   useEffect(() => {
     const autoRegister = async () => {
       if (
+        isAuthenticated &&
         hasSuperadmin === true &&
         currentUser === null &&
         !registerAttempted.current
@@ -45,7 +46,7 @@ export default function RegisterPage() {
       }
     };
     autoRegister();
-  }, [hasSuperadmin, currentUser, addUser, router]);
+  }, [isAuthenticated, hasSuperadmin, currentUser, addUser, router]);
 
   if (isLoading) {
     return <FullPageLoader />;

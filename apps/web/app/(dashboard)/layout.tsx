@@ -20,7 +20,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     useNavigation();
 
   const { hasSuperadmin, isLoading } = useAuthRedirect({
-    whenApproved: undefined,
+    whenApproved: false,
   });
 
   if (isLoading) {

@@ -172,12 +172,21 @@ function RestaurantDetailsContent({
             )}
           </div>
         </div>
-        <Button
-          onClick={() => router.push(`/admin/tenants/${restaurantId}/tables`)}
-        >
-          <QrCode className="mr-2 h-4 w-4" />
-          Manage Tables
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/admin/tenants/${restaurantId}/menu`)}
+          >
+            <UtensilsCrossed className="mr-2 h-4 w-4" />
+            Manage Menu
+          </Button>
+          <Button
+            onClick={() => router.push(`/admin/tenants/${restaurantId}/tables`)}
+          >
+            <QrCode className="mr-2 h-4 w-4" />
+            Manage Tables
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">

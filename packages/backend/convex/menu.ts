@@ -185,3 +185,75 @@ export const deleteItem = mutation({
     return await ctx.db.delete(args.itemId);
   },
 });
+
+export const updateCategory = mutation({
+  args: {
+    categoryId: v.id("menuCategories"),
+    name: v.optional(v.string()),
+    description: v.optional(v.string()),
+    order: v.optional(v.number()),
+    isActive: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const category = await ctx.db.get(args.categoryId);
+    if (!category) {
+      throw new Error("Category not found");
+    }
+
+    await requireAdminRestaurantAccess(ctx, category.restaurantId);
+
+    const { categoryId, ...updates } = args;
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([, value]) => value !== undefined)
+    );
+    return await ctx.db.patch(categoryId, filteredUpdates);
+  },
+});
+
+export const deleteCategory = mutation({
+  args: {
+    categoryId: v.id("menuCategories"),
+  },
+  handler: async (ctx, args) => {
+    const category = await ctx.db.get(args.categoryId);
+    if (!category) {
+      throw new Error("Category not found");
+    }
+
+    await requireAdminRestaurantAccess(ctx, category.restaurantId);
+
+    // Delete all items in this category and their images
+    const items = await ctx.db
+      .query("menuItems")
+      .withIndex("by_category", (q) => q.eq("categoryId", args.categoryId))
+      .collect();
+
+    for (const item of items) {
+      if (item.imageId) {
+        await ctx.storage.delete(item.imageId);
+      }
+      await ctx.db.delete(item._id);
+    }
+
+    return await ctx.db.delete(args.categoryId);
+  },
+});
+
+export const reorderCategories = mutation({
+  args: {
+    restaurantId: v.id("restaurants"),
+    orderedIds: v.array(
+      v.object({
+        id: v.id("menuCategories"),
+        order: v.number(),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireAdminRestaurantAccess(ctx, args.restaurantId);
+
+    for (const { id, order } of args.orderedIds) {
+      await ctx.db.patch(id, { order });
+    }
+  },
+});
