@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthenticatedUser } from "./lib/auth";
 import { OrderStatus, OrderType, RestaurantStatus } from "./lib/types";
-import { calculateDiscountedPrice } from "./lib/helpers";
+import { calculateDiscountedPrice, validateOrderItems } from "./lib/helpers";
 import { resolveImageUrl } from "./files";
 
 export const createDeliveryOrder = mutation({
@@ -25,12 +25,7 @@ export const createDeliveryOrder = mutation({
       throw new Error("Restaurant not found or inactive");
     }
 
-    if (args.items.length === 0) {
-      throw new Error("Order must contain at least one item");
-    }
-    if (args.items.length > 100) {
-      throw new Error("Order cannot contain more than 100 items");
-    }
+    validateOrderItems(args.items);
 
     if (!args.deliveryAddress.trim()) {
       throw new Error("Delivery address is required");
@@ -45,10 +40,6 @@ export const createDeliveryOrder = mutation({
 
     const itemsWithServerPrices = await Promise.all(
       args.items.map(async (item) => {
-        if (item.quantity <= 0 || !Number.isInteger(item.quantity)) {
-          throw new Error("Item quantity must be a positive integer");
-        }
-
         const menuItem = await ctx.db.get(item.menuItemId);
         if (!menuItem || menuItem.restaurantId !== args.restaurantId) {
           throw new Error("Invalid menu item");

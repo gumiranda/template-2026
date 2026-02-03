@@ -3,7 +3,7 @@ import { query, mutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { OrderStatus } from "./lib/types";
 import { requireRestaurantStaffAccess } from "./lib/auth";
-import { batchFetchTables, validateSession } from "./lib/helpers";
+import { batchFetchTables, validateSession, validateOrderItems } from "./lib/helpers";
 
 export const getOrdersByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -74,20 +74,7 @@ export const createOrder = mutation({
       throw new Error("Invalid table");
     }
 
-    // Validate items array
-    if (args.items.length === 0) {
-      throw new Error("Order must contain at least one item");
-    }
-    if (args.items.length > 100) {
-      throw new Error("Order cannot contain more than 100 items");
-    }
-
-    // Validate quantities are positive
-    for (const item of args.items) {
-      if (item.quantity <= 0 || !Number.isInteger(item.quantity)) {
-        throw new Error("Item quantity must be a positive integer");
-      }
-    }
+    validateOrderItems(args.items);
 
     const itemsWithServerPrices = await Promise.all(
       args.items.map(async (item) => {

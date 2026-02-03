@@ -84,23 +84,21 @@ export const getPublicRestaurant = query({
     const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
 
     // Fetch menu categories with items
-    const categories = await ctx.db
+    const activeCategories = await ctx.db
       .query("menuCategories")
-      .withIndex("by_restaurant", (q) =>
-        q.eq("restaurantId", args.restaurantId)
+      .withIndex("by_restaurantId_and_isActive", (q) =>
+        q.eq("restaurantId", args.restaurantId).eq("isActive", true)
       )
       .collect();
 
-    const activeCategories = categories.filter((c) => c.isActive);
-
     const categoriesWithItems = await Promise.all(
       activeCategories.map(async (category) => {
-        const items = await ctx.db
+        const activeItems = await ctx.db
           .query("menuItems")
-          .withIndex("by_category", (q) => q.eq("categoryId", category._id))
+          .withIndex("by_categoryId_and_isActive", (q) =>
+            q.eq("categoryId", category._id).eq("isActive", true)
+          )
           .collect();
-
-        const activeItems = items.filter((item) => item.isActive);
 
         const itemsWithImages = await Promise.all(
           activeItems.map(async (item) => {

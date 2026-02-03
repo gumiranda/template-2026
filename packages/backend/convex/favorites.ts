@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthenticatedUser } from "./lib/auth";
 import { RestaurantStatus } from "./lib/types";
+import { resolveImageUrl, resolveStorageUrl } from "./files";
 
 export const toggleFavorite = mutation({
   args: { restaurantId: v.id("restaurants") },
@@ -67,12 +68,8 @@ export const getUserFavoriteRestaurants = query({
           return null;
         }
 
-        const logoUrl = restaurant.logoId
-          ? await ctx.storage.getUrl(restaurant.logoId)
-          : restaurant.logoUrl ?? null;
-        const coverImageUrl = restaurant.coverImageId
-          ? await ctx.storage.getUrl(restaurant.coverImageId)
-          : null;
+        const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
+        const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
 
         return {
           _id: restaurant._id,

@@ -90,6 +90,28 @@ export function groupBy<T>(
 
 export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 
+const MAX_ORDER_ITEMS = 100;
+
+export function validateQuantity(quantity: number): void {
+  if (quantity <= 0 || !Number.isInteger(quantity)) {
+    throw new Error("Quantity must be a positive integer");
+  }
+}
+
+export function validateOrderItems(
+  items: Array<{ quantity: number }>,
+): void {
+  if (items.length === 0) {
+    throw new Error("Order must contain at least one item");
+  }
+  if (items.length > MAX_ORDER_ITEMS) {
+    throw new Error(`Order cannot contain more than ${MAX_ORDER_ITEMS} items`);
+  }
+  for (const item of items) {
+    validateQuantity(item.quantity);
+  }
+}
+
 export function calculateTotalRevenue(orders: Array<{ total: number }>): number {
   return orders.reduce((sum, order) => sum + order.total, 0);
 }

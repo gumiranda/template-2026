@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { requireAdminRestaurantAccess } from "./lib/auth";
 import { groupBy } from "./lib/helpers";
-import { resolveStorageUrl } from "./files";
+import { resolveImageUrl } from "./files";
 
 export const getMenuByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -24,7 +24,7 @@ export const getMenuByRestaurant = query({
     // Resolve image URLs for all items
     const itemsWithUrls = await Promise.all(
       allItems.map(async (item) => {
-        const imageUrl = await resolveStorageUrl(ctx, item.imageId) ?? item.imageUrl ?? null;
+        const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
         return { ...item, imageUrl };
       })
     );
@@ -53,7 +53,7 @@ export const searchMenuItems = query({
 
     return await Promise.all(
       items.map(async (item) => {
-        const imageUrl = await resolveStorageUrl(ctx, item.imageId) ?? item.imageUrl ?? null;
+        const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
         return { ...item, imageUrl };
       })
     );
@@ -70,9 +70,18 @@ export const createCategory = mutation({
   handler: async (ctx, args) => {
     await requireAdminRestaurantAccess(ctx, args.restaurantId);
 
+    const name = args.name.trim();
+    if (!name || name.length > 200) {
+      throw new Error("Category name must be between 1 and 200 characters");
+    }
+
+    if (args.order < 0) {
+      throw new Error("Order must be a non-negative number");
+    }
+
     return await ctx.db.insert("menuCategories", {
       restaurantId: args.restaurantId,
-      name: args.name,
+      name,
       description: args.description,
       order: args.order,
       isActive: true,
@@ -93,6 +102,11 @@ export const createItem = mutation({
   handler: async (ctx, args) => {
     await requireAdminRestaurantAccess(ctx, args.restaurantId);
 
+    const name = args.name.trim();
+    if (!name || name.length > 200) {
+      throw new Error("Item name must be between 1 and 200 characters");
+    }
+
     if (args.price <= 0) {
       throw new Error("Price must be greater than zero");
     }
@@ -112,7 +126,7 @@ export const createItem = mutation({
     return await ctx.db.insert("menuItems", {
       restaurantId: args.restaurantId,
       categoryId: args.categoryId,
-      name: args.name,
+      name,
       description: args.description,
       price: args.price,
       imageId: args.imageId,

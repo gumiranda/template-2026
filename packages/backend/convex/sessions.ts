@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { validateSession, batchFetchMenuItems, SESSION_DURATION_MS, isValidSessionId } from "./lib/helpers";
+import { validateSession, batchFetchMenuItems, SESSION_DURATION_MS, isValidSessionId, validateQuantity } from "./lib/helpers";
 
 export const createSession = mutation({
   args: {
@@ -81,9 +81,7 @@ export const addToSessionCart = mutation({
     quantity: v.number(),
   },
   handler: async (ctx, args) => {
-    if (args.quantity <= 0 || !Number.isInteger(args.quantity)) {
-      throw new Error("Quantity must be a positive integer");
-    }
+    validateQuantity(args.quantity);
 
     const session = await validateSession(ctx, args.sessionId);
 

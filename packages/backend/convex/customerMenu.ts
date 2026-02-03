@@ -12,23 +12,21 @@ export const getPublicMenuByRestaurant = query({
       return [];
     }
 
-    const categories = await ctx.db
+    const activeCategories = await ctx.db
       .query("menuCategories")
-      .withIndex("by_restaurant", (q) =>
-        q.eq("restaurantId", args.restaurantId)
+      .withIndex("by_restaurantId_and_isActive", (q) =>
+        q.eq("restaurantId", args.restaurantId).eq("isActive", true)
       )
       .collect();
 
-    const activeCategories = categories.filter((c) => c.isActive);
-
     return Promise.all(
       activeCategories.map(async (category) => {
-        const items = await ctx.db
+        const activeItems = await ctx.db
           .query("menuItems")
-          .withIndex("by_category", (q) => q.eq("categoryId", category._id))
+          .withIndex("by_categoryId_and_isActive", (q) =>
+            q.eq("categoryId", category._id).eq("isActive", true)
+          )
           .collect();
-
-        const activeItems = items.filter((item) => item.isActive);
 
         const itemsWithPrices = await Promise.all(
           activeItems.map(async (item) => {
@@ -82,12 +80,14 @@ export const getProductDetails = query({
     // Fetch related products from the same category
     const relatedItems = await ctx.db
       .query("menuItems")
-      .withIndex("by_category", (q) => q.eq("categoryId", item.categoryId))
+      .withIndex("by_categoryId_and_isActive", (q) =>
+        q.eq("categoryId", item.categoryId).eq("isActive", true)
+      )
       .collect();
 
     const relatedProducts = await Promise.all(
       relatedItems
-        .filter((ri) => ri.isActive && ri._id !== args.menuItemId)
+        .filter((ri) => ri._id !== args.menuItemId)
         .slice(0, 6)
         .map(async (ri) => {
           const riImageUrl = await resolveImageUrl(ctx, ri.imageId, ri.imageUrl);
@@ -128,22 +128,18 @@ export const getProductDetails = query({
 export const getRecommendedProducts = query({
   args: {},
   handler: async (ctx) => {
-    // Get items with discounts
-    const allItems = await ctx.db
+    // Get active items with discounts, limited to avoid exceeding Convex read limits
+    const candidateItems = await ctx.db
       .query("menuItems")
       .withIndex("by_discount")
-      .collect();
+      .order("desc")
+      .take(200);
 
-    const discountedItems = allItems.filter(
+    const discountedItems = candidateItems.filter(
       (item) =>
         item.isActive &&
         item.discountPercentage !== undefined &&
         item.discountPercentage > 0
-    );
-
-    // Sort by discount descending
-    discountedItems.sort(
-      (a, b) => (b.discountPercentage ?? 0) - (a.discountPercentage ?? 0)
     );
 
     const top = discountedItems.slice(0, 20);
@@ -202,14 +198,12 @@ export const getProductsByFoodCategory = query({
           return [];
         }
 
-        const items = await ctx.db
+        const activeItems = await ctx.db
           .query("menuItems")
-          .withIndex("by_restaurant", (q) =>
-            q.eq("restaurantId", link.restaurantId)
+          .withIndex("by_restaurantId_and_isActive", (q) =>
+            q.eq("restaurantId", link.restaurantId).eq("isActive", true)
           )
           .collect();
-
-        const activeItems = items.filter((item) => item.isActive);
 
         return Promise.all(
           activeItems.map(async (item) => {

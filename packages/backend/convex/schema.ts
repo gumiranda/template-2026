@@ -100,7 +100,8 @@ export default defineSchema({
     imageUrl: v.optional(v.string()),
   })
     .index("by_restaurant", ["restaurantId"])
-    .index("by_restaurantId_and_order", ["restaurantId", "order"]),
+    .index("by_restaurantId_and_order", ["restaurantId", "order"])
+    .index("by_restaurantId_and_isActive", ["restaurantId", "isActive"]),
 
   menuItems: defineTable({
     restaurantId: v.id("restaurants"),
@@ -116,6 +117,8 @@ export default defineSchema({
   })
     .index("by_restaurant", ["restaurantId"])
     .index("by_category", ["categoryId"])
+    .index("by_categoryId_and_isActive", ["categoryId", "isActive"])
+    .index("by_restaurantId_and_isActive", ["restaurantId", "isActive"])
     .index("by_discount", ["discountPercentage"])
     .searchIndex("search_by_name", {
       searchField: "name",

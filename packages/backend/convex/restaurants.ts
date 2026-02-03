@@ -3,7 +3,7 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { getAuthenticatedUser, canModifyRestaurant, canViewRestaurant, isAdmin } from "./lib/auth";
 import { RestaurantStatus, OrderStatus } from "./lib/types";
 import { groupBy, calculateTotalRevenue } from "./lib/helpers";
-import { resolveStorageUrl } from "./files";
+import { resolveImageUrl } from "./files";
 
 export const list = query({
   args: {},
@@ -43,6 +43,23 @@ export const create = mutation({
 
     if (!isAdmin(identity.role)) {
       throw new Error("Only admins can create restaurants");
+    }
+
+    const name = args.name.trim();
+    if (!name || name.length > 200) {
+      throw new Error("Restaurant name must be between 1 and 200 characters");
+    }
+
+    const address = args.address.trim();
+    if (!address || address.length > 500) {
+      throw new Error("Address must be between 1 and 500 characters");
+    }
+
+    if (args.phone !== undefined) {
+      const phone = args.phone.trim();
+      if (phone.length > 30) {
+        throw new Error("Phone number must be 30 characters or less");
+      }
     }
 
     return ctx.db.insert("restaurants", {
@@ -130,7 +147,7 @@ export const get = query({
       return null;
     }
 
-    const logoUrl = await resolveStorageUrl(ctx, restaurant.logoId) ?? restaurant.logoUrl ?? null;
+    const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
 
     return {
       _id: restaurant._id,
@@ -186,7 +203,7 @@ export const listAllWithStats = query({
       restaurants.map(async (restaurant) => {
         const restaurantOrders = revenueByRestaurant.get(restaurant._id.toString()) ?? [];
         const totalRevenue = calculateTotalRevenue(restaurantOrders);
-        const logoUrl = await resolveStorageUrl(ctx, restaurant.logoId) ?? restaurant.logoUrl ?? null;
+        const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
 
         return {
           ...restaurant,
@@ -244,7 +261,7 @@ export const getWithStats = query({
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
       .collect();
 
-    const logoUrl = await resolveStorageUrl(ctx, restaurant.logoId) ?? restaurant.logoUrl ?? null;
+    const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
 
     return {
       ...restaurant,
@@ -269,39 +286,29 @@ export const getOverviewStats = query({
       return null;
     }
 
-    const activeRestaurants = await ctx.db
+    const allRestaurants = await ctx.db
       .query("restaurants")
-      .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.ACTIVE))
-      .collect();
+      .take(10000);
 
-    const inactiveRestaurants = await ctx.db
-      .query("restaurants")
-      .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.INACTIVE))
-      .collect();
-
-    const maintenanceRestaurants = await ctx.db
-      .query("restaurants")
-      .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.MAINTENANCE))
-      .collect();
-
-    const totalRestaurants =
-      activeRestaurants.length + inactiveRestaurants.length + maintenanceRestaurants.length;
+    const statusCounts = groupBy(allRestaurants, (r) => r.status ?? "active");
+    const activeCount = statusCounts.get(RestaurantStatus.ACTIVE)?.length ?? 0;
+    const totalRestaurants = allRestaurants.length;
 
     const now = Date.now();
     const activeSessions = await ctx.db
       .query("sessions")
       .withIndex("by_expires_at", (q) => q.gt("expiresAt", now))
-      .collect();
+      .take(10000);
 
     const allCompletedOrders = await ctx.db
       .query("orders")
       .withIndex("by_status", (q) => q.eq("status", OrderStatus.COMPLETED))
-      .collect();
+      .take(10000);
     const totalRevenue = calculateTotalRevenue(allCompletedOrders);
 
     return {
       totalRestaurants,
-      activeRestaurants: activeRestaurants.length,
+      activeRestaurants: activeCount,
       activeSessions: activeSessions.length,
       totalRevenue,
     };

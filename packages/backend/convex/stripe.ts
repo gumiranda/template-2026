@@ -17,14 +17,12 @@ const ALLOWED_STRIPE_HOSTS = [
 
 function validateStripeUrl(url: string | null): string {
   if (!url) throw new Error("No URL returned from Stripe");
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:") throw new Error("Invalid protocol");
-    if (!ALLOWED_STRIPE_HOSTS.includes(parsed.hostname)) {
-      throw new Error("Unexpected Stripe host");
-    }
-  } catch {
-    throw new Error("Invalid Stripe URL returned");
+  const parsed = new URL(url);
+  if (parsed.protocol !== "https:") {
+    throw new Error("Invalid Stripe URL: expected https protocol");
+  }
+  if (!ALLOWED_STRIPE_HOSTS.includes(parsed.hostname)) {
+    throw new Error(`Invalid Stripe URL: unexpected host ${parsed.hostname}`);
   }
   return url;
 }
@@ -151,42 +149,46 @@ export const getStripeDataByCustomerId = internalQuery({
   },
 });
 
+// Shared helper for getting or creating a Stripe customer (avoids action-calling-action)
+async function getOrCreateStripeCustomerHelper(
+  ctx: { auth: { getUserIdentity: () => Promise<any> }; runQuery: any; runMutation: any }
+): Promise<string> {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) throw new Error("Not authenticated");
+
+  const user = await ctx.runQuery(internal.stripe.getUserByClerkId, {
+    clerkId: identity.subject,
+  });
+  if (!user) throw new Error("User not found");
+
+  const existingStripeData = await ctx.runQuery(
+    internal.stripe.getStripeDataByUserId,
+    { userId: user._id }
+  );
+
+  if (existingStripeData?.stripeCustomerId) {
+    return existingStripeData.stripeCustomerId;
+  }
+
+  const stripe = getStripe();
+  const customer = await stripe.customers.create({
+    email: identity.email ?? undefined,
+    name: user.name,
+    metadata: { convexUserId: user._id, clerkId: identity.subject },
+  });
+
+  await ctx.runMutation(internal.stripe.upsertStripeData, {
+    userId: user._id,
+    stripeCustomerId: customer.id,
+  });
+
+  return customer.id;
+}
+
 export const getOrCreateStripeCustomer = internalAction({
   args: {},
   handler: async (ctx): Promise<string> => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-
-    const user = await ctx.runQuery(internal.stripe.getUserByClerkId, {
-      clerkId: identity.subject,
-    });
-    if (!user) throw new Error("User not found");
-
-    // Check if we already have a stripe customer
-    const existingStripeData = await ctx.runQuery(
-      internal.stripe.getStripeDataByUserId,
-      { userId: user._id }
-    );
-
-    if (existingStripeData?.stripeCustomerId) {
-      return existingStripeData.stripeCustomerId;
-    }
-
-    // Create a new Stripe customer
-    const stripe = getStripe();
-    const customer = await stripe.customers.create({
-      email: identity.email ?? undefined,
-      name: user.name,
-      metadata: { convexUserId: user._id, clerkId: identity.subject },
-    });
-
-    // Store the customer ID
-    await ctx.runMutation(internal.stripe.upsertStripeData, {
-      userId: user._id,
-      stripeCustomerId: customer.id,
-    });
-
-    return customer.id;
+    return getOrCreateStripeCustomerHelper(ctx);
   },
 });
 
@@ -218,11 +220,7 @@ export const createCheckoutSession = action({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new Error("Not authenticated");
 
-    // Get or create the Stripe customer first (recommended pattern)
-    const stripeCustomerId = await ctx.runAction(
-      internal.stripe.getOrCreateStripeCustomer,
-      {}
-    );
+    const stripeCustomerId = await getOrCreateStripeCustomerHelper(ctx);
 
     const stripe = getStripe();
     const priceId = args.priceId ?? process.env.STRIPE_PRICE_ID;
