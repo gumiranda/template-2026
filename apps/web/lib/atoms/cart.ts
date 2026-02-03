@@ -2,6 +2,12 @@ import { atom } from "jotai";
 import { atomWithStorage } from "jotai/utils";
 import type { Id } from "@workspace/backend/_generated/dataModel";
 
+export interface SelectedModifier {
+  groupName: string;
+  optionName: string;
+  price: number;
+}
+
 export interface CartItem {
   menuItemId: Id<"menuItems">;
   name: string;
@@ -11,6 +17,7 @@ export interface CartItem {
   imageUrl: string | null;
   restaurantId: Id<"restaurants">;
   restaurantName: string;
+  selectedModifiers?: SelectedModifier[];
 }
 
 export const cartItemsAtom = atomWithStorage<CartItem[]>("cart-items", []);
@@ -20,9 +27,18 @@ export const cartRestaurantIdAtom = atom<Id<"restaurants"> | null>((get) => {
   return items.length > 0 ? items[0]!.restaurantId : null;
 });
 
+function getModifiersTotal(modifiers?: SelectedModifier[]): number {
+  if (!modifiers) return 0;
+  return modifiers.reduce((sum, m) => sum + m.price, 0);
+}
+
 export const cartSubtotalAtom = atom((get) => {
   const items = get(cartItemsAtom);
-  return items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  return items.reduce(
+    (sum, item) =>
+      sum + (item.price + getModifiersTotal(item.selectedModifiers)) * item.quantity,
+    0
+  );
 });
 
 export const cartTotalDiscountsAtom = atom((get) => {

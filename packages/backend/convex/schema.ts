@@ -98,6 +98,7 @@ export default defineSchema({
     isActive: v.boolean(),
     imageId: v.optional(v.id("_storage")),
     imageUrl: v.optional(v.string()),
+    icon: v.optional(v.string()),
   })
     .index("by_restaurant", ["restaurantId"])
     .index("by_restaurantId_and_order", ["restaurantId", "order"])
@@ -114,6 +115,7 @@ export default defineSchema({
     imageUrl: v.optional(v.string()),
     isActive: v.boolean(),
     discountPercentage: v.optional(v.number()),
+    tags: v.optional(v.array(v.string())),
   })
     .index("by_restaurant", ["restaurantId"])
     .index("by_category", ["categoryId"])
@@ -124,6 +126,20 @@ export default defineSchema({
       searchField: "name",
       filterFields: ["restaurantId", "isActive"],
     }),
+
+  modifierGroups: defineTable({
+    menuItemId: v.id("menuItems"),
+    name: v.string(),
+    required: v.boolean(),
+    order: v.number(),
+  }).index("by_menuItem", ["menuItemId"]),
+
+  modifierOptions: defineTable({
+    modifierGroupId: v.id("modifierGroups"),
+    name: v.string(),
+    price: v.number(),
+    order: v.number(),
+  }).index("by_modifierGroup", ["modifierGroupId"]),
 
   sessions: defineTable({
     sessionId: v.string(),

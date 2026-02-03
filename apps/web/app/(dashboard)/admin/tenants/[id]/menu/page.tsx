@@ -2,6 +2,7 @@
 
 import { use, useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
+import Image from "next/image";
 import Link from "next/link";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
@@ -46,6 +47,12 @@ import {
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@workspace/ui/components/tabs";
+import {
   Loader2,
   ArrowLeft,
   Plus,
@@ -57,8 +64,9 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import { CATEGORY_ICONS, getCategoryIcon } from "@/lib/menu-constants";
 import { AdminGuard } from "@/components/admin-guard";
-import { useUploadFile } from "@/hooks/use-upload-file";
+import { cn } from "@workspace/ui/lib/utils";
 import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -68,15 +76,10 @@ type FilterStatus = "all" | "in_stock" | "out_of_stock";
 interface CategoryFormData {
   name: string;
   description: string;
+  icon: string;
 }
 
-interface ItemFormData {
-  name: string;
-  description: string;
-  price: string;
-  categoryId: string;
-  imageFile: File | null;
-}
+const MOBILE_HIGHLIGHTS_COUNT = 3;
 
 // ─── Page Component ──────────────────────────────────────────────────────────
 
@@ -130,14 +133,11 @@ function MenuBuilderContent({
 
   // Category modal state
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<{ _id: Id<"menuCategories">; name: string; description?: string } | null>(null);
-  const [categoryForm, setCategoryForm] = useState<CategoryFormData>({ name: "", description: "" });
+  const [editingCategory, setEditingCategory] = useState<{ _id: Id<"menuCategories">; name: string; description?: string; icon?: string } | null>(null);
+  const [categoryForm, setCategoryForm] = useState<CategoryFormData>({ name: "", description: "", icon: "" });
 
-  // Item modal state
-  const [itemDialogOpen, setItemDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<{ _id: Id<"menuItems"> } | null>(null);
-  const [itemForm, setItemForm] = useState<ItemFormData>({ name: "", description: "", price: "", categoryId: "", imageFile: null });
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  // Mobile tab state
+  const [mobileTab, setMobileTab] = useState("categorias");
 
   // Delete confirmation state
   const [deleteDialog, setDeleteDialog] = useState<{ type: "category" | "item"; id: string; name: string } | null>(null);
@@ -150,11 +150,8 @@ function MenuBuilderContent({
   const updateCategory = useMutation(api.menu.updateCategory);
   const deleteCategory = useMutation(api.menu.deleteCategory);
   const reorderCategories = useMutation(api.menu.reorderCategories);
-  const createItem = useMutation(api.menu.createItem);
-  const updateItem = useMutation(api.menu.updateItem);
   const updateItemStatus = useMutation(api.menu.updateItemStatus);
   const deleteItem = useMutation(api.menu.deleteItem);
-  const { uploadFile, isUploading } = useUploadFile();
 
   // Derived state
   const sortedCategories = useMemo(() => {
@@ -201,14 +198,14 @@ function MenuBuilderContent({
 
   const handleOpenAddCategory = useCallback(() => {
     setEditingCategory(null);
-    setCategoryForm({ name: "", description: "" });
+    setCategoryForm({ name: "", description: "", icon: "" });
     setCategoryDialogOpen(true);
   }, []);
 
   const handleOpenEditCategory = useCallback(
-    (cat: { _id: Id<"menuCategories">; name: string; description?: string }) => {
+    (cat: { _id: Id<"menuCategories">; name: string; description?: string; icon?: string }) => {
       setEditingCategory(cat);
-      setCategoryForm({ name: cat.name, description: cat.description ?? "" });
+      setCategoryForm({ name: cat.name, description: cat.description ?? "", icon: cat.icon ?? "" });
       setCategoryDialogOpen(true);
     },
     []
@@ -217,12 +214,15 @@ function MenuBuilderContent({
   const handleSaveCategory = useCallback(async () => {
     if (!categoryForm.name.trim()) return;
 
+    const icon = categoryForm.icon || undefined;
+
     try {
       if (editingCategory) {
         await updateCategory({
           categoryId: editingCategory._id,
           name: categoryForm.name.trim(),
           description: categoryForm.description.trim() || undefined,
+          icon,
         });
         toast.success("Category updated");
       } else {
@@ -231,6 +231,7 @@ function MenuBuilderContent({
           name: categoryForm.name.trim(),
           description: categoryForm.description.trim() || undefined,
           order: sortedCategories.length,
+          icon,
         });
         setSelectedCategoryId(newId);
         toast.success("Category created");
@@ -254,6 +255,11 @@ function MenuBuilderContent({
     }
     setDeleteDialog(null);
   }, [deleteDialog, deleteCategory, selectedCategoryId]);
+
+  const handleMobileCategorySelect = useCallback((categoryId: Id<"menuCategories">) => {
+    setSelectedCategoryId(categoryId);
+    setMobileTab("produtos");
+  }, []);
 
   // ─── Drag & Drop Handlers ─────────────────────────────────────────────────
 
@@ -286,81 +292,6 @@ function MenuBuilderContent({
 
   // ─── Item Handlers ──────────────────────────────────────────────────────────
 
-  const handleOpenAddItem = useCallback(() => {
-    setEditingItem(null);
-    setItemForm({
-      name: "",
-      description: "",
-      price: "",
-      categoryId: selectedCategoryId ?? "",
-      imageFile: null,
-    });
-    setImagePreview(null);
-    setItemDialogOpen(true);
-  }, [selectedCategoryId]);
-
-  const handleOpenEditItem = useCallback(
-    (item: { _id: Id<"menuItems">; name: string; description?: string; price: number; categoryId: Id<"menuCategories">; imageUrl?: string | null }) => {
-      setEditingItem({ _id: item._id });
-      setItemForm({
-        name: item.name,
-        description: item.description ?? "",
-        price: item.price.toString(),
-        categoryId: item.categoryId,
-        imageFile: null,
-      });
-      setImagePreview(item.imageUrl ?? null);
-      setItemDialogOpen(true);
-    },
-    []
-  );
-
-  const handleImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setItemForm((prev) => ({ ...prev, imageFile: file }));
-      const reader = new FileReader();
-      reader.onloadend = () => setImagePreview(reader.result as string);
-      reader.readAsDataURL(file);
-    }
-  }, []);
-
-  const handleSaveItem = useCallback(async () => {
-    if (!itemForm.name.trim() || !itemForm.price || !itemForm.categoryId) return;
-
-    try {
-      let imageId: Id<"_storage"> | undefined;
-      if (itemForm.imageFile) {
-        imageId = await uploadFile(itemForm.imageFile);
-      }
-
-      if (editingItem) {
-        await updateItem({
-          itemId: editingItem._id,
-          name: itemForm.name.trim(),
-          description: itemForm.description.trim() || undefined,
-          price: parseFloat(itemForm.price),
-          categoryId: itemForm.categoryId as Id<"menuCategories">,
-          ...(imageId ? { imageId } : {}),
-        });
-        toast.success("Item updated");
-      } else {
-        await createItem({
-          restaurantId,
-          categoryId: itemForm.categoryId as Id<"menuCategories">,
-          name: itemForm.name.trim(),
-          description: itemForm.description.trim() || undefined,
-          price: parseFloat(itemForm.price),
-          ...(imageId ? { imageId } : {}),
-        });
-        toast.success("Item created");
-      }
-      setItemDialogOpen(false);
-    } catch {
-      toast.error("Failed to save item");
-    }
-  }, [itemForm, editingItem, uploadFile, updateItem, createItem, restaurantId]);
-
   const handleToggleItemStatus = useCallback(
     async (itemId: Id<"menuItems">, isActive: boolean) => {
       try {
@@ -382,6 +313,11 @@ function MenuBuilderContent({
     }
     setDeleteDialog(null);
   }, [deleteDialog, deleteItem]);
+
+  // ─── Derived: Icon Preview ──────────────────────────────────────────────────
+
+  const iconPreviewData = categoryForm.icon ? getCategoryIcon(categoryForm.icon) : null;
+  const IconPreviewComponent = iconPreviewData?.icon ?? null;
 
   // ─── Loading ────────────────────────────────────────────────────────────────
 
@@ -412,9 +348,51 @@ function MenuBuilderContent({
         </div>
       </div>
 
+      {/* ─── Mobile Layout with Tabs ─────────────────────────────── */}
+      <div className="lg:hidden">
+        <Tabs value={mobileTab} onValueChange={setMobileTab}>
+          <TabsList className="w-full">
+            <TabsTrigger value="categorias" className="flex-1">Categorias</TabsTrigger>
+            <TabsTrigger value="produtos" className="flex-1">Produtos</TabsTrigger>
+          </TabsList>
+
+          <div className="relative mt-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar..."
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          <TabsContent value="categorias" className="space-y-4">
+            <MobileCategoriesTab
+              categories={sortedCategories}
+              selectedCategoryId={selectedCategoryId}
+              onSelectCategory={handleMobileCategorySelect}
+              onEditCategory={handleOpenEditCategory}
+              onAddCategory={handleOpenAddCategory}
+              onDragStart={handleDragStart}
+              onDragOver={handleDragOver}
+              onDragEnd={handleDragEnd}
+            />
+          </TabsContent>
+
+          <TabsContent value="produtos" className="space-y-3">
+            <MobileProductsTab
+              selectedCategory={selectedCategory}
+              filteredItems={filteredItems}
+              restaurantId={restaurantId}
+              onToggleItemStatus={handleToggleItemStatus}
+            />
+          </TabsContent>
+        </Tabs>
+      </div>
+
       <div className="flex gap-6">
-        {/* ─── Sidebar ─────────────────────────────────────────────────── */}
-        <div className="w-72 shrink-0">
+        {/* ─── Sidebar (desktop only) ──────────────────────────────────── */}
+        <div className="hidden lg:block w-72 shrink-0">
           <Card>
             <CardContent className="p-4 space-y-3">
               <div>
@@ -433,11 +411,12 @@ function MenuBuilderContent({
                     onDragOver={(e) => handleDragOver(e, category._id)}
                     onDragEnd={handleDragEnd}
                     onClick={() => setSelectedCategoryId(category._id)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer group transition-colors ${
+                    className={cn(
+                      "flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer group transition-colors",
                       selectedCategoryId === category._id
                         ? "bg-primary text-primary-foreground"
                         : "hover:bg-muted"
-                    }`}
+                    )}
                   >
                     <GripVertical className="h-4 w-4 shrink-0 opacity-40 cursor-grab" />
                     <span className="text-sm font-medium truncate flex-1">
@@ -452,11 +431,11 @@ function MenuBuilderContent({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className={`h-6 w-6 opacity-0 group-hover:opacity-100 ${
-                        selectedCategoryId === category._id
-                          ? "hover:bg-primary-foreground/20 text-primary-foreground"
-                          : ""
-                      }`}
+                      className={cn(
+                        "h-6 w-6 opacity-0 group-hover:opacity-100",
+                        selectedCategoryId === category._id &&
+                          "hover:bg-primary-foreground/20 text-primary-foreground"
+                      )}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleOpenEditCategory(category);
@@ -467,11 +446,11 @@ function MenuBuilderContent({
                     <Button
                       variant="ghost"
                       size="icon"
-                      className={`h-6 w-6 opacity-0 group-hover:opacity-100 ${
-                        selectedCategoryId === category._id
-                          ? "hover:bg-primary-foreground/20 text-primary-foreground"
-                          : ""
-                      }`}
+                      className={cn(
+                        "h-6 w-6 opacity-0 group-hover:opacity-100",
+                        selectedCategoryId === category._id &&
+                          "hover:bg-primary-foreground/20 text-primary-foreground"
+                      )}
                       onClick={(e) => {
                         e.stopPropagation();
                         setDeleteDialog({
@@ -501,9 +480,9 @@ function MenuBuilderContent({
         </div>
 
         {/* ─── Main Content ────────────────────────────────────────────── */}
-        <div className="flex-1 space-y-4">
-          {/* Breadcrumb */}
-          <Breadcrumb>
+        <div className="flex-1 min-w-0 space-y-4">
+          {/* Breadcrumb (desktop only) */}
+          <Breadcrumb className="hidden md:block">
             <BreadcrumbList>
               <BreadcrumbItem>
                 <BreadcrumbLink href={`/admin/tenants/${restaurantId}`}>
@@ -528,8 +507,8 @@ function MenuBuilderContent({
           </Breadcrumb>
 
           {/* Toolbar */}
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1 max-w-sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative flex-1 min-w-[180px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search items..."
@@ -542,7 +521,7 @@ function MenuBuilderContent({
               value={filterStatus}
               onValueChange={(v) => setFilterStatus(v as FilterStatus)}
             >
-              <SelectTrigger className="w-40">
+              <SelectTrigger className="w-32 sm:w-40">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -551,9 +530,11 @@ function MenuBuilderContent({
                 <SelectItem value="out_of_stock">Out of Stock</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={handleOpenAddItem} disabled={!selectedCategoryId}>
-              <Plus className="h-4 w-4 mr-1" />
-              Add New Item
+            <Button asChild disabled={!selectedCategoryId}>
+              <Link href={`/admin/tenants/${restaurantId}/menu/items/new`}>
+                <Plus className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Add New Item</span>
+              </Link>
             </Button>
           </div>
 
@@ -579,16 +560,17 @@ function MenuBuilderContent({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
               {filteredItems.map((item) => (
                 <Card key={item._id} className="overflow-hidden">
                   {/* Image */}
                   <div className="relative aspect-[4/3] bg-muted">
                     {item.imageUrl ? (
-                      <img
+                      <Image
                         src={item.imageUrl}
                         alt={item.name}
-                        className="w-full h-full object-cover"
+                        fill
+                        className="object-cover"
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full">
@@ -634,12 +616,16 @@ function MenuBuilderContent({
 
                       <div className="flex items-center gap-1">
                         <Button
+                          asChild
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => handleOpenEditItem(item)}
                         >
-                          <Pencil className="h-3.5 w-3.5" />
+                          <Link
+                            href={`/admin/tenants/${restaurantId}/menu/items/${item._id}/edit`}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Link>
                         </Button>
                         <Button
                           variant="ghost"
@@ -700,6 +686,43 @@ function MenuBuilderContent({
                 rows={3}
               />
             </div>
+            <div className="space-y-2">
+              <Label>Category Icon</Label>
+              <Select
+                value={categoryForm.icon}
+                onValueChange={(v) =>
+                  setCategoryForm((prev) => ({ ...prev, icon: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an icon" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_ICONS.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <SelectItem key={item.id} value={item.id}>
+                        <span className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          {item.label}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            {iconPreviewData && IconPreviewComponent && (
+              <div className="flex items-center gap-3 rounded-md border p-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  <IconPreviewComponent className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{categoryForm.name || "Category Name"}</p>
+                  <p className="text-xs text-muted-foreground">{iconPreviewData.label}</p>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button
@@ -713,127 +736,6 @@ function MenuBuilderContent({
               disabled={!categoryForm.name.trim()}
             >
               {editingCategory ? "Save Changes" : "Create Category"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── Item Dialog ───────────────────────────────────────────────── */}
-      <Dialog open={itemDialogOpen} onOpenChange={setItemDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {editingItem ? "Edit Item" : "Add Item"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="item-name">Name</Label>
-              <Input
-                id="item-name"
-                value={itemForm.name}
-                onChange={(e) =>
-                  setItemForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="e.g. Grilled Salmon"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="item-desc">Description</Label>
-              <Textarea
-                id="item-desc"
-                value={itemForm.description}
-                onChange={(e) =>
-                  setItemForm((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-                placeholder="Describe the dish"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="item-price">Price</Label>
-              <Input
-                id="item-price"
-                type="number"
-                step="0.01"
-                min="0"
-                value={itemForm.price}
-                onChange={(e) =>
-                  setItemForm((prev) => ({ ...prev, price: e.target.value }))
-                }
-                placeholder="0.00"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="item-category">Category</Label>
-              <Select
-                value={itemForm.categoryId}
-                onValueChange={(v) =>
-                  setItemForm((prev) => ({ ...prev, categoryId: v }))
-                }
-              >
-                <SelectTrigger id="item-category">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortedCategories.map((cat) => (
-                    <SelectItem key={cat._id} value={cat._id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Image</Label>
-              <div className="flex items-center gap-3">
-                {imagePreview && (
-                  <div className="h-16 w-16 rounded-md overflow-hidden border bg-muted shrink-0">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="h-full w-full object-cover"
-                    />
-                  </div>
-                )}
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="flex-1"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setItemDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveItem}
-              disabled={
-                !itemForm.name.trim() ||
-                !itemForm.price ||
-                !itemForm.categoryId ||
-                isUploading
-              }
-            >
-              {isUploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                  Uploading...
-                </>
-              ) : editingItem ? (
-                "Save Changes"
-              ) : (
-                "Create Item"
-              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -869,5 +771,249 @@ function MenuBuilderContent({
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+// ─── Mobile Subcomponents ─────────────────────────────────────────────────────
+
+interface MobileCategoriesTabProps {
+  categories: {
+    _id: Id<"menuCategories">;
+    name: string;
+    icon?: string;
+    items: { _id: Id<"menuItems">; name: string; price: number; imageUrl: string | null; isActive: boolean }[];
+  }[];
+  selectedCategoryId: Id<"menuCategories"> | null;
+  onSelectCategory: (id: Id<"menuCategories">) => void;
+  onEditCategory: (cat: { _id: Id<"menuCategories">; name: string; description?: string; icon?: string }) => void;
+  onAddCategory: () => void;
+  onDragStart: (id: Id<"menuCategories">) => void;
+  onDragOver: (e: React.DragEvent, targetId: Id<"menuCategories">) => void;
+  onDragEnd: () => void;
+}
+
+function MobileCategoriesTab({
+  categories,
+  selectedCategoryId,
+  onSelectCategory,
+  onEditCategory,
+  onAddCategory,
+  onDragStart,
+  onDragOver,
+  onDragEnd,
+}: MobileCategoriesTabProps) {
+  const selectedCategory = useMemo(
+    () => categories.find((c) => c._id === selectedCategoryId) ?? null,
+    [categories, selectedCategoryId]
+  );
+
+  const activeCounts = useMemo(
+    () => new Map(categories.map((c) => [c._id, c.items.filter((i) => i.isActive).length])),
+    [categories]
+  );
+
+  const highlightItems = useMemo(
+    () => selectedCategory?.items.filter((i) => i.isActive).slice(0, MOBILE_HIGHLIGHTS_COUNT) ?? [],
+    [selectedCategory]
+  );
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold">Minhas Categorias</h2>
+        <Button variant="outline" size="sm" onClick={onAddCategory}>
+          <Plus className="h-3.5 w-3.5 mr-1" />
+          Nova
+        </Button>
+      </div>
+
+      {categories.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <UtensilsCrossed className="h-10 w-10 text-muted-foreground mb-3" />
+          <p className="text-sm text-muted-foreground">
+            Crie sua primeira categoria para começar
+          </p>
+        </div>
+      ) : (
+        <div className="divide-y rounded-md border">
+          {categories.map((category) => {
+            const iconData = getCategoryIcon(category.icon);
+            const Icon = iconData.icon;
+            const activeCount = activeCounts.get(category._id) ?? 0;
+
+            return (
+              <div
+                key={category._id}
+                draggable
+                onDragStart={() => onDragStart(category._id)}
+                onDragOver={(e) => onDragOver(e, category._id)}
+                onDragEnd={onDragEnd}
+                onClick={() => onSelectCategory(category._id)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-3 cursor-pointer transition-colors",
+                  selectedCategoryId === category._id ? "bg-muted" : "hover:bg-muted/50"
+                )}
+              >
+                <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/40 cursor-grab" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                  <Icon className="h-5 w-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{category.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {activeCount} {activeCount === 1 ? "item ativo" : "itens ativos"}
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditCategory(category);
+                  }}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {selectedCategory && highlightItems.length > 0 && (
+        <div className="space-y-2 pt-2">
+          <h3 className="text-sm font-medium text-muted-foreground">
+            Destaques: {selectedCategory.name}
+          </h3>
+          <div className="divide-y rounded-md border">
+            {highlightItems.map((item) => (
+              <div key={item._id} className="flex items-center gap-3 px-3 py-2">
+                {item.imageUrl ? (
+                  <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full">
+                    <Image
+                      src={item.imageUrl}
+                      alt={item.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {item.name.charAt(0)}
+                    </span>
+                  </div>
+                )}
+                <span className="flex-1 text-sm truncate">{item.name}</span>
+                <span className="text-sm font-medium text-primary">
+                  {formatCurrency(item.price)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+interface MobileProductsTabProps {
+  selectedCategory: {
+    _id: Id<"menuCategories">;
+    name: string;
+    items: { _id: Id<"menuItems">; name: string; description?: string; price: number; imageUrl: string | null; isActive: boolean }[];
+  } | null;
+  filteredItems: { _id: Id<"menuItems">; name: string; description?: string; price: number; imageUrl: string | null; isActive: boolean }[];
+  restaurantId: Id<"restaurants">;
+  onToggleItemStatus: (itemId: Id<"menuItems">, isActive: boolean) => void;
+}
+
+function MobileProductsTab({
+  selectedCategory,
+  filteredItems,
+  restaurantId,
+  onToggleItemStatus,
+}: MobileProductsTabProps) {
+  if (!selectedCategory) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-center">
+        <UtensilsCrossed className="h-10 w-10 text-muted-foreground mb-3" />
+        <p className="text-sm text-muted-foreground">
+          Selecione uma categoria na aba Categorias
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <h2 className="text-base font-semibold">{selectedCategory.name}</h2>
+
+      {filteredItems.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <UtensilsCrossed className="h-10 w-10 text-muted-foreground mb-3" />
+          <p className="text-sm text-muted-foreground">
+            Nenhum item nesta categoria
+          </p>
+        </div>
+      ) : (
+        <div className="divide-y rounded-md border">
+          {filteredItems.map((item) => (
+            <div key={item._id} className="flex items-center gap-3 px-3 py-3">
+              <Link
+                href={`/admin/tenants/${restaurantId}/menu/items/${item._id}/edit`}
+                className="flex flex-1 items-center gap-3 min-w-0 transition-colors hover:opacity-80"
+              >
+                {item.imageUrl ? (
+                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full">
+                    <Image
+                      src={item.imageUrl}
+                      alt={item.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted">
+                    <span className="text-sm font-medium text-muted-foreground">
+                      {item.name.charAt(0)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{item.name}</p>
+                  {item.description && (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {item.description}
+                    </p>
+                  )}
+                  <p className="text-sm font-bold text-primary">
+                    {formatCurrency(item.price)}
+                  </p>
+                </div>
+              </Link>
+              <div className="flex shrink-0 flex-col items-end gap-1.5">
+                <Badge variant={item.isActive ? "default" : "destructive"} className="text-[10px]">
+                  {item.isActive ? "DISPONÍVEL" : "ESGOTADO"}
+                </Badge>
+                <Switch
+                  checked={item.isActive}
+                  onCheckedChange={(checked) => onToggleItemStatus(item._id, checked)}
+                  className="scale-75"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <Button asChild className="w-full">
+        <Link href={`/admin/tenants/${restaurantId}/menu/items/new`}>
+          <Plus className="h-4 w-4 mr-2" />
+          Cadastrar Novo Prato
+        </Link>
+      </Button>
+    </>
   );
 }

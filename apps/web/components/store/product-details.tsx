@@ -1,16 +1,35 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import { Minus, Plus, ShoppingBag } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
+import { Badge } from "@workspace/ui/components/badge";
+import { Label } from "@workspace/ui/components/label";
+import { Separator } from "@workspace/ui/components/separator";
 import { DiscountBadge } from "./discount-badge";
 import { DeliveryInfo } from "./delivery-info";
 import { useCart } from "@/hooks/use-cart";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 import type { Id } from "@workspace/backend/_generated/dataModel";
+import type { SelectedModifier } from "@/lib/atoms/cart";
 import Link from "next/link";
+import { cn } from "@workspace/ui/lib/utils";
+
+interface ModifierOption {
+  _id: Id<"modifierOptions">;
+  name: string;
+  price: number;
+}
+
+interface ModifierGroup {
+  _id: Id<"modifierGroups">;
+  name: string;
+  required: boolean;
+  order: number;
+  options: ModifierOption[];
+}
 
 interface ProductDetailsProps {
   product: {
@@ -22,6 +41,8 @@ interface ProductDetailsProps {
     discountedPrice: number;
     imageUrl: string | null;
     restaurantId: Id<"restaurants">;
+    tags: string[];
+    modifierGroups: ModifierGroup[];
     restaurant: {
       _id: Id<"restaurants">;
       name: string;
@@ -32,9 +53,58 @@ interface ProductDetailsProps {
   };
 }
 
+// Map groupId -> selected optionId
+type ModifierSelections = Record<string, string>;
+
 export function ProductDetails({ product }: ProductDetailsProps) {
   const [quantity, setQuantity] = useState(1);
+  const [selections, setSelections] = useState<ModifierSelections>({});
   const { addToCart, setCartDeliveryFee } = useCart();
+
+  const selectOption = useCallback(
+    (groupId: string, optionId: string) => {
+      setSelections((prev) => {
+        // Toggle off if already selected
+        if (prev[groupId] === optionId) {
+          const next = { ...prev };
+          delete next[groupId];
+          return next;
+        }
+        return { ...prev, [groupId]: optionId };
+      });
+    },
+    []
+  );
+
+  const selectedModifiers = useMemo((): SelectedModifier[] => {
+    const result: SelectedModifier[] = [];
+    for (const group of product.modifierGroups) {
+      const selectedOptionId = selections[group._id];
+      if (!selectedOptionId) continue;
+      const option = group.options.find((o) => o._id === selectedOptionId);
+      if (option) {
+        result.push({
+          groupName: group.name,
+          optionName: option.name,
+          price: option.price,
+        });
+      }
+    }
+    return result;
+  }, [product.modifierGroups, selections]);
+
+  const modifiersTotal = useMemo(
+    () => selectedModifiers.reduce((sum, m) => sum + m.price, 0),
+    [selectedModifiers]
+  );
+
+  const unitPrice = product.discountedPrice + modifiersTotal;
+
+  const requiredGroupsMissing = useMemo(() => {
+    return product.modifierGroups
+      .filter((g) => g.required)
+      .some((g) => !selections[g._id]);
+  }, [product.modifierGroups, selections]);
 
   const handleAddToCart = () => {
     addToCart(
@@ -46,6 +116,8 @@ export function ProductDetails({ product }: ProductDetailsProps) {
         imageUrl: product.imageUrl,
         restaurantId: product.restaurantId,
         restaurantName: product.restaurant.name,
+        selectedModifiers:
+          selectedModifiers.length > 0 ? selectedModifiers : undefined,
       },
       quantity
     );
@@ -54,6 +126,7 @@ export function ProductDetails({ product }: ProductDetailsProps) {
       description: `${quantity}x ${product.name}`,
     });
     setQuantity(1);
+    setSelections({});
   };
 
   return (
@@ -86,6 +159,17 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             <p className="mt-2 text-muted-foreground">{product.description}</p>
           )}
         </div>
+
+        {/* Dietary Tags */}
+        {product.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {product.tags.map((tag) => (
+              <Badge key={tag} variant="secondary" className="text-xs">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
 
         <div className="flex items-center gap-3">
           <span className="text-3xl font-bold text-primary">
@@ -124,6 +208,67 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           </div>
         </Link>
 
+        {/* Modifier Groups */}
+        {product.modifierGroups.length > 0 && (
+          <div className="space-y-4">
+            <Separator />
+            {product.modifierGroups.map((group) => (
+              <div key={group._id} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label className="font-semibold">{group.name}</Label>
+                  {group.required && (
+                    <Badge variant="destructive" className="text-xs h-5">
+                      Obrigatório
+                    </Badge>
+                  )}
+                </div>
+                <div className="space-y-1">
+                  {group.options.map((option) => {
+                    const isSelected = selections[group._id] === option._id;
+                    return (
+                      <button
+                        key={option._id}
+                        type="button"
+                        onClick={() => selectOption(group._id, option._id)}
+                        className={cn(
+                          "flex w-full items-center justify-between rounded-lg border p-3 text-left transition-colors",
+                          isSelected
+                            ? "border-primary bg-primary/5"
+                            : "hover:bg-muted/50"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={cn(
+                              "flex h-5 w-5 items-center justify-center rounded-full border-2",
+                              isSelected
+                                ? "border-primary bg-primary"
+                                : "border-muted-foreground/30"
+                            )}
+                          >
+                            {isSelected && (
+                              <div className="h-2 w-2 rounded-full bg-white" />
+                            )}
+                          </div>
+                          <span className="text-sm font-medium">
+                            {option.name}
+                          </span>
+                        </div>
+                        {option.price > 0 && (
+                          <span className="text-sm text-muted-foreground">
+                            + {formatCurrency(option.price)}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+            <Separator />
+          </div>
+        )}
+
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 rounded-lg border p-1">
             <Button
@@ -145,9 +290,14 @@ export function ProductDetails({ product }: ProductDetailsProps) {
             </Button>
           </div>
 
-          <Button className="flex-1" size="lg" onClick={handleAddToCart}>
+          <Button
+            className="flex-1"
+            size="lg"
+            onClick={handleAddToCart}
+            disabled={requiredGroupsMissing}
+          >
             <ShoppingBag className="mr-2 h-5 w-5" />
-            Adicionar {formatCurrency(product.discountedPrice * quantity)}
+            Adicionar {formatCurrency(unitPrice * quantity)}
           </Button>
         </div>
       </div>

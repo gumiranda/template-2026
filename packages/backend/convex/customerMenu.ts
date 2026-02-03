@@ -104,6 +104,36 @@ export const getProductDetails = query({
         })
     );
 
+    // Fetch modifier groups and options
+    const modifierGroups = await ctx.db
+      .query("modifierGroups")
+      .withIndex("by_menuItem", (q) => q.eq("menuItemId", args.menuItemId))
+      .collect();
+
+    const groupsWithOptions = await Promise.all(
+      modifierGroups.map(async (group) => {
+        const options = await ctx.db
+          .query("modifierOptions")
+          .withIndex("by_modifierGroup", (q) =>
+            q.eq("modifierGroupId", group._id)
+          )
+          .collect();
+        return {
+          _id: group._id,
+          name: group.name,
+          required: group.required,
+          order: group.order,
+          options: options
+            .sort((a, b) => a.order - b.order)
+            .map((o) => ({
+              _id: o._id,
+              name: o.name,
+              price: o.price,
+            })),
+        };
+      })
+    );
+
     return {
       _id: item._id,
       name: item.name,
@@ -113,6 +143,8 @@ export const getProductDetails = query({
       discountedPrice,
       imageUrl,
       restaurantId: item.restaurantId,
+      tags: item.tags ?? [],
+      modifierGroups: groupsWithOptions.sort((a, b) => a.order - b.order),
       restaurant: {
         _id: restaurant._id,
         name: restaurant.name,
