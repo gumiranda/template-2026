@@ -2,7 +2,7 @@
 
 import { use, useReducer, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
@@ -170,15 +170,11 @@ function pageReducer(state: PageState, action: PageAction): PageState {
 }
 
 function BackToRestaurantButton({ restaurantId }: { restaurantId: string }) {
-  const router = useRouter();
-
   return (
-    <Button
-      variant="ghost"
-      size="icon"
-      onClick={() => router.push(`/admin/tenants/${restaurantId}`)}
-    >
-      <ArrowLeft className="h-4 w-4" />
+    <Button asChild variant="ghost" size="icon">
+      <Link href={`/admin/tenants/${restaurantId}`}>
+        <ArrowLeft className="h-4 w-4" />
+      </Link>
     </Button>
   );
 }

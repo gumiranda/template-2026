@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import { useQuery } from "convex/react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { isValidConvexId } from "@workspace/backend/lib/helpers";
@@ -33,28 +33,22 @@ import { AdminGuard } from "@/components/admin-guard";
 import { StatCard } from "@/components/stat-card";
 
 function BackToTenantsButton({ variant = "ghost" }: { variant?: "ghost" | "icon" }) {
-  const router = useRouter();
-
   if (variant === "icon") {
     return (
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => router.push("/admin/tenants")}
-      >
-        <ArrowLeft className="h-4 w-4" />
+      <Button asChild variant="ghost" size="icon">
+        <Link href="/admin/tenants">
+          <ArrowLeft className="h-4 w-4" />
+        </Link>
       </Button>
     );
   }
 
   return (
-    <Button
-      variant="ghost"
-      onClick={() => router.push("/admin/tenants")}
-      className="mb-4"
-    >
-      <ArrowLeft className="mr-2 h-4 w-4" />
-      Back to Tenants
+    <Button asChild variant="ghost" className="mb-4">
+      <Link href="/admin/tenants">
+        <ArrowLeft className="mr-2 h-4 w-4" />
+        Back to Tenants
+      </Link>
     </Button>
   );
 }
@@ -113,7 +107,6 @@ function RestaurantDetailsContent({
 }: {
   restaurantId: Id<"restaurants">;
 }) {
-  const router = useRouter();
   const restaurant = useQuery(api.restaurants.getWithStats, { id: restaurantId });
 
   if (restaurant === undefined) {
@@ -173,18 +166,17 @@ function RestaurantDetailsContent({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => router.push(`/admin/tenants/${restaurantId}/menu`)}
-          >
-            <UtensilsCrossed className="mr-2 h-4 w-4" />
-            Manage Menu
+          <Button asChild variant="outline">
+            <Link href={`/admin/tenants/${restaurantId}/menu`}>
+              <UtensilsCrossed className="mr-2 h-4 w-4" />
+              Manage Menu
+            </Link>
           </Button>
-          <Button
-            onClick={() => router.push(`/admin/tenants/${restaurantId}/tables`)}
-          >
-            <QrCode className="mr-2 h-4 w-4" />
-            Manage Tables
+          <Button asChild>
+            <Link href={`/admin/tenants/${restaurantId}/tables`}>
+              <QrCode className="mr-2 h-4 w-4" />
+              Manage Tables
+            </Link>
           </Button>
         </div>
       </div>

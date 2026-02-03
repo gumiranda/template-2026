@@ -2,7 +2,7 @@
 
 import { use, useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { isValidConvexId } from "@workspace/backend/lib/helpers";
@@ -121,7 +121,6 @@ function MenuBuilderContent({
 }: {
   restaurantId: Id<"restaurants">;
 }) {
-  const router = useRouter();
   const menu = useQuery(api.menu.getMenuByRestaurant, { restaurantId });
 
   // State
@@ -400,12 +399,10 @@ function MenuBuilderContent({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.push(`/admin/tenants/${restaurantId}`)}
-        >
-          <ArrowLeft className="h-4 w-4" />
+        <Button asChild variant="ghost" size="icon">
+          <Link href={`/admin/tenants/${restaurantId}`}>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
         </Button>
         <div>
           <h1 className="text-2xl font-bold">Menu Builder</h1>

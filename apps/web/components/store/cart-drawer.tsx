@@ -13,6 +13,7 @@ import { ShoppingBag, Trash2 } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { CartItem } from "./cart-item";
 import { CartSummary } from "./cart-summary";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 
@@ -51,14 +52,10 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
           <div className="flex flex-1 flex-col items-center justify-center gap-4 text-muted-foreground">
             <ShoppingBag className="h-16 w-16" />
             <p>Seu carrinho está vazio</p>
-            <Button
-              variant="outline"
-              onClick={() => {
-                onOpenChange(false);
-                router.push("/restaurants");
-              }}
-            >
-              Ver restaurantes
+            <Button asChild variant="outline">
+              <Link href="/restaurants" onClick={() => onOpenChange(false)}>
+                Ver restaurantes
+              </Link>
             </Button>
           </div>
         ) : (
