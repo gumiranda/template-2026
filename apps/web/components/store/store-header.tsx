@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useUser, UserButton, SignInButton } from "@clerk/nextjs";
-import { ShoppingBag, Search, Heart, ClipboardList } from "lucide-react";
+import { ShoppingBag, Search, Heart, ClipboardList, Shield } from "lucide-react";
+import { useQuery } from "convex/react";
+import { api } from "@workspace/backend/_generated/api";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Badge } from "@workspace/ui/components/badge";
@@ -19,6 +21,11 @@ export function StoreHeader({ onOpenCart }: StoreHeaderProps) {
   const { totalItems } = useCart();
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
+  const currentUser = useQuery(
+    api.users.getCurrentUser,
+    isSignedIn ? {} : "skip"
+  );
+  const isAdmin = currentUser?.role === "superadmin" || currentUser?.role === "ceo";
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +55,13 @@ export function StoreHeader({ onOpenCart }: StoreHeaderProps) {
         </form>
 
         <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/admin/tenants">
+                <Shield className="h-5 w-5" />
+              </Link>
+            </Button>
+          )}
           {isSignedIn && (
             <>
               <Button variant="ghost" size="icon" asChild>
