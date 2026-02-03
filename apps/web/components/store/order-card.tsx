@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { OrderStatusBadge } from "./order-status-badge";
 import { formatCurrency } from "@/lib/format";
@@ -24,6 +25,8 @@ interface OrderCardProps {
   };
 }
 
+const MAX_VISIBLE_ITEMS = 3;
+
 export function OrderCard({ order }: OrderCardProps) {
   const date = new Date(order.createdAt);
   const formattedDate = new Intl.DateTimeFormat("pt-BR", {
@@ -40,10 +43,12 @@ export function OrderCard({ order }: OrderCardProps) {
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
             {order.restaurant?.logoUrl ? (
-              <img
+              <Image
                 src={order.restaurant.logoUrl}
                 alt={order.restaurant.name}
-                className="h-12 w-12 rounded-full object-cover"
+                width={48}
+                height={48}
+                className="rounded-full object-cover"
               />
             ) : (
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-sm font-bold">
@@ -61,14 +66,14 @@ export function OrderCard({ order }: OrderCardProps) {
         </div>
 
         <div className="mt-3 space-y-1">
-          {order.items.slice(0, 3).map((item, i) => (
+          {order.items.slice(0, MAX_VISIBLE_ITEMS).map((item, i) => (
             <p key={i} className="text-sm text-muted-foreground">
               {item.quantity}x {item.name}
             </p>
           ))}
-          {order.items.length > 3 && (
+          {order.items.length > MAX_VISIBLE_ITEMS && (
             <p className="text-sm text-muted-foreground">
-              +{order.items.length - 3} itens
+              +{order.items.length - MAX_VISIBLE_ITEMS} itens
             </p>
           )}
         </div>

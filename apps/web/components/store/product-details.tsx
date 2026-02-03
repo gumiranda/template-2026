@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Minus, Plus, ShoppingBag } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { DiscountBadge } from "./discount-badge";
@@ -59,10 +60,12 @@ export function ProductDetails({ product }: ProductDetailsProps) {
     <div className="grid gap-6 md:grid-cols-2">
       <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
         {product.imageUrl ? (
-          <img
+          <Image
             src={product.imageUrl}
             alt={product.name}
-            className="h-full w-full object-cover"
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            className="object-cover"
           />
         ) : (
           <div className="flex h-full items-center justify-center text-6xl font-bold text-muted-foreground/30">
@@ -100,10 +103,12 @@ export function ProductDetails({ product }: ProductDetailsProps) {
           className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/50 transition-colors"
         >
           {product.restaurant.logoUrl ? (
-            <img
+            <Image
               src={product.restaurant.logoUrl}
               alt={product.restaurant.name}
-              className="h-10 w-10 rounded-full object-cover"
+              width={40}
+              height={40}
+              className="rounded-full object-cover"
             />
           ) : (
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-sm font-bold">

@@ -1,6 +1,7 @@
 "use client";
 
 import { use } from "react";
+import Image from "next/image";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
@@ -57,16 +58,22 @@ export default function RestaurantDetailPage({
       {/* Cover Image */}
       <div className="relative h-48 bg-muted md:h-64">
         {restaurant.coverImageUrl ? (
-          <img
+          <Image
             src={restaurant.coverImageUrl}
             alt={restaurant.name}
-            className="h-full w-full object-cover"
+            fill
+            sizes="100vw"
+            className="object-cover"
+            priority
           />
         ) : restaurant.logoUrl ? (
-          <img
+          <Image
             src={restaurant.logoUrl}
             alt={restaurant.name}
-            className="h-full w-full object-cover"
+            fill
+            sizes="100vw"
+            className="object-cover"
+            priority
           />
         ) : null}
       </div>

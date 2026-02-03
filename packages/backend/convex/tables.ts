@@ -291,11 +291,11 @@ export const batchCreateTables = mutation({
       throw new Error("baseUrl must be a valid HTTP or HTTPS URL");
     }
 
-    if (args.startId < 1) {
-      throw new Error("Start ID must be at least 1");
+    if (!Number.isInteger(args.startId) || args.startId < 1) {
+      throw new Error("Start ID must be a positive integer");
     }
-    if (args.endId < args.startId) {
-      throw new Error("End ID must be greater than or equal to Start ID");
+    if (!Number.isInteger(args.endId) || args.endId < args.startId) {
+      throw new Error("End ID must be an integer greater than or equal to Start ID");
     }
     const count = args.endId - args.startId + 1;
     if (count > 50) {

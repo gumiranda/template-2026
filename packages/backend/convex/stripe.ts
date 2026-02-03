@@ -200,7 +200,7 @@ export const createCheckoutSession = action({
     if (!identity) throw new Error("Not authenticated");
 
     // Get or create the Stripe customer first (recommended pattern)
-    const stripeCustomerId: string = await ctx.runAction(
+    const stripeCustomerId = await ctx.runAction(
       internal.stripe.getOrCreateStripeCustomer,
       {}
     );

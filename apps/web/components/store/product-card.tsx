@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { DiscountBadge } from "./discount-badge";
@@ -25,10 +26,12 @@ export function ProductCard({ product }: ProductCardProps) {
       <Link href={`/products/${product._id}`}>
         <div className="relative aspect-square bg-muted">
           {product.imageUrl ? (
-            <img
+            <Image
               src={product.imageUrl}
               alt={product.name}
-              className="h-full w-full object-cover transition-transform group-hover:scale-105"
+              fill
+              sizes="250px"
+              className="object-cover transition-transform group-hover:scale-105"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-3xl font-bold text-muted-foreground/30">

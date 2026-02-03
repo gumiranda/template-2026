@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { Star, Heart } from "lucide-react";
 import { Card, CardContent } from "@workspace/ui/components/card";
@@ -34,10 +35,12 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
       <Link href={`/restaurants/${restaurant._id}`}>
         <div className="relative aspect-video bg-muted">
           {restaurant.coverImageUrl || restaurant.logoUrl ? (
-            <img
+            <Image
               src={restaurant.coverImageUrl ?? restaurant.logoUrl ?? ""}
               alt={restaurant.name}
-              className="h-full w-full object-cover transition-transform group-hover:scale-105"
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="object-cover transition-transform group-hover:scale-105"
             />
           ) : (
             <div className="flex h-full items-center justify-center text-4xl font-bold text-muted-foreground/30">

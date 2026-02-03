@@ -6,32 +6,32 @@ import { Button } from "@workspace/ui/components/button";
 import { CreditCard, ExternalLink } from "lucide-react";
 import { useSubscription } from "@/hooks/use-subscription";
 
+type BadgeVariant = "default" | "secondary" | "destructive" | "outline";
+
+const STATUS_CONFIG: Record<string, { label: string; variant: BadgeVariant }> = {
+  active: { label: "Ativo", variant: "default" },
+  canceled: { label: "Cancelado", variant: "destructive" },
+  past_due: { label: "Pagamento pendente", variant: "secondary" },
+};
+
+const DEFAULT_STATUS = { label: "Inativo", variant: "outline" as BadgeVariant };
+
+function getStatusConfig(status: string | undefined) {
+  if (!status) return DEFAULT_STATUS;
+  return STATUS_CONFIG[status] ?? DEFAULT_STATUS;
+}
+
 export function SubscriptionCard() {
   const {
     subscriptionData,
     isActive,
-    isCanceled,
     isPastDue,
     isLoading,
     startCheckout,
     openBillingPortal,
   } = useSubscription();
 
-  const statusLabel = isActive
-    ? "Ativo"
-    : isCanceled
-      ? "Cancelado"
-      : isPastDue
-        ? "Pagamento pendente"
-        : "Inativo";
-
-  const statusVariant = isActive
-    ? "default"
-    : isCanceled
-      ? "destructive"
-      : isPastDue
-        ? "secondary"
-        : ("outline" as const);
+  const statusConfig = getStatusConfig(subscriptionData?.status);
 
   return (
     <Card>
@@ -44,8 +44,8 @@ export function SubscriptionCard() {
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">Status</span>
-          <Badge variant={statusVariant as "default" | "secondary" | "destructive" | "outline"}>
-            {statusLabel}
+          <Badge variant={statusConfig.variant}>
+            {statusConfig.label}
           </Badge>
         </div>
 
