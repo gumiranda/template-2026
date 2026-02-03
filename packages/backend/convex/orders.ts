@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { OrderStatus, Role } from "./lib/types";
 import { getAuthenticatedUser, isRestaurantStaff } from "./lib/auth";
 import { batchFetchTables, validateSession } from "./lib/helpers";
@@ -26,10 +27,11 @@ export const getOrdersByRestaurant = query({
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.restaurantId))
       .collect();
 
-    const tableMap = await batchFetchTables(
-      ctx,
-      orders.map((o) => o.tableId)
-    );
+    const tableIds = orders
+      .map((o) => o.tableId)
+      .filter((id): id is Id<"tables"> => id !== undefined);
+
+    const tableMap = await batchFetchTables(ctx, tableIds);
 
     const orderItemsArrays = await Promise.all(
       orders.map((order) =>
@@ -48,7 +50,9 @@ export const getOrdersByRestaurant = query({
 
     return orders.map((order) => ({
       ...order,
-      table: tableMap.get(order.tableId.toString()) ?? null,
+      table: order.tableId
+        ? tableMap.get(order.tableId.toString()) ?? null
+        : null,
       items: itemsMap.get(order._id.toString()) ?? [],
     }));
   },
@@ -153,7 +157,9 @@ export const updateOrderStatus = mutation({
       v.literal("preparing"),
       v.literal("ready"),
       v.literal("served"),
-      v.literal("completed")
+      v.literal("completed"),
+      v.literal("delivering"),
+      v.literal("canceled")
     ),
   },
   handler: async (ctx, args) => {

@@ -28,9 +28,32 @@ export const OrderStatus = {
   READY: "ready",
   SERVED: "served",
   COMPLETED: "completed",
+  DELIVERING: "delivering",
+  CANCELED: "canceled",
 } as const;
 
 export type OrderStatusType = (typeof OrderStatus)[keyof typeof OrderStatus];
+
+export const OrderType = {
+  DINE_IN: "dine_in",
+  DELIVERY: "delivery",
+} as const;
+
+export type OrderTypeType = (typeof OrderType)[keyof typeof OrderType];
+
+export const StripeSubStatus = {
+  NONE: "none",
+  ACTIVE: "active",
+  PAST_DUE: "past_due",
+  CANCELED: "canceled",
+  INCOMPLETE: "incomplete",
+  INCOMPLETE_EXPIRED: "incomplete_expired",
+  TRIALING: "trialing",
+  UNPAID: "unpaid",
+  PAUSED: "paused",
+} as const;
+
+export type StripeSubStatusType = (typeof StripeSubStatus)[keyof typeof StripeSubStatus];
 
 export function isValidRole(value: string): value is RoleType {
   return Object.values(Role).includes(value as RoleType);

@@ -93,3 +93,15 @@ export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
 export function calculateTotalRevenue(orders: Array<{ total: number }>): number {
   return orders.reduce((sum, order) => sum + order.total, 0);
 }
+
+export function calculateDiscountedPrice(price: number, discountPercentage: number): number {
+  if (discountPercentage <= 0 || discountPercentage > 100) return price;
+  return Math.round(price * (1 - discountPercentage / 100));
+}
+
+export function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(value / 100);
+}

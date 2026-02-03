@@ -94,7 +94,8 @@ export const getTablesOverview = query({
         q.eq("restaurantId", args.restaurantId)
       )
       .collect();
-    const ordersByTable = groupBy(allOrders, (o) => o.tableId.toString());
+    const ordersWithTable = allOrders.filter((o) => o.tableId !== undefined);
+    const ordersByTable = groupBy(ordersWithTable, (o) => o.tableId!.toString());
 
     return tables.map((table) => {
       const cart = cartByTable.get(table._id.toString());
