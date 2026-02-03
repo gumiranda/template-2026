@@ -3,7 +3,7 @@ import { mutation, query, internalMutation } from "./_generated/server";
 import { getAuthenticatedUser, canModifyRestaurant, canViewRestaurant, isAdmin } from "./lib/auth";
 import { RestaurantStatus, OrderStatus } from "./lib/types";
 import { groupBy, calculateTotalRevenue } from "./lib/helpers";
-import { resolveImageUrl } from "./files";
+import { resolveImageUrl, resolveStorageUrl } from "./files";
 
 export const list = query({
   args: {},
@@ -204,11 +204,18 @@ export const listAllWithStats = query({
         const restaurantOrders = revenueByRestaurant.get(restaurant._id.toString()) ?? [];
         const totalRevenue = calculateTotalRevenue(restaurantOrders);
         const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
+        const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
+        const tables = await ctx.db
+          .query("tables")
+          .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
+          .collect();
 
         return {
           ...restaurant,
           logoUrl,
+          coverImageUrl,
           totalRevenue,
+          tablesCount: tables.length,
         };
       })
     );
@@ -306,11 +313,14 @@ export const getOverviewStats = query({
       .take(10000);
     const totalRevenue = calculateTotalRevenue(allCompletedOrders);
 
+    const allTables = await ctx.db.query("tables").take(10000);
+
     return {
       totalRestaurants,
       activeRestaurants: activeCount,
       activeSessions: activeSessions.length,
       totalRevenue,
+      totalTables: allTables.length,
     };
   },
 });
