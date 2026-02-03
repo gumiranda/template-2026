@@ -269,10 +269,12 @@ export const getWithStats = query({
       .collect();
 
     const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
+    const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
 
     return {
       ...restaurant,
       logoUrl,
+      coverImageUrl,
       stats: {
         totalRevenue,
         totalOrders: allOrders.length,
