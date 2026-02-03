@@ -14,7 +14,7 @@ const userStatusValidator = v.union(
   v.literal("rejected")
 );
 
-const orderStatusValidator = v.union(
+export const orderStatusValidator = v.union(
   v.literal("pending"),
   v.literal("confirmed"),
   v.literal("preparing"),

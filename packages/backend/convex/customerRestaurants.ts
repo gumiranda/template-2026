@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { RestaurantStatus } from "./lib/types";
 import { resolveImageUrl, resolveStorageUrl } from "./files";
+import { toPublicRestaurant } from "./lib/helpers";
 
 export const listPublicRestaurants = query({
   args: {},
@@ -17,21 +18,8 @@ export const listPublicRestaurants = query({
 
     return Promise.all(
       activeRestaurants.map(async (r) => {
-        const logoUrl = await resolveImageUrl(ctx, r.logoId, r.logoUrl);
-        const coverImageUrl = await resolveStorageUrl(ctx, r.coverImageId);
-
-        return {
-          _id: r._id,
-          name: r.name,
-          address: r.address,
-          phone: r.phone,
-          description: r.description,
-          logoUrl,
-          coverImageUrl,
-          deliveryFee: r.deliveryFee ?? 0,
-          deliveryTimeMinutes: r.deliveryTimeMinutes ?? 30,
-          rating: r.rating ?? 0,
-        };
+        const base = await toPublicRestaurant(ctx, r);
+        return { ...base, phone: r.phone };
       })
     );
   },
@@ -52,22 +40,7 @@ export const searchPublicRestaurants = query({
     const activeResults = results.filter((r) => !r.deletedAt);
 
     return Promise.all(
-      activeResults.map(async (r) => {
-        const logoUrl = await resolveImageUrl(ctx, r.logoId, r.logoUrl);
-        const coverImageUrl = await resolveStorageUrl(ctx, r.coverImageId);
-
-        return {
-          _id: r._id,
-          name: r.name,
-          address: r.address,
-          description: r.description,
-          logoUrl,
-          coverImageUrl,
-          deliveryFee: r.deliveryFee ?? 0,
-          deliveryTimeMinutes: r.deliveryTimeMinutes ?? 30,
-          rating: r.rating ?? 0,
-        };
-      })
+      activeResults.map((r) => toPublicRestaurant(ctx, r))
     );
   },
 });
@@ -151,20 +124,7 @@ export const getRestaurantsByFoodCategory = query({
           return null;
         }
 
-        const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
-        const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
-
-        return {
-          _id: restaurant._id,
-          name: restaurant.name,
-          address: restaurant.address,
-          description: restaurant.description,
-          logoUrl,
-          coverImageUrl,
-          deliveryFee: restaurant.deliveryFee ?? 0,
-          deliveryTimeMinutes: restaurant.deliveryTimeMinutes ?? 30,
-          rating: restaurant.rating ?? 0,
-        };
+        return toPublicRestaurant(ctx, restaurant);
       })
     );
 
@@ -192,22 +152,7 @@ export const getRecommendedRestaurants = query({
     const top = activeRestaurants.slice(0, 10);
 
     return Promise.all(
-      top.map(async (r) => {
-        const logoUrl = await resolveImageUrl(ctx, r.logoId, r.logoUrl);
-        const coverImageUrl = await resolveStorageUrl(ctx, r.coverImageId);
-
-        return {
-          _id: r._id,
-          name: r.name,
-          address: r.address,
-          description: r.description,
-          logoUrl,
-          coverImageUrl,
-          deliveryFee: r.deliveryFee ?? 0,
-          deliveryTimeMinutes: r.deliveryTimeMinutes ?? 30,
-          rating: r.rating ?? 0,
-        };
-      })
+      top.map((r) => toPublicRestaurant(ctx, r))
     );
   },
 });

@@ -30,6 +30,9 @@ function validateIcon(icon: string | undefined): string | undefined {
   return trimmed;
 }
 
+// NOTE: This query intentionally returns all items (active and inactive) for the
+// admin panel, where staff needs to see and manage the full menu inventory.
+// For the customer-facing menu, use customerMenu.getPublicMenuByRestaurant instead.
 export const getMenuByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {

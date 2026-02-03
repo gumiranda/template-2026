@@ -4,6 +4,7 @@ import type { Id } from "./_generated/dataModel";
 import { OrderStatus } from "./lib/types";
 import { requireRestaurantStaffAccess } from "./lib/auth";
 import { batchFetchTables, validateSession, validateOrderItems } from "./lib/helpers";
+import { orderStatusValidator } from "./schema";
 
 export const getOrdersByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -129,16 +130,7 @@ export const createOrder = mutation({
 export const updateOrderStatus = mutation({
   args: {
     orderId: v.id("orders"),
-    status: v.union(
-      v.literal("pending"),
-      v.literal("confirmed"),
-      v.literal("preparing"),
-      v.literal("ready"),
-      v.literal("served"),
-      v.literal("completed"),
-      v.literal("delivering"),
-      v.literal("canceled")
-    ),
+    status: orderStatusValidator,
   },
   handler: async (ctx, args) => {
     const order = await ctx.db.get(args.orderId);

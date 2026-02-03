@@ -63,9 +63,9 @@ export const create = mutation({
     }
 
     return ctx.db.insert("restaurants", {
-      name: args.name,
-      address: args.address,
-      phone: args.phone,
+      name,
+      address,
+      phone: args.phone?.trim(),
       description: args.description,
       logoId: args.logoId,
       status: RestaurantStatus.ACTIVE,
@@ -96,12 +96,32 @@ export const update = mutation({
       throw new Error("Not authorized to update this restaurant");
     }
 
+    const name = args.options.name.trim();
+    if (!name || name.length > 200) {
+      throw new Error("Restaurant name must be between 1 and 200 characters");
+    }
+
+    const address = args.options.address.trim();
+    if (!address || address.length > 500) {
+      throw new Error("Address must be between 1 and 500 characters");
+    }
+
+    const phone = args.options.phone.trim();
+    if (phone.length > 30) {
+      throw new Error("Phone number must be 30 characters or less");
+    }
+
     // If replacing logo, delete old one from storage
     if (args.options.logoId && restaurant.logoId && restaurant.logoId !== args.options.logoId) {
       await ctx.storage.delete(restaurant.logoId);
     }
 
-    return await ctx.db.patch(args.id, args.options);
+    return await ctx.db.patch(args.id, {
+      ...args.options,
+      name,
+      address,
+      phone,
+    });
   },
 });
 

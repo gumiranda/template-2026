@@ -137,7 +137,29 @@ export const createTable = mutation({
   handler: async (ctx, args) => {
     await requireRestaurantAccess(ctx, args.restaurantId);
 
-    return await ctx.db.insert("tables", args);
+    const tableNumber = args.tableNumber.trim();
+    if (!tableNumber || tableNumber.length > 50) {
+      throw new Error("Table number must be between 1 and 50 characters");
+    }
+
+    if (!Number.isInteger(args.capacity) || args.capacity < 1) {
+      throw new Error("Capacity must be a positive integer");
+    }
+
+    // Validate qrCode is a proper HTTP(S) URL to prevent javascript: injection
+    try {
+      const parsed = new URL(args.qrCode);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        throw new Error("Invalid protocol");
+      }
+    } catch {
+      throw new Error("qrCode must be a valid HTTP or HTTPS URL");
+    }
+
+    return await ctx.db.insert("tables", {
+      ...args,
+      tableNumber,
+    });
   },
 });
 
@@ -353,6 +375,10 @@ export const updateTable = mutation({
     }
 
     await requireRestaurantAccess(ctx, table.restaurantId);
+
+    if (args.capacity !== undefined && (!Number.isInteger(args.capacity) || args.capacity < 1)) {
+      throw new Error("Capacity must be a positive integer");
+    }
 
     const updates: Partial<Doc<"tables">> = {};
     if (args.isActive !== undefined) updates.isActive = args.isActive;

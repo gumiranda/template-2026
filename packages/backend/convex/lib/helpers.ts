@@ -1,5 +1,6 @@
 import type { QueryCtx, MutationCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
+import { resolveImageUrl, resolveStorageUrl } from "../files";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -126,4 +127,24 @@ export function formatCurrency(value: number): string {
     style: "currency",
     currency: "BRL",
   }).format(value / 100);
+}
+
+export async function toPublicRestaurant(
+  ctx: QueryCtx,
+  restaurant: Doc<"restaurants">
+) {
+  const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
+  const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
+
+  return {
+    _id: restaurant._id,
+    name: restaurant.name,
+    address: restaurant.address,
+    description: restaurant.description,
+    logoUrl,
+    coverImageUrl,
+    deliveryFee: restaurant.deliveryFee ?? 0,
+    deliveryTimeMinutes: restaurant.deliveryTimeMinutes ?? 30,
+    rating: restaurant.rating ?? 0,
+  };
 }

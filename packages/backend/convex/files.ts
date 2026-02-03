@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { requireAuth } from "./lib/auth";
+import { requireAuth, isAdmin } from "./lib/auth";
 import type { Id } from "./_generated/dataModel";
 import type { QueryCtx } from "./_generated/server";
 
@@ -22,7 +22,10 @@ export const getFileUrl = query({
 export const deleteFile = mutation({
   args: { storageId: v.id("_storage") },
   handler: async (ctx, args) => {
-    await requireAuth(ctx);
+    const user = await requireAuth(ctx);
+    if (!isAdmin(user.role)) {
+      throw new Error("Only admins can delete files directly");
+    }
     await ctx.storage.delete(args.storageId);
   },
 });
