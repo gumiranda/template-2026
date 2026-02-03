@@ -56,7 +56,7 @@ import {
   UtensilsCrossed,
   ImageIcon,
 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
 import { AdminGuard } from "@/components/admin-guard";
 import { useUploadFile } from "@/hooks/use-upload-file";
 import { toast } from "sonner";

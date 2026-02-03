@@ -3,6 +3,7 @@ import { query, mutation } from "./_generated/server";
 import { getAuthenticatedUser } from "./lib/auth";
 import { OrderStatus, OrderType, RestaurantStatus } from "./lib/types";
 import { calculateDiscountedPrice } from "./lib/helpers";
+import { resolveImageUrl } from "./files";
 
 export const createDeliveryOrder = mutation({
   args: {
@@ -34,6 +35,9 @@ export const createDeliveryOrder = mutation({
     if (!args.deliveryAddress.trim()) {
       throw new Error("Delivery address is required");
     }
+    if (args.deliveryAddress.length > 500) {
+      throw new Error("Delivery address must be 500 characters or less");
+    }
 
     // Validate items and calculate prices server-side
     let subtotalPrice = 0;
@@ -55,10 +59,7 @@ export const createDeliveryOrder = mutation({
 
         const originalTotal = menuItem.price * item.quantity;
         const discountPercentage = menuItem.discountPercentage ?? 0;
-        const discountedPrice =
-          discountPercentage > 0
-            ? calculateDiscountedPrice(menuItem.price, discountPercentage)
-            : menuItem.price;
+        const discountedPrice = calculateDiscountedPrice(menuItem.price, discountPercentage);
         const discountedTotal = discountedPrice * item.quantity;
         const itemDiscount = originalTotal - discountedTotal;
 
@@ -128,10 +129,9 @@ export const getMyOrders = query({
     return Promise.all(
       orders.map(async (order) => {
         const restaurant = await ctx.db.get(order.restaurantId);
-        const logoUrl =
-          restaurant?.logoId
-            ? await ctx.storage.getUrl(restaurant.logoId)
-            : restaurant?.logoUrl ?? null;
+        const logoUrl = restaurant
+          ? await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl)
+          : null;
 
         const items = await ctx.db
           .query("orderItems")
@@ -168,10 +168,9 @@ export const getMyOrderDetails = query({
     if (!order || order.userId !== user._id) return null;
 
     const restaurant = await ctx.db.get(order.restaurantId);
-    const logoUrl =
-      restaurant?.logoId
-        ? await ctx.storage.getUrl(restaurant.logoId)
-        : restaurant?.logoUrl ?? null;
+    const logoUrl = restaurant
+      ? await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl)
+      : null;
 
     const items = await ctx.db
       .query("orderItems")

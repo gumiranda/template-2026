@@ -88,12 +88,20 @@ export const createItem = mutation({
     description: v.optional(v.string()),
     price: v.number(),
     imageId: v.optional(v.id("_storage")),
+    discountPercentage: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await requireAdminRestaurantAccess(ctx, args.restaurantId);
 
     if (args.price <= 0) {
       throw new Error("Price must be greater than zero");
+    }
+
+    if (
+      args.discountPercentage !== undefined &&
+      (args.discountPercentage < 0 || args.discountPercentage > 100)
+    ) {
+      throw new Error("Discount percentage must be between 0 and 100");
     }
 
     const category = await ctx.db.get(args.categoryId);
@@ -108,6 +116,7 @@ export const createItem = mutation({
       description: args.description,
       price: args.price,
       imageId: args.imageId,
+      discountPercentage: args.discountPercentage,
       isActive: true,
     });
   },
@@ -140,6 +149,7 @@ export const updateItem = mutation({
     price: v.optional(v.number()),
     imageId: v.optional(v.id("_storage")),
     categoryId: v.optional(v.id("menuCategories")),
+    discountPercentage: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const item = await ctx.db.get(args.itemId);
@@ -151,6 +161,13 @@ export const updateItem = mutation({
 
     if (args.price !== undefined && args.price <= 0) {
       throw new Error("Price must be greater than zero");
+    }
+
+    if (
+      args.discountPercentage !== undefined &&
+      (args.discountPercentage < 0 || args.discountPercentage > 100)
+    ) {
+      throw new Error("Discount percentage must be between 0 and 100");
     }
 
     if (args.categoryId) {
@@ -261,6 +278,10 @@ export const reorderCategories = mutation({
     await requireAdminRestaurantAccess(ctx, args.restaurantId);
 
     for (const { id, order } of args.orderedIds) {
+      const category = await ctx.db.get(id);
+      if (!category || category.restaurantId !== args.restaurantId) {
+        throw new Error("Category does not belong to this restaurant");
+      }
       await ctx.db.patch(id, { order });
     }
   },

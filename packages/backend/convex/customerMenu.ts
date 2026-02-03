@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { RestaurantStatus } from "./lib/types";
 import { calculateDiscountedPrice } from "./lib/helpers";
+import { resolveImageUrl } from "./files";
 
 export const getPublicMenuByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -31,15 +32,10 @@ export const getPublicMenuByRestaurant = query({
 
         const itemsWithPrices = await Promise.all(
           activeItems.map(async (item) => {
-            const imageUrl = item.imageId
-              ? await ctx.storage.getUrl(item.imageId)
-              : item.imageUrl ?? null;
+            const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
 
             const discountPercentage = item.discountPercentage ?? 0;
-            const discountedPrice =
-              discountPercentage > 0
-                ? calculateDiscountedPrice(item.price, discountPercentage)
-                : item.price;
+            const discountedPrice = calculateDiscountedPrice(item.price, discountPercentage);
 
             return {
               _id: item._id,
@@ -77,19 +73,11 @@ export const getProductDetails = query({
       return null;
     }
 
-    const imageUrl = item.imageId
-      ? await ctx.storage.getUrl(item.imageId)
-      : item.imageUrl ?? null;
-
-    const logoUrl = restaurant.logoId
-      ? await ctx.storage.getUrl(restaurant.logoId)
-      : restaurant.logoUrl ?? null;
+    const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
+    const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
 
     const discountPercentage = item.discountPercentage ?? 0;
-    const discountedPrice =
-      discountPercentage > 0
-        ? calculateDiscountedPrice(item.price, discountPercentage)
-        : item.price;
+    const discountedPrice = calculateDiscountedPrice(item.price, discountPercentage);
 
     // Fetch related products from the same category
     const relatedItems = await ctx.db
@@ -102,19 +90,14 @@ export const getProductDetails = query({
         .filter((ri) => ri.isActive && ri._id !== args.menuItemId)
         .slice(0, 6)
         .map(async (ri) => {
-          const riImageUrl = ri.imageId
-            ? await ctx.storage.getUrl(ri.imageId)
-            : ri.imageUrl ?? null;
+          const riImageUrl = await resolveImageUrl(ctx, ri.imageId, ri.imageUrl);
           const riDiscount = ri.discountPercentage ?? 0;
           return {
             _id: ri._id,
             name: ri.name,
             price: ri.price,
             discountPercentage: riDiscount,
-            discountedPrice:
-              riDiscount > 0
-                ? calculateDiscountedPrice(ri.price, riDiscount)
-                : ri.price,
+            discountedPrice: calculateDiscountedPrice(ri.price, riDiscount),
             imageUrl: riImageUrl,
             restaurantId: ri.restaurantId,
           };
@@ -176,9 +159,7 @@ export const getRecommendedProducts = query({
           return null;
         }
 
-        const imageUrl = item.imageId
-          ? await ctx.storage.getUrl(item.imageId)
-          : item.imageUrl ?? null;
+        const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
 
         const discountPercentage = item.discountPercentage ?? 0;
         return {
@@ -187,10 +168,7 @@ export const getRecommendedProducts = query({
           description: item.description,
           price: item.price,
           discountPercentage,
-          discountedPrice: calculateDiscountedPrice(
-            item.price,
-            discountPercentage
-          ),
+          discountedPrice: calculateDiscountedPrice(item.price, discountPercentage),
           imageUrl,
           restaurantId: item.restaurantId,
           restaurantName: restaurant.name,
@@ -235,9 +213,7 @@ export const getProductsByFoodCategory = query({
 
         return Promise.all(
           activeItems.map(async (item) => {
-            const imageUrl = item.imageId
-              ? await ctx.storage.getUrl(item.imageId)
-              : item.imageUrl ?? null;
+            const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
             const discountPercentage = item.discountPercentage ?? 0;
             return {
               _id: item._id,
@@ -245,10 +221,7 @@ export const getProductsByFoodCategory = query({
               description: item.description,
               price: item.price,
               discountPercentage,
-              discountedPrice:
-                discountPercentage > 0
-                  ? calculateDiscountedPrice(item.price, discountPercentage)
-                  : item.price,
+              discountedPrice: calculateDiscountedPrice(item.price, discountPercentage),
               imageUrl,
               restaurantId: item.restaurantId,
               restaurantName: restaurant.name,

@@ -1,26 +1,14 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { OrderStatus, Role } from "./lib/types";
-import { getAuthenticatedUser, isRestaurantStaff } from "./lib/auth";
+import { OrderStatus } from "./lib/types";
+import { requireRestaurantStaffAccess } from "./lib/auth";
 import { batchFetchTables, validateSession } from "./lib/helpers";
 
 export const getOrdersByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user || !isRestaurantStaff(user.role)) {
-      throw new Error("Unauthorized: Only restaurant staff can view orders");
-    }
-
-    const restaurant = await ctx.db.get(args.restaurantId);
-    if (!restaurant) {
-      throw new Error("Restaurant not found");
-    }
-
-    if (user.role !== Role.SUPERADMIN && restaurant.ownerId !== user._id) {
-      throw new Error("Not authorized to access this restaurant's orders");
-    }
+    await requireRestaurantStaffAccess(ctx, args.restaurantId);
 
     const orders = await ctx.db
       .query("orders")
@@ -166,24 +154,12 @@ export const updateOrderStatus = mutation({
     ),
   },
   handler: async (ctx, args) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user || !isRestaurantStaff(user.role)) {
-      throw new Error("Unauthorized: Only restaurant staff can update orders");
-    }
-
     const order = await ctx.db.get(args.orderId);
     if (!order) {
       throw new Error("Order not found");
     }
 
-    const restaurant = await ctx.db.get(order.restaurantId);
-    if (!restaurant) {
-      throw new Error("Restaurant not found");
-    }
-
-    if (user.role !== Role.SUPERADMIN && restaurant.ownerId !== user._id) {
-      throw new Error("Not authorized to update this restaurant's orders");
-    }
+    await requireRestaurantStaffAccess(ctx, order.restaurantId);
 
     await ctx.db.patch(args.orderId, {
       status: args.status,

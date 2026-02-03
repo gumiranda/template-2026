@@ -28,7 +28,7 @@ import {
   QrCode,
 } from "lucide-react";
 import { getRestaurantStatus } from "@/lib/constants";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
 import { AdminGuard } from "@/components/admin-guard";
 import { StatCard } from "@/components/stat-card";
 

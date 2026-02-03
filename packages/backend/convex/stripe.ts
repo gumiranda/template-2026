@@ -10,6 +10,25 @@ function getStripe() {
   return new Stripe(key);
 }
 
+const ALLOWED_STRIPE_HOSTS = [
+  "checkout.stripe.com",
+  "billing.stripe.com",
+];
+
+function validateStripeUrl(url: string | null): string {
+  if (!url) throw new Error("No URL returned from Stripe");
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") throw new Error("Invalid protocol");
+    if (!ALLOWED_STRIPE_HOSTS.includes(parsed.hostname)) {
+      throw new Error("Unexpected Stripe host");
+    }
+  } catch {
+    throw new Error("Invalid Stripe URL returned");
+  }
+  return url;
+}
+
 export const upsertStripeData = internalMutation({
   args: {
     userId: v.id("users"),
@@ -224,7 +243,7 @@ export const createCheckoutSession = action({
       cancel_url: `${baseUrl}/subscription`,
     });
 
-    return session.url;
+    return validateStripeUrl(session.url);
   },
 });
 
@@ -292,6 +311,6 @@ export const createBillingPortalSession = action({
       return_url: `${baseUrl}/subscription`,
     });
 
-    return session.url;
+    return validateStripeUrl(session.url);
   },
 });

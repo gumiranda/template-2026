@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import {
   cartItemsAtom,
   cartDeliveryFeeAtom,
@@ -80,7 +80,10 @@ export function useCart() {
     [setDeliveryFee]
   );
 
-  const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItems = useMemo(
+    () => items.reduce((sum, item) => sum + item.quantity, 0),
+    [items]
+  );
 
   return {
     items,

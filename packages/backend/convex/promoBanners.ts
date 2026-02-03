@@ -1,6 +1,20 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthenticatedUser, isAdmin } from "./lib/auth";
+import { resolveImageUrl } from "./files";
+
+function validateLinkUrl(url: string) {
+  if (url.startsWith("/")) return;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+      throw new Error("Invalid protocol");
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message === "Invalid protocol") throw e;
+    throw new Error("linkUrl must be a relative path or a valid HTTP/HTTPS URL");
+  }
+}
 
 export const listActiveBanners = query({
   args: {},
@@ -12,9 +26,7 @@ export const listActiveBanners = query({
 
     return Promise.all(
       banners.map(async (banner) => {
-        const imageUrl = banner.imageId
-          ? await ctx.storage.getUrl(banner.imageId)
-          : banner.imageUrl ?? null;
+        const imageUrl = await resolveImageUrl(ctx, banner.imageId, banner.imageUrl);
         return { ...banner, imageUrl };
       })
     );
@@ -35,20 +47,7 @@ export const createBanner = mutation({
       throw new Error("Only admins can create banners");
     }
 
-    // Validate linkUrl to prevent javascript: protocol injection
-    if (args.linkUrl) {
-      const isRelative = args.linkUrl.startsWith("/");
-      if (!isRelative) {
-        try {
-          const parsed = new URL(args.linkUrl);
-          if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-            throw new Error("Invalid protocol");
-          }
-        } catch {
-          throw new Error("linkUrl must be a relative path or a valid HTTP/HTTPS URL");
-        }
-      }
-    }
+    if (args.linkUrl) validateLinkUrl(args.linkUrl);
 
     return ctx.db.insert("promoBanners", {
       title: args.title,
@@ -77,20 +76,7 @@ export const updateBanner = mutation({
       throw new Error("Only admins can update banners");
     }
 
-    // Validate linkUrl to prevent javascript: protocol injection
-    if (args.linkUrl) {
-      const isRelative = args.linkUrl.startsWith("/");
-      if (!isRelative) {
-        try {
-          const parsed = new URL(args.linkUrl);
-          if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-            throw new Error("Invalid protocol");
-          }
-        } catch {
-          throw new Error("linkUrl must be a relative path or a valid HTTP/HTTPS URL");
-        }
-      }
-    }
+    if (args.linkUrl) validateLinkUrl(args.linkUrl);
 
     const { id, ...updates } = args;
     const filtered: Record<string, unknown> = {};

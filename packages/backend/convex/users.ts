@@ -45,10 +45,8 @@ export const hasAnyUsers = query({
 });
 
 export const add = mutation({
-  args: {
-    autoApprove: v.optional(v.boolean()),
-  },
-  handler: async (ctx, args) => {
+  args: {},
+  handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (identity === null) {
       throw new Error("Not authenticated");
@@ -65,14 +63,11 @@ export const add = mutation({
       return existingUser._id;
     }
 
-    const status = args.autoApprove ? UserStatus.APPROVED : UserStatus.PENDING;
-
     const userId = await ctx.db.insert("users", {
       name: identity.name ?? "Unknown",
       clerkId: clerkId,
       role: Role.USER,
-      status,
-      ...(args.autoApprove ? { approvedAt: Date.now() } : {}),
+      status: UserStatus.PENDING,
     });
 
     return userId;
@@ -139,7 +134,7 @@ export const getAllUsers = query({
       return {
         page: [],
         isDone: true,
-        continueCursor: "" as string,
+        continueCursor: "",
       };
     }
 

@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { RestaurantStatus } from "./lib/types";
+import { resolveImageUrl, resolveStorageUrl } from "./files";
 
 export const listPublicRestaurants = query({
   args: {},
@@ -16,12 +17,8 @@ export const listPublicRestaurants = query({
 
     return Promise.all(
       activeRestaurants.map(async (r) => {
-        const logoUrl = r.logoId
-          ? await ctx.storage.getUrl(r.logoId)
-          : r.logoUrl ?? null;
-        const coverImageUrl = r.coverImageId
-          ? await ctx.storage.getUrl(r.coverImageId)
-          : null;
+        const logoUrl = await resolveImageUrl(ctx, r.logoId, r.logoUrl);
+        const coverImageUrl = await resolveStorageUrl(ctx, r.coverImageId);
 
         return {
           _id: r._id,
@@ -56,12 +53,8 @@ export const searchPublicRestaurants = query({
 
     return Promise.all(
       activeResults.map(async (r) => {
-        const logoUrl = r.logoId
-          ? await ctx.storage.getUrl(r.logoId)
-          : r.logoUrl ?? null;
-        const coverImageUrl = r.coverImageId
-          ? await ctx.storage.getUrl(r.coverImageId)
-          : null;
+        const logoUrl = await resolveImageUrl(ctx, r.logoId, r.logoUrl);
+        const coverImageUrl = await resolveStorageUrl(ctx, r.coverImageId);
 
         return {
           _id: r._id,
@@ -87,12 +80,8 @@ export const getPublicRestaurant = query({
       return null;
     }
 
-    const logoUrl = restaurant.logoId
-      ? await ctx.storage.getUrl(restaurant.logoId)
-      : restaurant.logoUrl ?? null;
-    const coverImageUrl = restaurant.coverImageId
-      ? await ctx.storage.getUrl(restaurant.coverImageId)
-      : null;
+    const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
+    const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
 
     // Fetch menu categories with items
     const categories = await ctx.db
@@ -115,9 +104,7 @@ export const getPublicRestaurant = query({
 
         const itemsWithImages = await Promise.all(
           activeItems.map(async (item) => {
-            const imageUrl = item.imageId
-              ? await ctx.storage.getUrl(item.imageId)
-              : item.imageUrl ?? null;
+            const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
             return { ...item, imageUrl };
           })
         );
@@ -166,12 +153,8 @@ export const getRestaurantsByFoodCategory = query({
           return null;
         }
 
-        const logoUrl = restaurant.logoId
-          ? await ctx.storage.getUrl(restaurant.logoId)
-          : restaurant.logoUrl ?? null;
-        const coverImageUrl = restaurant.coverImageId
-          ? await ctx.storage.getUrl(restaurant.coverImageId)
-          : null;
+        const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
+        const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
 
         return {
           _id: restaurant._id,
@@ -212,12 +195,8 @@ export const getRecommendedRestaurants = query({
 
     return Promise.all(
       top.map(async (r) => {
-        const logoUrl = r.logoId
-          ? await ctx.storage.getUrl(r.logoId)
-          : r.logoUrl ?? null;
-        const coverImageUrl = r.coverImageId
-          ? await ctx.storage.getUrl(r.coverImageId)
-          : null;
+        const logoUrl = await resolveImageUrl(ctx, r.logoId, r.logoUrl);
+        const coverImageUrl = await resolveStorageUrl(ctx, r.coverImageId);
 
         return {
           _id: r._id,

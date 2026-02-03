@@ -56,7 +56,7 @@ import {
   RESTAURANT_STATUSES,
   getRestaurantStatus,
 } from "@/lib/constants";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
 import { AdminGuard } from "@/components/admin-guard";
 import { StatCard } from "@/components/stat-card";
 import { useUploadFile } from "@/hooks/use-upload-file";

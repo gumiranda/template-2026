@@ -321,7 +321,7 @@ export const batchCreateTables = mutation({
         continue;
       }
 
-      const qrCode = `${args.baseUrl}/menu/${args.restaurantId}?table=${tableNumber}`;
+      const qrCode = `${args.baseUrl}/menu/${args.restaurantId}?table=${encodeURIComponent(tableNumber)}`;
 
       const id = await ctx.db.insert("tables", {
         restaurantId: args.restaurantId,
