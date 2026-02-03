@@ -1,11 +1,12 @@
 "use client";
 
+import { Suspense } from "react";
 import { useQuery } from "convex/react";
 import { useSearchParams } from "next/navigation";
 import { api } from "@workspace/backend/_generated/api";
 import { RestaurantList } from "@/components/store/restaurant-list";
 
-export default function RestaurantsPage() {
+function RestaurantsContent() {
   const searchParams = useSearchParams();
   const searchQuery = searchParams.get("q") ?? "";
 
@@ -18,15 +19,23 @@ export default function RestaurantsPage() {
   const restaurants = searchQuery ? searchResults : allRestaurants;
 
   return (
+    <RestaurantList
+      restaurants={restaurants}
+      title={
+        searchQuery
+          ? `Resultados para "${searchQuery}"`
+          : "Todos os restaurantes"
+      }
+    />
+  );
+}
+
+export default function RestaurantsPage() {
+  return (
     <div className="container mx-auto px-4 py-8">
-      <RestaurantList
-        restaurants={restaurants}
-        title={
-          searchQuery
-            ? `Resultados para "${searchQuery}"`
-            : "Todos os restaurantes"
-        }
-      />
+      <Suspense fallback={<RestaurantList restaurants={undefined} />}>
+        <RestaurantsContent />
+      </Suspense>
     </div>
   );
 }

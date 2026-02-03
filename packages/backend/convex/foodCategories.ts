@@ -72,7 +72,9 @@ export const getFoodCategoryWithProducts = query({
     return {
       ...category,
       imageUrl,
-      restaurants: restaurants.filter(Boolean),
+      restaurants: restaurants.filter(
+        (r): r is NonNullable<typeof r> => r !== null
+      ),
     };
   },
 });

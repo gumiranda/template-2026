@@ -196,7 +196,9 @@ export const getRecommendedProducts = query({
           restaurantName: restaurant.name,
         };
       })
-    ).then((results) => results.filter(Boolean));
+    ).then((results) =>
+      results.filter((r): r is NonNullable<typeof r> => r !== null)
+    );
   },
 });
 

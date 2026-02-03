@@ -88,6 +88,8 @@ export const getUserFavoriteRestaurants = query({
       })
     );
 
-    return restaurants.filter(Boolean);
+    return restaurants.filter(
+      (r): r is NonNullable<typeof r> => r !== null
+    );
   },
 });

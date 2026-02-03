@@ -60,8 +60,13 @@ export default function CategoryPage({
       {category.restaurants.length > 0 && (
         <RestaurantList
           restaurants={category.restaurants.map((r) => ({
-            ...r,
+            _id: r._id,
+            name: r.name,
+            logoUrl: r.logoUrl,
             coverImageUrl: null,
+            deliveryFee: r.deliveryFee,
+            deliveryTimeMinutes: r.deliveryTimeMinutes,
+            rating: r.rating,
           }))}
           title="Restaurantes"
         />
