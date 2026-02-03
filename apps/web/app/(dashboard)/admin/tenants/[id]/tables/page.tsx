@@ -532,8 +532,20 @@ function TableManagementContent({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start gap-4">
+    <div className="space-y-6 pb-20 lg:pb-0">
+      {/* MOBILE HEADER */}
+      <div className="lg:hidden flex items-center gap-3">
+        <BackToRestaurantButton restaurantId={restaurantId} />
+        <div className="min-w-0">
+          <h1 className="text-lg font-bold truncate">Mesas - {restaurant.name}</h1>
+          <p className="text-sm text-muted-foreground">
+            QR codes e gerenciamento
+          </p>
+        </div>
+      </div>
+
+      {/* DESKTOP HEADER */}
+      <div className="hidden lg:flex items-start gap-4">
         <BackToRestaurantButton restaurantId={restaurantId} />
         <div>
           <h1 className="text-2xl font-bold">TABLE MANAGEMENT</h1>
@@ -543,7 +555,7 @@ function TableManagementContent({
         </div>
       </div>
 
-      <div className="flex gap-6">
+      <div className="lg:flex lg:gap-6">
         <div className="flex-1 space-y-6">
           <div className="grid gap-4 md:grid-cols-3">
             <StatCard
@@ -577,7 +589,7 @@ function TableManagementContent({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-end gap-4">
+              <div className="flex flex-wrap items-end gap-3">
                 <div className="space-y-2">
                   <Label htmlFor="start-id">START ID</Label>
                   <Input
@@ -615,6 +627,7 @@ function TableManagementContent({
                 <Button
                   onClick={handleGenerateTables}
                   disabled={isGenerating || !generateForm.startId || !generateForm.endId}
+                  className="w-full sm:w-auto"
                 >
                   {isGenerating ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -649,7 +662,7 @@ function TableManagementContent({
                     />
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <Select
                     value={statusFilter}
                     onValueChange={(value) =>
@@ -659,7 +672,7 @@ function TableManagementContent({
                       })
                     }
                   >
-                    <SelectTrigger className="w-[130px]">
+                    <SelectTrigger className="w-[120px] sm:w-[130px]">
                       <Filter className="mr-2 h-4 w-4" />
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
@@ -675,7 +688,7 @@ function TableManagementContent({
                       dispatch({ type: "SET_SORT_BY", payload: value as SortBy })
                     }
                   >
-                    <SelectTrigger className="w-[130px]">
+                    <SelectTrigger className="w-[120px] sm:w-[130px]">
                       <SelectValue placeholder="Sort by" />
                     </SelectTrigger>
                     <SelectContent>
@@ -751,7 +764,7 @@ function TableManagementContent({
           )}
         </div>
 
-        <div className="w-80 shrink-0">
+        <div className="hidden lg:block w-80 shrink-0">
           <div className="sticky top-6">
             <Card>
               <CardHeader>
@@ -872,6 +885,132 @@ function TableManagementContent({
             </Card>
           </div>
         </div>
+      </div>
+
+      {/* MOBILE BATCH ACTIONS */}
+      <div className="lg:hidden">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Printer className="h-5 w-5" />
+              Impressao em Lote
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="border rounded-lg p-3 bg-muted/50">
+              <p className="text-xs text-muted-foreground mb-2 text-center">
+                Preview
+              </p>
+              <div
+                className={`aspect-[3/2] rounded-md flex flex-col items-center justify-center p-3 ${
+                  batchSettings.colorTheme === "dark"
+                    ? "bg-zinc-900 text-white"
+                    : "bg-white text-black border"
+                }`}
+              >
+                <p className="text-[10px] font-bold mb-1">
+                  {batchSettings.callToAction}
+                </p>
+                <QRCodeSVG
+                  value="https://example.com/menu/preview?table=1"
+                  size={60}
+                  bgColor={batchSettings.colorTheme === "dark" ? "#18181b" : "#ffffff"}
+                  fgColor={batchSettings.colorTheme === "dark" ? "#ffffff" : "#000000"}
+                />
+                {batchSettings.showTableNumber && (
+                  <p className="text-sm font-bold mt-1">TABLE 1</p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs">Formato</Label>
+                <Select
+                  value={batchSettings.formatTemplate}
+                  onValueChange={(value) =>
+                    dispatch({
+                      type: "SET_BATCH_SETTING",
+                      payload: { formatTemplate: value as FormatTemplate },
+                    })
+                  }
+                >
+                  <SelectTrigger className="text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tent-card-4x6">Tent Card (4x6)</SelectItem>
+                    <SelectItem value="sticker-2x2">Sticker (2x2)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-xs">Tema</Label>
+                <ToggleGroup
+                  type="single"
+                  value={batchSettings.colorTheme}
+                  onValueChange={(value) =>
+                    value &&
+                    dispatch({
+                      type: "SET_BATCH_SETTING",
+                      payload: { colorTheme: value as ColorTheme },
+                    })
+                  }
+                  className="w-full"
+                >
+                  <ToggleGroupItem value="light" className="flex-1 text-xs">
+                    <Sun className="h-3 w-3 mr-1" />
+                    Light
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="dark" className="flex-1 text-xs">
+                    <Moon className="h-3 w-3 mr-1" />
+                    Dark
+                  </ToggleGroupItem>
+                </ToggleGroup>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="mobile-call-to-action" className="text-xs">Call to Action</Label>
+              <Input
+                id="mobile-call-to-action"
+                value={batchSettings.callToAction}
+                onChange={(e) =>
+                  dispatch({
+                    type: "SET_BATCH_SETTING",
+                    payload: { callToAction: e.target.value },
+                  })
+                }
+                placeholder="SCAN TO ORDER"
+              />
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="mobile-show-table-number"
+                checked={batchSettings.showTableNumber}
+                onCheckedChange={(checked) =>
+                  dispatch({
+                    type: "SET_BATCH_SETTING",
+                    payload: { showTableNumber: checked === true },
+                  })
+                }
+              />
+              <Label htmlFor="mobile-show-table-number" className="text-sm">
+                Exibir numero da mesa
+              </Label>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* MOBILE FLOATING PRINT BUTTON */}
+      <div className="lg:hidden fixed bottom-6 left-4 right-4 z-40">
+        <Button className="w-full" onClick={handlePrintAll}>
+          <Printer className="mr-2 h-4 w-4" />
+          Imprimir {selectedTableIds.size > 0 ? `Selecionadas (${selectedTableIds.size})` : "Todas"}
+        </Button>
       </div>
 
       <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
@@ -1044,7 +1183,7 @@ function TableStatsDialog({ open, onOpenChange, tableId }: TableStatsDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[100dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5" />
@@ -1067,7 +1206,7 @@ function TableStatsDialog({ open, onOpenChange, tableId }: TableStatsDialogProps
           </p>
         ) : (
           <div className="space-y-6">
-            <div className="grid gap-4 grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
               <Card>
                 <CardContent className="pt-6">
                   <p className="text-sm text-muted-foreground">Total Orders</p>
