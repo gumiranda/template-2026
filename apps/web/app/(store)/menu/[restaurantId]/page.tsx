@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useRef, useCallback } from "react";
+import { use, useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
 import { useQuery, useMutation } from "convex/react";
 import { useSetAtom } from "jotai";
@@ -69,8 +69,11 @@ function DineInContent({
   tableNumber: string;
 }) {
   const setOrderContext = useSetAtom(orderContextAtom);
-  const sessionIdRef = useRef<string | null>(null);
-  const sessionCreatedRef = useRef(false);
+  const [sessionId, setSessionId] = useState(
+    () => getStoredSessionId(restaurantId, tableNumber) ?? uuidv4()
+  );
+  const [sessionReady, setSessionReady] = useState(false);
+  const sessionCreateAttempted = useRef(false);
 
   const restaurant = useQuery(api.customerRestaurants.getPublicRestaurant, {
     restaurantId,
@@ -81,19 +84,12 @@ function DineInContent({
   });
   const createSession = useMutation(api.sessions.createSession);
 
-  // Resolve or create session ID
-  if (!sessionIdRef.current) {
-    const stored = getStoredSessionId(restaurantId, tableNumber);
-    sessionIdRef.current = stored ?? uuidv4();
-  }
-
-  const sessionId = sessionIdRef.current;
-  const { addToCart } = useSessionCart(sessionId);
+  const { addToCart } = useSessionCart(sessionReady ? sessionId : null);
 
   // Create session and set order context once table is loaded
   useEffect(() => {
-    if (!table || sessionCreatedRef.current) return;
-    sessionCreatedRef.current = true;
+    if (!table || sessionReady || sessionCreateAttempted.current) return;
+    sessionCreateAttempted.current = true;
 
     createSession({
       sessionId,
@@ -102,6 +98,7 @@ function DineInContent({
     })
       .then(() => {
         storeSessionId(restaurantId, tableNumber, sessionId);
+        setSessionReady(true);
         setOrderContext({
           type: "dine_in",
           sessionId,
@@ -112,13 +109,13 @@ function DineInContent({
       })
       .catch(() => {
         // Session may have expired — create a new one
-        const newSessionId = uuidv4();
-        sessionIdRef.current = newSessionId;
-        sessionCreatedRef.current = false;
-        storeSessionId(restaurantId, tableNumber, newSessionId);
+        const newId = uuidv4();
+        storeSessionId(restaurantId, tableNumber, newId);
+        sessionCreateAttempted.current = false;
+        setSessionId(newId);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table]);
+  }, [table, sessionId]);
 
   // Reset order context when leaving
   useEffect(() => {
