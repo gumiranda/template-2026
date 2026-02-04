@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthenticatedUser, isAdmin } from "./lib/auth";
+import { filterUndefined } from "./lib/helpers";
 import { resolveImageUrl } from "./files";
 
 function validateLinkUrl(url: string) {
@@ -47,10 +48,15 @@ export const createBanner = mutation({
       throw new Error("Only admins can create banners");
     }
 
+    const title = args.title.trim();
+    if (!title || title.length > 200) {
+      throw new Error("Title must be between 1 and 200 characters");
+    }
+
     if (args.linkUrl) validateLinkUrl(args.linkUrl);
 
     return ctx.db.insert("promoBanners", {
-      title: args.title,
+      title,
       imageId: args.imageId,
       imageUrl: args.imageUrl,
       linkUrl: args.linkUrl,
@@ -79,12 +85,7 @@ export const updateBanner = mutation({
     if (args.linkUrl) validateLinkUrl(args.linkUrl);
 
     const { id, ...updates } = args;
-    const filtered: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(updates)) {
-      if (value !== undefined) filtered[key] = value;
-    }
-
-    await ctx.db.patch(id, filtered);
+    await ctx.db.patch(id, filterUndefined(updates));
     return true;
   },
 });

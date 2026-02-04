@@ -1,7 +1,8 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthenticatedUser, isAdmin } from "./lib/auth";
-import { RestaurantStatus } from "./lib/types";
+import { isActiveRestaurant, filterUndefined } from "./lib/helpers";
+import { resolveImageUrl } from "./files";
 
 export const listFoodCategories = query({
   args: {},
@@ -16,9 +17,7 @@ export const listFoodCategories = query({
 
     return Promise.all(
       categories.map(async (cat) => {
-        const imageUrl = cat.imageId
-          ? await ctx.storage.getUrl(cat.imageId)
-          : cat.imageUrl ?? null;
+        const imageUrl = await resolveImageUrl(ctx, cat.imageId, cat.imageUrl);
         return { ...cat, imageUrl };
       })
     );
@@ -31,9 +30,7 @@ export const getFoodCategoryWithProducts = query({
     const category = await ctx.db.get(args.foodCategoryId);
     if (!category || !category.isActive) return null;
 
-    const imageUrl = category.imageId
-      ? await ctx.storage.getUrl(category.imageId)
-      : category.imageUrl ?? null;
+    const imageUrl = await resolveImageUrl(ctx, category.imageId, category.imageUrl);
 
     // Get linked restaurants
     const links = await ctx.db
@@ -46,17 +43,11 @@ export const getFoodCategoryWithProducts = query({
     const restaurants = await Promise.all(
       links.map(async (link) => {
         const restaurant = await ctx.db.get(link.restaurantId);
-        if (
-          !restaurant ||
-          restaurant.deletedAt ||
-          restaurant.status !== RestaurantStatus.ACTIVE
-        ) {
+        if (!isActiveRestaurant(restaurant)) {
           return null;
         }
 
-        const logoUrl = restaurant.logoId
-          ? await ctx.storage.getUrl(restaurant.logoId)
-          : restaurant.logoUrl ?? null;
+        const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
 
         return {
           _id: restaurant._id,
@@ -92,8 +83,17 @@ export const createFoodCategory = mutation({
       throw new Error("Only admins can create food categories");
     }
 
+    const name = args.name.trim();
+    if (!name || name.length > 200) {
+      throw new Error("Category name must be between 1 and 200 characters");
+    }
+
+    if (args.order < 0) {
+      throw new Error("Order must be a non-negative number");
+    }
+
     return ctx.db.insert("foodCategories", {
-      name: args.name,
+      name,
       imageId: args.imageId,
       imageUrl: args.imageUrl,
       order: args.order,
@@ -118,12 +118,7 @@ export const updateFoodCategory = mutation({
     }
 
     const { id, ...updates } = args;
-    const filtered: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(updates)) {
-      if (value !== undefined) filtered[key] = value;
-    }
-
-    await ctx.db.patch(id, filtered);
+    await ctx.db.patch(id, filterUndefined(updates));
     return true;
   },
 });

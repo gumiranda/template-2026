@@ -1,12 +1,10 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import { getAuthenticatedUser, canModifyRestaurant, canViewRestaurant, isAdmin } from "./lib/auth";
+import { getAuthenticatedUser, canModifyRestaurant, isAdmin } from "./lib/auth";
 import { RestaurantStatus, OrderStatus } from "./lib/types";
-import { groupBy, calculateTotalRevenue } from "./lib/helpers";
+import { calculateTotalRevenue } from "./lib/helpers";
+import { MAX_DESCRIPTION_LENGTH } from "./lib/constants";
 import { resolveImageUrl, resolveStorageUrl } from "./files";
-
-const MAX_DESCRIPTION_LENGTH = 1000;
-const STATS_QUERY_LIMIT = 10000;
 
 export const list = query({
   args: {},
@@ -155,11 +153,45 @@ export const deleteRestaurant = mutation({
       throw new Error("Restaurant already deleted");
     }
 
-    return await ctx.db.patch(args.id, {
+    await ctx.db.patch(args.id, {
       deletedAt: Date.now(),
       deletedBy: currentUser._id,
       status: RestaurantStatus.INACTIVE,
     });
+
+    // Cascade: deactivate tables
+    const tables = await ctx.db
+      .query("tables")
+      .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.id))
+      .collect();
+    for (const table of tables) {
+      if (table.isActive) {
+        await ctx.db.patch(table._id, { isActive: false });
+      }
+    }
+
+    // Cascade: expire active sessions
+    const now = Date.now();
+    const sessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.id))
+      .collect();
+    for (const session of sessions) {
+      if (session.expiresAt > now) {
+        await ctx.db.patch(session._id, { expiresAt: now });
+      }
+    }
+
+    // Cascade: deactivate active carts
+    const activeCarts = await ctx.db
+      .query("carts")
+      .withIndex("by_restaurantId_and_isActive", (q) =>
+        q.eq("restaurantId", args.id).eq("isActive", true)
+      )
+      .collect();
+    for (const cart of activeCarts) {
+      await ctx.db.patch(cart._id, { isActive: false });
+    }
   },
 });
 
@@ -174,7 +206,7 @@ export const get = query({
     const restaurant = await ctx.db.get(args.id);
     if (!restaurant) return null;
 
-    if (!canViewRestaurant(currentUser, restaurant)) {
+    if (!canModifyRestaurant(currentUser, restaurant)) {
       return null;
     }
 
@@ -220,19 +252,15 @@ export const listAllWithStats = query({
       .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.ACTIVE))
       .collect();
 
-    const completedOrders = await ctx.db
-      .query("orders")
-      .withIndex("by_status", (q) => q.eq("status", OrderStatus.COMPLETED))
-      .collect();
-
-    const revenueByRestaurant = groupBy(completedOrders, (order) =>
-      order.restaurantId.toString()
-    );
-
     const restaurantsWithStats = await Promise.all(
       restaurants.map(async (restaurant) => {
-        const restaurantOrders = revenueByRestaurant.get(restaurant._id.toString()) ?? [];
-        const totalRevenue = calculateTotalRevenue(restaurantOrders);
+        const completedOrders = await ctx.db
+          .query("orders")
+          .withIndex("by_restaurantId_and_status", (q) =>
+            q.eq("restaurantId", restaurant._id).eq("status", OrderStatus.COMPLETED)
+          )
+          .collect();
+        const totalRevenue = calculateTotalRevenue(completedOrders);
         const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
         const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
         const tables = await ctx.db
@@ -267,27 +295,33 @@ export const getWithStats = query({
     const restaurant = await ctx.db.get(args.id);
     if (!restaurant) return null;
 
-    const allOrders = await ctx.db
-      .query("orders")
-      .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
-      .collect();
+    const [completedOrders, pendingOrders, tables, menuItems, logoUrl, coverImageUrl] =
+      await Promise.all([
+        ctx.db
+          .query("orders")
+          .withIndex("by_restaurantId_and_status", (q) =>
+            q.eq("restaurantId", restaurant._id).eq("status", OrderStatus.COMPLETED)
+          )
+          .collect(),
+        ctx.db
+          .query("orders")
+          .withIndex("by_restaurantId_and_status", (q) =>
+            q.eq("restaurantId", restaurant._id).eq("status", OrderStatus.PENDING)
+          )
+          .collect(),
+        ctx.db
+          .query("tables")
+          .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
+          .collect(),
+        ctx.db
+          .query("menuItems")
+          .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
+          .collect(),
+        resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl),
+        resolveStorageUrl(ctx, restaurant.coverImageId),
+      ]);
 
-    const completedOrders = allOrders.filter((o) => o.status === OrderStatus.COMPLETED);
-    const pendingOrders = allOrders.filter((o) => o.status === OrderStatus.PENDING);
     const totalRevenue = calculateTotalRevenue(completedOrders);
-
-    const tables = await ctx.db
-      .query("tables")
-      .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
-      .collect();
-
-    const menuItems = await ctx.db
-      .query("menuItems")
-      .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
-      .collect();
-
-    const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
-    const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
 
     return {
       ...restaurant,
@@ -295,7 +329,7 @@ export const getWithStats = query({
       coverImageUrl,
       stats: {
         totalRevenue,
-        totalOrders: allOrders.length,
+        totalOrders: completedOrders.length + pendingOrders.length,
         pendingOrders: pendingOrders.length,
         completedOrders: completedOrders.length,
         tablesCount: tables.length,
@@ -313,27 +347,25 @@ export const getOverviewStats = query({
       return null;
     }
 
-    const allRestaurants = await ctx.db
-      .query("restaurants")
-      .take(STATS_QUERY_LIMIT);
-
-    const statusCounts = groupBy(allRestaurants, (r) => r.status ?? "active");
-    const activeCount = statusCounts.get(RestaurantStatus.ACTIVE)?.length ?? 0;
+    const allRestaurants = await ctx.db.query("restaurants").collect();
+    const activeCount = allRestaurants.filter(
+      (r) => (r.status ?? RestaurantStatus.ACTIVE) === RestaurantStatus.ACTIVE && !r.deletedAt
+    ).length;
     const totalRestaurants = allRestaurants.length;
 
     const now = Date.now();
     const activeSessions = await ctx.db
       .query("sessions")
       .withIndex("by_expires_at", (q) => q.gt("expiresAt", now))
-      .take(STATS_QUERY_LIMIT);
+      .collect();
 
     const allCompletedOrders = await ctx.db
       .query("orders")
       .withIndex("by_status", (q) => q.eq("status", OrderStatus.COMPLETED))
-      .take(STATS_QUERY_LIMIT);
+      .collect();
     const totalRevenue = calculateTotalRevenue(allCompletedOrders);
 
-    const allTables = await ctx.db.query("tables").take(STATS_QUERY_LIMIT);
+    const allTables = await ctx.db.query("tables").collect();
 
     return {
       totalRestaurants,

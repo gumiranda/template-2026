@@ -47,14 +47,6 @@ export function canModifyRestaurant(
   return isAdmin(user.role);
 }
 
-export function canViewRestaurant(
-  user: { _id: Id<"users">; role?: string },
-  restaurant: { ownerId: Id<"users"> }
-): boolean {
-  if (restaurant.ownerId === user._id) return true;
-  return isAdmin(user.role);
-}
-
 export async function canManageRestaurant(
   ctx: QueryCtx | MutationCtx,
   userId: Id<"users">,
@@ -68,7 +60,16 @@ export async function canManageRestaurant(
   const restaurant = await ctx.db.get(restaurantId);
   if (!restaurant) return false;
 
-  return restaurant.ownerId === userId;
+  if (restaurant.ownerId === userId) return true;
+
+  const staffLink = await ctx.db
+    .query("restaurantStaff")
+    .withIndex("by_restaurant_and_user", (q) =>
+      q.eq("restaurantId", restaurantId).eq("userId", userId)
+    )
+    .first();
+
+  return staffLink !== null;
 }
 
 export async function requireAuth(

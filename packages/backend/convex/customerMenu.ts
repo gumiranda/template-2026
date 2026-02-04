@@ -1,14 +1,14 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
-import { RestaurantStatus } from "./lib/types";
-import { calculateDiscountedPrice } from "./lib/helpers";
+import { calculateDiscountedPrice, isActiveRestaurant, fetchModifierGroupsWithOptions } from "./lib/helpers";
+import { MAX_ITEMS_PER_RESTAURANT } from "./lib/constants";
 import { resolveImageUrl } from "./files";
 
 export const getPublicMenuByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
     const restaurant = await ctx.db.get(args.restaurantId);
-    if (!restaurant || restaurant.deletedAt || restaurant.status !== RestaurantStatus.ACTIVE) {
+    if (!isActiveRestaurant(restaurant)) {
       return [];
     }
 
@@ -67,7 +67,7 @@ export const getProductDetails = query({
     if (!item || !item.isActive) return null;
 
     const restaurant = await ctx.db.get(item.restaurantId);
-    if (!restaurant || restaurant.deletedAt || restaurant.status !== RestaurantStatus.ACTIVE) {
+    if (!isActiveRestaurant(restaurant)) {
       return null;
     }
 
@@ -104,35 +104,7 @@ export const getProductDetails = query({
         })
     );
 
-    // Fetch modifier groups and options
-    const modifierGroups = await ctx.db
-      .query("modifierGroups")
-      .withIndex("by_menuItem", (q) => q.eq("menuItemId", args.menuItemId))
-      .collect();
-
-    const groupsWithOptions = await Promise.all(
-      modifierGroups.map(async (group) => {
-        const options = await ctx.db
-          .query("modifierOptions")
-          .withIndex("by_modifierGroup", (q) =>
-            q.eq("modifierGroupId", group._id)
-          )
-          .collect();
-        return {
-          _id: group._id,
-          name: group.name,
-          required: group.required,
-          order: group.order,
-          options: options
-            .sort((a, b) => a.order - b.order)
-            .map((o) => ({
-              _id: o._id,
-              name: o.name,
-              price: o.price,
-            })),
-        };
-      })
-    );
+    const modifierGroups = await fetchModifierGroupsWithOptions(ctx, args.menuItemId);
 
     return {
       _id: item._id,
@@ -144,7 +116,17 @@ export const getProductDetails = query({
       imageUrl,
       restaurantId: item.restaurantId,
       tags: item.tags ?? [],
-      modifierGroups: groupsWithOptions.sort((a, b) => a.order - b.order),
+      modifierGroups: modifierGroups.map((g) => ({
+        _id: g._id,
+        name: g.name,
+        required: g.required,
+        order: g.order,
+        options: g.options.map((o) => ({
+          _id: o._id,
+          name: o.name,
+          price: o.price,
+        })),
+      })),
       restaurant: {
         _id: restaurant._id,
         name: restaurant.name,
@@ -179,11 +161,7 @@ export const getRecommendedProducts = query({
     return Promise.all(
       top.map(async (item) => {
         const restaurant = await ctx.db.get(item.restaurantId);
-        if (
-          !restaurant ||
-          restaurant.deletedAt ||
-          restaurant.status !== RestaurantStatus.ACTIVE
-        ) {
+        if (!isActiveRestaurant(restaurant)) {
           return null;
         }
 
@@ -222,11 +200,7 @@ export const getProductsByFoodCategory = query({
     const allProducts = await Promise.all(
       links.map(async (link) => {
         const restaurant = await ctx.db.get(link.restaurantId);
-        if (
-          !restaurant ||
-          restaurant.deletedAt ||
-          restaurant.status !== RestaurantStatus.ACTIVE
-        ) {
+        if (!isActiveRestaurant(restaurant)) {
           return [];
         }
 
@@ -235,7 +209,7 @@ export const getProductsByFoodCategory = query({
           .withIndex("by_restaurantId_and_isActive", (q) =>
             q.eq("restaurantId", link.restaurantId).eq("isActive", true)
           )
-          .collect();
+          .take(MAX_ITEMS_PER_RESTAURANT);
 
         return Promise.all(
           activeItems.map(async (item) => {

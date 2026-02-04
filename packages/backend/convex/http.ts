@@ -35,7 +35,11 @@ http.route({
         "svix-timestamp": svixTimestamp,
         "svix-signature": svixSignature,
       }) as WebhookEvent;
-    } catch {
+    } catch (err) {
+      console.warn("Clerk webhook signature verification failed", {
+        path: "/clerk-webhook",
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
       return new Response("Invalid webhook signature", { status: 400 });
     }
 
@@ -106,7 +110,11 @@ http.route({
     let event: Stripe.Event;
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } catch {
+    } catch (err) {
+      console.warn("Stripe webhook signature verification failed", {
+        path: "/stripe-webhook",
+        error: err instanceof Error ? err.message : "Unknown error",
+      });
       return new Response("Invalid webhook signature", { status: 400 });
     }
 
@@ -123,7 +131,7 @@ http.route({
     }
 
     if (customerId) {
-      await ctx.runAction(internal.stripe.syncStripeDataToConvex, {
+      await ctx.runMutation(internal.stripe.scheduleStripeSync, {
         stripeCustomerId: customerId,
       });
     }

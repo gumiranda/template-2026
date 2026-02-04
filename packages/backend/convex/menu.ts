@@ -1,10 +1,9 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { requireAdminRestaurantAccess, requireRestaurantStaffAccess } from "./lib/auth";
-import { groupBy } from "./lib/helpers";
+import { groupBy, fetchModifierGroupsWithOptions, filterUndefined } from "./lib/helpers";
+import { MAX_DESCRIPTION_LENGTH } from "./lib/constants";
 import { resolveImageUrl } from "./files";
-
-const MAX_DESCRIPTION_LENGTH = 1000;
 
 const VALID_ICON_IDS = [
   "utensils-crossed",
@@ -71,6 +70,8 @@ export const getMenuByRestaurant = query({
   },
 });
 
+// NOTE: This query is intentionally public (no auth check) to support
+// customer-facing menu search. Only active items are returned.
 export const searchMenuItems = query({
   args: {
     restaurantId: v.id("restaurants"),
@@ -269,10 +270,7 @@ export const updateItem = mutation({
     }
 
     const { itemId, removeImage, ...updates } = args;
-    const filteredUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([, value]) => value !== undefined)
-    );
-    return await ctx.db.patch(itemId, filteredUpdates);
+    return await ctx.db.patch(itemId, filterUndefined(updates));
   },
 });
 
@@ -330,10 +328,7 @@ export const updateCategory = mutation({
     args = { ...args, icon: validatedIcon };
 
     const { categoryId, ...updates } = args;
-    const filteredUpdates = Object.fromEntries(
-      Object.entries(updates).filter(([, value]) => value !== undefined)
-    );
-    return await ctx.db.patch(categoryId, filteredUpdates);
+    return await ctx.db.patch(categoryId, filterUndefined(updates));
   },
 });
 
@@ -375,31 +370,12 @@ export const getItemById = query({
     await requireRestaurantStaffAccess(ctx, item.restaurantId);
 
     const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
-
-    const modifierGroups = await ctx.db
-      .query("modifierGroups")
-      .withIndex("by_menuItem", (q) => q.eq("menuItemId", args.itemId))
-      .collect();
-
-    const groupsWithOptions = await Promise.all(
-      modifierGroups.map(async (group) => {
-        const options = await ctx.db
-          .query("modifierOptions")
-          .withIndex("by_modifierGroup", (q) =>
-            q.eq("modifierGroupId", group._id)
-          )
-          .collect();
-        return {
-          ...group,
-          options: options.sort((a, b) => a.order - b.order),
-        };
-      })
-    );
+    const modifierGroups = await fetchModifierGroupsWithOptions(ctx, args.itemId);
 
     return {
       ...item,
       imageUrl,
-      modifierGroups: groupsWithOptions.sort((a, b) => a.order - b.order),
+      modifierGroups,
     };
   },
 });

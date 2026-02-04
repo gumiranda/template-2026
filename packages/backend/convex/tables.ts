@@ -9,8 +9,7 @@ import {
 } from "./lib/auth";
 import { batchFetchMenuItems, groupBy } from "./lib/helpers";
 import { OrderStatus } from "./lib/types";
-
-const MAX_RECENT_ORDERS = 10;
+import { MAX_RECENT_ORDERS } from "./lib/constants";
 
 // NOTE: This query is intentionally public (no auth check) to support the
 // QR code flow where unauthenticated customers scan a table's QR code and
@@ -91,13 +90,20 @@ export const getTablesOverview = query({
       allCartItems.map((i) => i.menuItemId)
     );
 
-    const allOrders = await ctx.db
+    // Only fetch active orders (not completed/canceled) for the overview
+    const activeOrders = await ctx.db
       .query("orders")
       .withIndex("by_restaurant", (q) =>
         q.eq("restaurantId", args.restaurantId)
       )
+      .filter((q) =>
+        q.and(
+          q.neq(q.field("status"), OrderStatus.COMPLETED),
+          q.neq(q.field("status"), OrderStatus.CANCELED)
+        )
+      )
       .collect();
-    const ordersWithTable = allOrders.filter((o) => o.tableId !== undefined);
+    const ordersWithTable = activeOrders.filter((o) => o.tableId !== undefined);
     const ordersByTable = groupBy(ordersWithTable, (o) => o.tableId!.toString());
 
     return tables.map((table) => {

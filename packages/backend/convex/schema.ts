@@ -163,7 +163,8 @@ export default defineSchema({
     .index("by_table", ["tableId"])
     .index("by_restaurant", ["restaurantId"])
     .index("by_tableId_and_isActive", ["tableId", "isActive"])
-    .index("by_restaurantId_and_isActive", ["restaurantId", "isActive"]),
+    .index("by_restaurantId_and_isActive", ["restaurantId", "isActive"])
+    .index("by_isActive", ["isActive"]),
 
   cartItems: defineTable({
     cartId: v.id("carts"),
@@ -245,6 +246,14 @@ export default defineSchema({
   })
     .index("by_restaurant", ["restaurantId"])
     .index("by_category", ["foodCategoryId"]),
+
+  restaurantStaff: defineTable({
+    restaurantId: v.id("restaurants"),
+    userId: v.id("users"),
+  })
+    .index("by_restaurant", ["restaurantId"])
+    .index("by_user", ["userId"])
+    .index("by_restaurant_and_user", ["restaurantId", "userId"]),
 
   stripeData: defineTable({
     userId: v.id("users"),

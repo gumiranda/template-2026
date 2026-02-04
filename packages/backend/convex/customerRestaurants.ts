@@ -2,9 +2,10 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { RestaurantStatus } from "./lib/types";
 import { resolveImageUrl, resolveStorageUrl } from "./files";
-import { toPublicRestaurant } from "./lib/helpers";
+import { toPublicRestaurant, isActiveRestaurant } from "./lib/helpers";
 
-const MAX_PUBLIC_RESTAURANTS = 50;
+import { MAX_PUBLIC_RESTAURANTS } from "./lib/constants";
+
 const MAX_RECOMMENDED = 10;
 
 export const listPublicRestaurants = query({
@@ -52,7 +53,7 @@ export const getPublicRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
     const restaurant = await ctx.db.get(args.restaurantId);
-    if (!restaurant || restaurant.deletedAt || restaurant.status !== RestaurantStatus.ACTIVE) {
+    if (!isActiveRestaurant(restaurant)) {
       return null;
     }
 
@@ -119,11 +120,7 @@ export const getRestaurantsByFoodCategory = query({
     const restaurants = await Promise.all(
       links.map(async (link) => {
         const restaurant = await ctx.db.get(link.restaurantId);
-        if (
-          !restaurant ||
-          restaurant.deletedAt ||
-          restaurant.status !== RestaurantStatus.ACTIVE
-        ) {
+        if (!isActiveRestaurant(restaurant)) {
           return null;
         }
 

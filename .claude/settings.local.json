@@ -7,7 +7,8 @@
       "WebFetch(domain:docs.convex.dev)",
       "WebFetch(domain:github.com)",
       "Bash(npx convex:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(npx tsc:*)"
     ],
     "deny": [],
     "ask": []

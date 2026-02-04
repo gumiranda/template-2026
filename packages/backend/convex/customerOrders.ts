@@ -1,9 +1,11 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthenticatedUser } from "./lib/auth";
-import { OrderStatus, OrderType, RestaurantStatus } from "./lib/types";
-import { calculateDiscountedPrice, validateOrderItems } from "./lib/helpers";
+import { OrderStatus, OrderType } from "./lib/types";
+import { calculateDiscountedPrice, validateOrderItems, isActiveRestaurant } from "./lib/helpers";
 import { resolveImageUrl } from "./files";
+
+import { MAX_USER_ORDERS } from "./lib/constants";
 
 export const createDeliveryOrder = mutation({
   args: {
@@ -21,7 +23,7 @@ export const createDeliveryOrder = mutation({
     if (!user) throw new Error("Authentication required");
 
     const restaurant = await ctx.db.get(args.restaurantId);
-    if (!restaurant || restaurant.deletedAt || restaurant.status !== RestaurantStatus.ACTIVE) {
+    if (!isActiveRestaurant(restaurant)) {
       throw new Error("Restaurant not found or inactive");
     }
 
@@ -112,7 +114,7 @@ export const getMyOrders = query({
     const orders = await ctx.db
       .query("orders")
       .withIndex("by_userId", (q) => q.eq("userId", user._id))
-      .collect();
+      .take(MAX_USER_ORDERS);
 
     // Sort by most recent first
     orders.sort((a, b) => b.createdAt - a.createdAt);

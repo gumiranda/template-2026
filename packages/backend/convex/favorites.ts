@@ -1,8 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthenticatedUser } from "./lib/auth";
-import { RestaurantStatus } from "./lib/types";
-import { toPublicRestaurant } from "./lib/helpers";
+import { toPublicRestaurant, isActiveRestaurant } from "./lib/helpers";
 
 export const toggleFavorite = mutation({
   args: { restaurantId: v.id("restaurants") },
@@ -11,9 +10,7 @@ export const toggleFavorite = mutation({
     if (!user) throw new Error("Authentication required");
 
     const restaurant = await ctx.db.get(args.restaurantId);
-    if (!restaurant || restaurant.deletedAt) {
-      throw new Error("Restaurant not found");
-    }
+    if (!restaurant || restaurant.deletedAt) throw new Error("Restaurant not found");
 
     const existing = await ctx.db
       .query("favoriteRestaurants")
@@ -65,11 +62,7 @@ export const getUserFavoriteRestaurants = query({
     const restaurants = await Promise.all(
       favorites.map(async (fav) => {
         const restaurant = await ctx.db.get(fav.restaurantId);
-        if (
-          !restaurant ||
-          restaurant.deletedAt ||
-          restaurant.status !== RestaurantStatus.ACTIVE
-        ) {
+        if (!isActiveRestaurant(restaurant)) {
           return null;
         }
 

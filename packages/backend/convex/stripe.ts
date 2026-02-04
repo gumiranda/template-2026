@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { action, internalAction, internalMutation, internalQuery, query } from "./_generated/server";
+import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getAuthenticatedUser } from "./lib/auth";
 import Stripe from "stripe";
@@ -14,6 +15,13 @@ const ALLOWED_STRIPE_HOSTS = [
   "checkout.stripe.com",
   "billing.stripe.com",
 ];
+
+function getValidatedAppUrl(): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.HOSTING_URL;
+  if (!baseUrl) throw new Error("App URL not configured");
+  new URL(baseUrl); // Validates URL format
+  return baseUrl;
+}
 
 function validateStripeUrl(url: string | null): string {
   if (!url) throw new Error("No URL returned from Stripe");
@@ -68,72 +76,76 @@ export const upsertStripeData = internalMutation({
   },
 });
 
+// Shared helper: fetches subscription data from Stripe and persists via mutation.
+// Used by both syncStripeDataToConvex (webhook flow) and syncAfterSuccess (checkout flow)
+// to avoid action-calling-action.
+async function syncStripeSubscriptionData(
+  ctx: Pick<ActionCtx, "runQuery" | "runMutation">,
+  stripeCustomerId: string
+): Promise<void> {
+  const stripe = getStripe();
+
+  const stripeRecord = await ctx.runQuery(
+    internal.stripe.getStripeDataByCustomerId,
+    { stripeCustomerId }
+  );
+
+  if (!stripeRecord) {
+    console.warn(`No user found for Stripe customer ${stripeCustomerId}`);
+    return;
+  }
+
+  const subscriptions = await stripe.subscriptions.list({
+    customer: stripeCustomerId,
+    limit: 1,
+    status: "all",
+    expand: ["data.default_payment_method"],
+  });
+
+  const subscription = subscriptions.data[0];
+
+  let paymentMethodBrand: string | undefined;
+  let paymentMethodLast4: string | undefined;
+
+  if (subscription) {
+    const pm = subscription.default_payment_method;
+    if (pm && typeof pm !== "string" && pm.card) {
+      paymentMethodBrand = pm.card.brand;
+      paymentMethodLast4 = pm.card.last4;
+    }
+
+    const firstItem = subscription.items.data[0];
+
+    await ctx.runMutation(internal.stripe.upsertStripeData, {
+      userId: stripeRecord.userId,
+      stripeCustomerId,
+      subscriptionId: subscription.id,
+      status: subscription.status,
+      priceId: firstItem?.price?.id,
+      currentPeriodStart: firstItem
+        ? firstItem.current_period_start * 1000
+        : undefined,
+      currentPeriodEnd: firstItem
+        ? firstItem.current_period_end * 1000
+        : undefined,
+      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      paymentMethodBrand,
+      paymentMethodLast4,
+    });
+  } else {
+    await ctx.runMutation(internal.stripe.upsertStripeData, {
+      userId: stripeRecord.userId,
+      stripeCustomerId,
+    });
+  }
+}
+
 export const syncStripeDataToConvex = internalAction({
   args: {
     stripeCustomerId: v.string(),
   },
   handler: async (ctx, args): Promise<void> => {
-    const stripe = getStripe();
-
-    // Find user by stripeCustomerId
-    const stripeRecord = await ctx.runQuery(
-      internal.stripe.getStripeDataByCustomerId,
-      { stripeCustomerId: args.stripeCustomerId }
-    );
-
-    if (!stripeRecord) {
-      console.warn(
-        `No user found for Stripe customer ${args.stripeCustomerId}`
-      );
-      return;
-    }
-
-    // Fetch subscriptions from Stripe
-    const subscriptions = await stripe.subscriptions.list({
-      customer: args.stripeCustomerId,
-      limit: 1,
-      status: "all",
-      expand: ["data.default_payment_method"],
-    });
-
-    const subscription = subscriptions.data[0];
-
-    let paymentMethodBrand: string | undefined;
-    let paymentMethodLast4: string | undefined;
-
-    if (subscription) {
-      const pm = subscription.default_payment_method;
-      if (pm && typeof pm !== "string" && pm.card) {
-        paymentMethodBrand = pm.card.brand;
-        paymentMethodLast4 = pm.card.last4;
-      }
-
-      // In Stripe SDK v20+, period info is on subscription items
-      const firstItem = subscription.items.data[0];
-
-      await ctx.runMutation(internal.stripe.upsertStripeData, {
-        userId: stripeRecord.userId,
-        stripeCustomerId: args.stripeCustomerId,
-        subscriptionId: subscription.id,
-        status: subscription.status,
-        priceId: firstItem?.price?.id,
-        currentPeriodStart: firstItem
-          ? firstItem.current_period_start * 1000
-          : undefined,
-        currentPeriodEnd: firstItem
-          ? firstItem.current_period_end * 1000
-          : undefined,
-        cancelAtPeriodEnd: subscription.cancel_at_period_end,
-        paymentMethodBrand,
-        paymentMethodLast4,
-      });
-    } else {
-      // No subscription found, update with just customer info
-      await ctx.runMutation(internal.stripe.upsertStripeData, {
-        userId: stripeRecord.userId,
-        stripeCustomerId: args.stripeCustomerId,
-      });
-    }
+    await syncStripeSubscriptionData(ctx, args.stripeCustomerId);
   },
 });
 
@@ -151,7 +163,7 @@ export const getStripeDataByCustomerId = internalQuery({
 
 // Shared helper for getting or creating a Stripe customer (avoids action-calling-action)
 async function getOrCreateStripeCustomerHelper(
-  ctx: { auth: { getUserIdentity: () => Promise<any> }; runQuery: any; runMutation: any }
+  ctx: Pick<ActionCtx, "auth" | "runQuery" | "runMutation">
 ): Promise<string> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Not authenticated");
@@ -229,8 +241,7 @@ export const createCheckoutSession = action({
       throw new Error("Invalid price ID format");
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.HOSTING_URL;
-    if (!baseUrl) throw new Error("App URL not configured");
+    const baseUrl = getValidatedAppUrl();
 
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
@@ -261,8 +272,16 @@ export const syncAfterSuccess = action({
     }
 
     // Eagerly sync to prevent race condition with webhook
-    await ctx.runAction(internal.stripe.syncStripeDataToConvex, {
-      stripeCustomerId: session.customer,
+    await syncStripeSubscriptionData(ctx, session.customer);
+  },
+});
+
+// Used by HTTP webhook handlers to schedule async sync instead of blocking on runAction
+export const scheduleStripeSync = internalMutation({
+  args: { stripeCustomerId: v.string() },
+  handler: async (ctx, args) => {
+    await ctx.scheduler.runAfter(0, internal.stripe.syncStripeDataToConvex, {
+      stripeCustomerId: args.stripeCustomerId,
     });
   },
 });
@@ -301,8 +320,7 @@ export const createBillingPortalSession = action({
     }
 
     const stripe = getStripe();
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.HOSTING_URL;
-    if (!baseUrl) throw new Error("App URL not configured");
+    const baseUrl = getValidatedAppUrl();
 
     const session = await stripe.billingPortal.sessions.create({
       customer: stripeData.stripeCustomerId,
