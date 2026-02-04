@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useEffect, useRef, useCallback } from "react";
+import { use, useEffect, useRef, useState, useCallback } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { useSetAtom } from "jotai";
 import { api } from "@workspace/backend/_generated/api";
@@ -11,7 +12,7 @@ import { Separator } from "@workspace/ui/components/separator";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 import { Button } from "@workspace/ui/components/button";
-import { Plus, AlertCircle } from "lucide-react";
+import { Plus, AlertCircle, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import { orderContextAtom } from "@/lib/atoms/order-context";
@@ -69,8 +70,11 @@ function DineInContent({
   tableNumber: string;
 }) {
   const setOrderContext = useSetAtom(orderContextAtom);
-  const sessionIdRef = useRef<string | null>(null);
-  const sessionCreatedRef = useRef(false);
+  const [sessionId, setSessionId] = useState(
+    () => getStoredSessionId(restaurantId, tableNumber) ?? uuidv4()
+  );
+  const [sessionReady, setSessionReady] = useState(false);
+  const sessionCreateAttempted = useRef(false);
 
   const restaurant = useQuery(api.customerRestaurants.getPublicRestaurant, {
     restaurantId,
@@ -81,19 +85,12 @@ function DineInContent({
   });
   const createSession = useMutation(api.sessions.createSession);
 
-  // Resolve or create session ID
-  if (!sessionIdRef.current) {
-    const stored = getStoredSessionId(restaurantId, tableNumber);
-    sessionIdRef.current = stored ?? uuidv4();
-  }
-
-  const sessionId = sessionIdRef.current;
-  const { addToCart } = useSessionCart(sessionId);
+  const { addToCart } = useSessionCart(sessionReady ? sessionId : null);
 
   // Create session and set order context once table is loaded
   useEffect(() => {
-    if (!table || sessionCreatedRef.current) return;
-    sessionCreatedRef.current = true;
+    if (!table || sessionReady || sessionCreateAttempted.current) return;
+    sessionCreateAttempted.current = true;
 
     createSession({
       sessionId,
@@ -102,6 +99,7 @@ function DineInContent({
     })
       .then(() => {
         storeSessionId(restaurantId, tableNumber, sessionId);
+        setSessionReady(true);
         setOrderContext({
           type: "dine_in",
           sessionId,
@@ -112,13 +110,13 @@ function DineInContent({
       })
       .catch(() => {
         // Session may have expired — create a new one
-        const newSessionId = uuidv4();
-        sessionIdRef.current = newSessionId;
-        sessionCreatedRef.current = false;
-        storeSessionId(restaurantId, tableNumber, newSessionId);
+        const newId = uuidv4();
+        storeSessionId(restaurantId, tableNumber, newId);
+        sessionCreateAttempted.current = false;
+        setSessionId(newId);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table]);
+  }, [table, sessionId]);
 
   // Reset order context when leaving
   useEffect(() => {
@@ -205,8 +203,16 @@ function DineInContent({
           {restaurant.description && (
             <p className="text-muted-foreground">{restaurant.description}</p>
           )}
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
-            Mesa {tableNumber}
+          <div className="flex items-center gap-3">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+              Mesa {tableNumber}
+            </div>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/menu/${restaurantId}/orders?table=${tableNumber}`}>
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Meus Pedidos
+              </Link>
+            </Button>
           </div>
         </div>
 

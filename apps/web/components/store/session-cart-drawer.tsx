@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import {
   Sheet,
   SheetContent,
@@ -26,6 +27,7 @@ interface SessionCartDrawerProps {
 }
 
 export function SessionCartDrawer({ open, onOpenChange }: SessionCartDrawerProps) {
+  const router = useRouter();
   const orderContext = useAtomValue(orderContextAtom);
   const sessionId = orderContext.type === "dine_in" ? orderContext.sessionId : null;
   const { items, clearCart, totalItems } = useSessionCart(sessionId);
@@ -54,6 +56,7 @@ export function SessionCartDrawer({ open, onOpenChange }: SessionCartDrawerProps
       await clearCart();
       onOpenChange(false);
       toast.success("Pedido enviado! O garcom ja foi notificado.");
+      router.push(`/menu/${orderContext.restaurantId}/orders?table=${orderContext.tableNumber}`);
     } catch {
       toast.error("Erro ao enviar pedido. Tente novamente.");
     } finally {

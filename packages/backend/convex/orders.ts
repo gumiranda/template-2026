@@ -4,10 +4,11 @@ import type { Id } from "./_generated/dataModel";
 import { OrderStatus, OrderType } from "./lib/types";
 import type { OrderStatusType } from "./lib/types";
 import { requireRestaurantStaffAccess } from "./lib/auth";
-import { batchFetchTables, batchFetchMenuItems, validateSession, validateOrderItems, calculateDiscountedPrice } from "./lib/helpers";
+import { batchFetchTables, batchFetchMenuItems, validateSession, validateOrderItems, calculateDiscountedPrice, isValidSessionId } from "./lib/helpers";
 import { orderStatusValidator } from "./schema";
 
 const MAX_NOTES_LENGTH = 500;
+const MAX_SESSION_ORDERS = 50;
 
 const VALID_STATUS_TRANSITIONS: Record<OrderStatusType, OrderStatusType[]> = {
   [OrderStatus.PENDING]: [OrderStatus.CONFIRMED, OrderStatus.CANCELED],
@@ -194,5 +195,49 @@ export const updateOrderStatus = mutation({
     });
 
     return true;
+  },
+});
+
+export const getSessionOrders = query({
+  args: { sessionId: v.string() },
+  handler: async (ctx, args) => {
+    if (!isValidSessionId(args.sessionId)) {
+      throw new Error("Invalid session ID format");
+    }
+
+    // Allow viewing orders even with expired session
+    await validateSession(ctx, args.sessionId, { checkExpiry: false });
+
+    const orders = await ctx.db
+      .query("orders")
+      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
+      .take(MAX_SESSION_ORDERS);
+
+    const sorted = [...orders].sort((a, b) => b.createdAt - a.createdAt);
+
+    const ordersWithItems = await Promise.all(
+      sorted.map(async (order) => {
+        const items = await ctx.db
+          .query("orderItems")
+          .withIndex("by_order", (q) => q.eq("orderId", order._id))
+          .collect();
+
+        return {
+          _id: order._id,
+          status: order.status,
+          total: order.total,
+          subtotalPrice: order.subtotalPrice,
+          totalDiscounts: order.totalDiscounts,
+          createdAt: order.createdAt,
+          items: items.map((item) => ({
+            name: item.name,
+            quantity: item.quantity,
+            totalPrice: item.totalPrice,
+          })),
+        };
+      })
+    );
+
+    return ordersWithItems;
   },
 });
