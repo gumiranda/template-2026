@@ -17,6 +17,26 @@ function validateLinkUrl(url: string) {
   }
 }
 
+export const listAllBanners = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getAuthenticatedUser(ctx);
+    if (!user || !isAdmin(user.role)) {
+      throw new Error("Only admins can list all banners");
+    }
+
+    const banners = await ctx.db.query("promoBanners").collect();
+    banners.sort((a, b) => a.order - b.order);
+
+    return Promise.all(
+      banners.map(async (banner) => {
+        const imageUrl = await resolveImageUrl(ctx, banner.imageId, banner.imageUrl);
+        return { ...banner, imageUrl };
+      })
+    );
+  },
+});
+
 export const listActiveBanners = query({
   args: {},
   handler: async (ctx) => {

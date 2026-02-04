@@ -4,6 +4,26 @@ import { getAuthenticatedUser, isAdmin } from "./lib/auth";
 import { isActiveRestaurant, filterUndefined } from "./lib/helpers";
 import { resolveImageUrl } from "./files";
 
+export const listAllFoodCategories = query({
+  args: {},
+  handler: async (ctx) => {
+    const user = await getAuthenticatedUser(ctx);
+    if (!user || !isAdmin(user.role)) {
+      throw new Error("Only admins can list all food categories");
+    }
+
+    const categories = await ctx.db.query("foodCategories").collect();
+    categories.sort((a, b) => a.order - b.order);
+
+    return Promise.all(
+      categories.map(async (cat) => {
+        const imageUrl = await resolveImageUrl(ctx, cat.imageId, cat.imageUrl);
+        return { ...cat, imageUrl };
+      })
+    );
+  },
+});
+
 export const listFoodCategories = query({
   args: {},
   handler: async (ctx) => {

@@ -27,6 +27,7 @@ import {
   LayoutGrid,
   LucideIcon,
   QrCode,
+  ClipboardList,
 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { getRestaurantStatus } from "@/lib/constants";
@@ -252,6 +253,12 @@ function RestaurantDetailsContent({
               Gerenciar Cardapio
             </Link>
           </Button>
+          <Button asChild className="w-full" variant="outline">
+            <Link href={`/admin/tenants/${restaurantId}/orders`}>
+              <ClipboardList className="mr-2 h-4 w-4" />
+              Gerenciar Pedidos
+            </Link>
+          </Button>
           <Button asChild className="w-full">
             <Link href={`/admin/tenants/${restaurantId}/tables`}>
               <QrCode className="mr-2 h-4 w-4" />
@@ -299,6 +306,12 @@ function RestaurantDetailsContent({
               <Link href={`/admin/tenants/${restaurantId}/menu`}>
                 <UtensilsCrossed className="mr-2 h-4 w-4" />
                 Manage Menu
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href={`/admin/tenants/${restaurantId}/orders`}>
+                <ClipboardList className="mr-2 h-4 w-4" />
+                Manage Orders
               </Link>
             </Button>
             <Button asChild>
