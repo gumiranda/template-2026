@@ -21,7 +21,6 @@ import { useUploadFile } from "@/hooks/use-upload-file";
 import { toast } from "sonner";
 import { FoodCategoryCard } from "./_components/food-category-card";
 import { FoodCategoryDialog } from "./_components/food-category-dialog";
-import { RestaurantLinkDialog } from "./_components/restaurant-link-dialog";
 import {
   DEFAULT_CATEGORY_FORM,
   type FoodCategoryFormData,
@@ -36,8 +35,6 @@ interface CategoriesState {
   editingImageUrl: string | null;
   deleteId: string | null;
   deleteName: string;
-  linkCategoryId: string | null;
-  linkCategoryName: string;
 }
 
 type CategoriesAction =
@@ -50,9 +47,7 @@ type CategoriesAction =
     }
   | { type: "CLOSE_DIALOG" }
   | { type: "OPEN_DELETE"; id: string; name: string }
-  | { type: "CLOSE_DELETE" }
-  | { type: "OPEN_LINKS"; id: string; name: string }
-  | { type: "CLOSE_LINKS" };
+  | { type: "CLOSE_DELETE" };
 
 function categoriesReducer(
   state: CategoriesState,
@@ -81,14 +76,6 @@ function categoriesReducer(
       return { ...state, deleteId: action.id, deleteName: action.name };
     case "CLOSE_DELETE":
       return { ...state, deleteId: null, deleteName: "" };
-    case "OPEN_LINKS":
-      return {
-        ...state,
-        linkCategoryId: action.id,
-        linkCategoryName: action.name,
-      };
-    case "CLOSE_LINKS":
-      return { ...state, linkCategoryId: null, linkCategoryName: "" };
   }
 }
 
@@ -99,8 +86,6 @@ const INITIAL_STATE: CategoriesState = {
   editingImageUrl: null,
   deleteId: null,
   deleteName: "",
-  linkCategoryId: null,
-  linkCategoryName: "",
 };
 
 // ─── Page ────────────────────────────────────────────────────────────────────
@@ -127,7 +112,7 @@ function FoodCategoriesContent() {
     async (
       data: FoodCategoryFormData,
       imageId: Id<"_storage"> | undefined
-    ) => {
+    ): Promise<string> => {
       try {
         if (state.editingId) {
           await updateCategory({
@@ -138,13 +123,15 @@ function FoodCategoriesContent() {
             isActive: data.isActive,
           });
           toast.success("Categoria atualizada com sucesso");
+          return state.editingId;
         } else {
-          await createCategory({
+          const id = await createCategory({
             name: data.name,
             imageId,
             order: data.order,
           });
           toast.success("Categoria criada com sucesso");
+          return id;
         }
       } catch (error) {
         toast.error(
@@ -230,13 +217,6 @@ function FoodCategoriesContent() {
                   name: category.name,
                 })
               }
-              onManageLinks={() =>
-                dispatch({
-                  type: "OPEN_LINKS",
-                  id: category._id,
-                  name: category.name,
-                })
-              }
             />
           ))}
         </div>
@@ -255,18 +235,6 @@ function FoodCategoriesContent() {
         uploadFile={uploadFile}
         isUploading={isUploading}
       />
-
-      {/* Restaurant link dialog */}
-      {state.linkCategoryId && (
-        <RestaurantLinkDialog
-          open={state.linkCategoryId !== null}
-          onOpenChange={(open) => {
-            if (!open) dispatch({ type: "CLOSE_LINKS" });
-          }}
-          categoryId={state.linkCategoryId as Id<"foodCategories">}
-          categoryName={state.linkCategoryName}
-        />
-      )}
 
       {/* Delete confirmation */}
       <AlertDialog

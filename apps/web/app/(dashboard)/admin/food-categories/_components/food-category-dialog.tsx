@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import Image from "next/image";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@workspace/backend/_generated/api";
 import {
   Dialog,
   DialogContent,
@@ -13,8 +15,10 @@ import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Switch } from "@workspace/ui/components/switch";
+import { Checkbox } from "@workspace/ui/components/checkbox";
 import { Loader2, Upload, ImageIcon } from "lucide-react";
 import type { Id } from "@workspace/backend/_generated/dataModel";
+import { toast } from "sonner";
 import type { FoodCategoryFormData } from "./food-category-types";
 
 interface FoodCategoryDialogProps {
@@ -26,7 +30,7 @@ interface FoodCategoryDialogProps {
   onSubmit: (
     data: FoodCategoryFormData,
     imageId: Id<"_storage"> | undefined
-  ) => Promise<void>;
+  ) => Promise<string>;
   uploadFile: (file: File) => Promise<Id<"_storage">>;
   isUploading: boolean;
 }
@@ -47,28 +51,102 @@ export function FoodCategoryDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ─── Restaurant linking ────────────────────────────────────────────────────
+
+  const restaurants = useQuery(api.restaurants.listAllWithStats);
+  const linkedRestaurants = useQuery(
+    api.foodCategories.getLinkedRestaurants,
+    editingId
+      ? { foodCategoryId: editingId as Id<"foodCategories"> }
+      : "skip"
+  );
+  const linkMutation = useMutation(
+    api.foodCategories.linkRestaurantToCategory
+  );
+  const unlinkMutation = useMutation(
+    api.foodCategories.unlinkRestaurantFromCategory
+  );
+
+  // For create mode: track selected restaurants locally
+  const [createModeSelection, setCreateModeSelection] = useState<Set<string>>(
+    new Set()
+  );
+  const [pendingLinks, setPendingLinks] = useState<Set<string>>(new Set());
+
+  const linkedIds = useMemo(() => {
+    if (!linkedRestaurants) return new Set<string>();
+    return new Set(linkedRestaurants.map((r) => r._id as string));
+  }, [linkedRestaurants]);
+
+  // Edit mode: toggle inline
+  const handleToggleEdit = useCallback(
+    async (restaurantId: string, isLinked: boolean) => {
+      if (!editingId) return;
+      setPendingLinks((prev) => new Set(prev).add(restaurantId));
+      try {
+        if (isLinked) {
+          await unlinkMutation({
+            restaurantId: restaurantId as Id<"restaurants">,
+            foodCategoryId: editingId as Id<"foodCategories">,
+          });
+        } else {
+          await linkMutation({
+            restaurantId: restaurantId as Id<"restaurants">,
+            foodCategoryId: editingId as Id<"foodCategories">,
+          });
+        }
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Erro ao atualizar vinculo"
+        );
+      } finally {
+        setPendingLinks((prev) => {
+          const next = new Set(prev);
+          next.delete(restaurantId);
+          return next;
+        });
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [editingId]
+  );
+
+  // Create mode: toggle local selection
+  const handleToggleCreate = useCallback(
+    (restaurantId: string) => {
+      setCreateModeSelection((prev) => {
+        const next = new Set(prev);
+        if (next.has(restaurantId)) {
+          next.delete(restaurantId);
+        } else {
+          next.add(restaurantId);
+        }
+        return next;
+      });
+    },
+    []
+  );
+
+  // ─── Form lifecycle ────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (open) {
       setForm(initialData);
       setPreviewUrl(null);
       setSelectedFile(null);
       setIsSubmitting(false);
+      setCreateModeSelection(new Set());
+      setPendingLinks(new Set());
     }
   }, [open, initialData]);
 
-  const resetState = useCallback(() => {
-    setForm(initialData);
-    setPreviewUrl(null);
-    setSelectedFile(null);
-    setIsSubmitting(false);
-  }, [initialData]);
-
   const handleOpenChange = useCallback(
     (value: boolean) => {
-      if (!value) resetState();
       onOpenChange(value);
     },
-    [onOpenChange, resetState]
+    [onOpenChange]
   );
 
   const handleFileChange = useCallback(
@@ -91,13 +169,28 @@ export function FoodCategoryDialog({
         if (selectedFile) {
           imageId = await uploadFile(selectedFile);
         }
-        await onSubmit(form, imageId);
+
+        const categoryId = await onSubmit(form, imageId);
+
+        // Create mode: link selected restaurants after creation
+        if (!editingId && createModeSelection.size > 0) {
+          await Promise.all(
+            Array.from(createModeSelection).map((restaurantId) =>
+              linkMutation({
+                restaurantId: restaurantId as Id<"restaurants">,
+                foodCategoryId: categoryId as Id<"foodCategories">,
+              })
+            )
+          );
+        }
+
         handleOpenChange(false);
       } catch {
         setIsSubmitting(false);
       }
     },
-    [form, selectedFile, uploadFile, onSubmit, handleOpenChange]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [form, selectedFile, uploadFile, onSubmit, editingId, createModeSelection, handleOpenChange]
   );
 
   const isBusy = isSubmitting || isUploading;
@@ -105,7 +198,7 @@ export function FoodCategoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {editingId ? "Editar Categoria" : "Nova Categoria"}
@@ -193,6 +286,56 @@ export function FoodCategoryDialog({
               />
             </div>
           )}
+
+          {/* Restaurants */}
+          <div className="space-y-2">
+            <Label>Restaurantes vinculados</Label>
+            {restaurants === undefined ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : restaurants.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-2">
+                Nenhum restaurante cadastrado.
+              </p>
+            ) : (
+              <div className="max-h-[200px] overflow-y-auto rounded-md border p-3 space-y-3">
+                {restaurants.map((restaurant) => {
+                  const isLinked = editingId
+                    ? linkedIds.has(restaurant._id)
+                    : createModeSelection.has(restaurant._id);
+                  const isPending = pendingLinks.has(restaurant._id);
+
+                  return (
+                    <div
+                      key={restaurant._id}
+                      className="flex items-center gap-3"
+                    >
+                      <Checkbox
+                        id={`cat-restaurant-${restaurant._id}`}
+                        checked={isLinked}
+                        disabled={isPending || isBusy}
+                        onCheckedChange={() =>
+                          editingId
+                            ? handleToggleEdit(restaurant._id, isLinked)
+                            : handleToggleCreate(restaurant._id)
+                        }
+                      />
+                      <Label
+                        htmlFor={`cat-restaurant-${restaurant._id}`}
+                        className="flex-1 cursor-pointer text-sm"
+                      >
+                        {restaurant.name}
+                      </Label>
+                      {isPending && (
+                        <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           <DialogFooter>
             <Button

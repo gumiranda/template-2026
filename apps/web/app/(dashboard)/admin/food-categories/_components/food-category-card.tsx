@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
-import { Pencil, Trash2, Link2, ImageIcon } from "lucide-react";
+import { Pencil, Trash2, ImageIcon } from "lucide-react";
 
 interface FoodCategoryCardProps {
   category: {
@@ -16,14 +16,12 @@ interface FoodCategoryCardProps {
   };
   onEdit: () => void;
   onDelete: () => void;
-  onManageLinks: () => void;
 }
 
 export function FoodCategoryCard({
   category,
   onEdit,
   onDelete,
-  onManageLinks,
 }: FoodCategoryCardProps) {
   return (
     <Card className="overflow-hidden">
@@ -56,14 +54,6 @@ export function FoodCategoryCard({
             </p>
           </div>
           <div className="flex gap-1 shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onManageLinks}
-              title="Gerenciar restaurantes"
-            >
-              <Link2 className="h-4 w-4" />
-            </Button>
             <Button variant="ghost" size="icon" onClick={onEdit}>
               <Pencil className="h-4 w-4" />
             </Button>
