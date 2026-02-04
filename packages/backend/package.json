@@ -23,6 +23,7 @@
     "@clerk/backend": "^2.10.1",
     "convex": "1.25.4",
     "convex-helpers": "^0.1.104",
+    "stripe": "^20.3.0",
     "svix": "^1.84.1",
     "zod": "^3.25.76"
   }

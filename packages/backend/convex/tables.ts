@@ -2,16 +2,41 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import {
-  getAuthenticatedUser,
-  isRestaurantStaff,
-  canManageRestaurant,
   requireRestaurantAccess,
+  requireRestaurantStaffAccess,
 } from "./lib/auth";
 import { batchFetchMenuItems, groupBy } from "./lib/helpers";
+import { OrderStatus } from "./lib/types";
+import { MAX_RECENT_ORDERS, MAX_BATCH_TABLES } from "./lib/constants";
 
 // NOTE: This query is intentionally public (no auth check) to support the
 // QR code flow where unauthenticated customers scan a table's QR code and
 // need to see table info. Only public fields are returned (no qrCode).
+export const getByTableNumber = query({
+  args: {
+    restaurantId: v.id("restaurants"),
+    tableNumber: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const table = await ctx.db
+      .query("tables")
+      .withIndex("by_restaurantId_and_tableNumber", (q) =>
+        q.eq("restaurantId", args.restaurantId).eq("tableNumber", args.tableNumber)
+      )
+      .first();
+
+    if (!table || !table.isActive) return null;
+
+    return {
+      _id: table._id,
+      restaurantId: table.restaurantId,
+      tableNumber: table.tableNumber,
+      capacity: table.capacity,
+      isActive: table.isActive,
+    };
+  },
+});
+
 export const listByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
@@ -41,15 +66,7 @@ export const listByRestaurant = query({
 export const getTablesOverview = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user || !isRestaurantStaff(user.role)) {
-      throw new Error("Unauthorized: Only restaurant staff can view tables overview");
-    }
-
-    const canAccess = await canManageRestaurant(ctx, user._id, args.restaurantId);
-    if (!canAccess) {
-      throw new Error("Not authorized to access this restaurant's tables");
-    }
+    await requireRestaurantStaffAccess(ctx, args.restaurantId);
 
     const tables = await ctx.db
       .query("tables")
@@ -88,13 +105,21 @@ export const getTablesOverview = query({
       allCartItems.map((i) => i.menuItemId)
     );
 
-    const allOrders = await ctx.db
+    // Only fetch active orders (not completed/canceled) for the overview
+    const activeOrders = await ctx.db
       .query("orders")
       .withIndex("by_restaurant", (q) =>
         q.eq("restaurantId", args.restaurantId)
       )
+      .filter((q) =>
+        q.and(
+          q.neq(q.field("status"), OrderStatus.COMPLETED),
+          q.neq(q.field("status"), OrderStatus.CANCELED)
+        )
+      )
       .collect();
-    const ordersByTable = groupBy(allOrders, (o) => o.tableId.toString());
+    const ordersWithTable = activeOrders.filter((o) => o.tableId !== undefined);
+    const ordersByTable = groupBy(ordersWithTable, (o) => o.tableId!.toString());
 
     return tables.map((table) => {
       const cart = cartByTable.get(table._id.toString());
@@ -136,22 +161,36 @@ export const createTable = mutation({
   handler: async (ctx, args) => {
     await requireRestaurantAccess(ctx, args.restaurantId);
 
-    return await ctx.db.insert("tables", args);
+    const tableNumber = args.tableNumber.trim();
+    if (!tableNumber || tableNumber.length > 50) {
+      throw new Error("Table number must be between 1 and 50 characters");
+    }
+
+    if (!Number.isInteger(args.capacity) || args.capacity < 1) {
+      throw new Error("Capacity must be a positive integer");
+    }
+
+    // Validate qrCode is a proper HTTP(S) URL to prevent javascript: injection
+    try {
+      const parsed = new URL(args.qrCode);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        throw new Error("Invalid protocol");
+      }
+    } catch {
+      throw new Error("qrCode must be a valid HTTP or HTTPS URL");
+    }
+
+    return await ctx.db.insert("tables", {
+      ...args,
+      tableNumber,
+    });
   },
 });
 
 export const getTableStats = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user || !isRestaurantStaff(user.role)) {
-      throw new Error("Unauthorized: Only restaurant staff can view table stats");
-    }
-
-    const canAccess = await canManageRestaurant(ctx, user._id, args.restaurantId);
-    if (!canAccess) {
-      throw new Error("Not authorized to access this restaurant's tables");
-    }
+    await requireRestaurantStaffAccess(ctx, args.restaurantId);
 
     const tables = await ctx.db
       .query("tables")
@@ -175,15 +214,7 @@ export const getTableStats = query({
 export const listTablesWithQR = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user || !isRestaurantStaff(user.role)) {
-      throw new Error("Unauthorized: Only restaurant staff can view tables");
-    }
-
-    const canAccess = await canManageRestaurant(ctx, user._id, args.restaurantId);
-    if (!canAccess) {
-      throw new Error("Not authorized to access this restaurant's tables");
-    }
+    await requireRestaurantStaffAccess(ctx, args.restaurantId);
 
     const tables = await ctx.db
       .query("tables")
@@ -212,15 +243,7 @@ export const getTableAnalytics = query({
       throw new Error("Table not found");
     }
 
-    const user = await getAuthenticatedUser(ctx);
-    if (!user || !isRestaurantStaff(user.role)) {
-      throw new Error("Unauthorized: Only restaurant staff can view table analytics");
-    }
-
-    const canAccess = await canManageRestaurant(ctx, user._id, table.restaurantId);
-    if (!canAccess) {
-      throw new Error("Not authorized to access this table's analytics");
-    }
+    await requireRestaurantStaffAccess(ctx, table.restaurantId);
 
     const orders = await ctx.db
       .query("orders")
@@ -229,7 +252,7 @@ export const getTableAnalytics = query({
 
     const totalOrders = orders.length;
     const totalRevenue = orders
-      .filter((o) => o.status === "completed")
+      .filter((o) => o.status === OrderStatus.COMPLETED)
       .reduce((sum, o) => sum + o.total, 0);
 
     const ordersByStatus = orders.reduce(
@@ -242,7 +265,7 @@ export const getTableAnalytics = query({
 
     const recentOrders = orders
       .sort((a, b) => b.createdAt - a.createdAt)
-      .slice(0, 10)
+      .slice(0, MAX_RECENT_ORDERS)
       .map((order) => ({
         _id: order._id,
         status: order.status,
@@ -250,7 +273,7 @@ export const getTableAnalytics = query({
         createdAt: order.createdAt,
       }));
 
-    const completedCount = orders.filter((o) => o.status === "completed").length;
+    const completedCount = orders.filter((o) => o.status === OrderStatus.COMPLETED).length;
     const avgOrderValue =
       completedCount > 0 ? totalRevenue / completedCount : 0;
 
@@ -280,15 +303,25 @@ export const batchCreateTables = mutation({
   handler: async (ctx, args) => {
     await requireRestaurantAccess(ctx, args.restaurantId);
 
-    if (args.startId < 1) {
-      throw new Error("Start ID must be at least 1");
+    // Validate baseUrl is a proper HTTP(S) URL to prevent injection
+    try {
+      const parsed = new URL(args.baseUrl);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        throw new Error("Invalid protocol");
+      }
+    } catch {
+      throw new Error("baseUrl must be a valid HTTP or HTTPS URL");
     }
-    if (args.endId < args.startId) {
-      throw new Error("End ID must be greater than or equal to Start ID");
+
+    if (!Number.isInteger(args.startId) || args.startId < 1) {
+      throw new Error("Start ID must be a positive integer");
+    }
+    if (!Number.isInteger(args.endId) || args.endId < args.startId) {
+      throw new Error("End ID must be an integer greater than or equal to Start ID");
     }
     const count = args.endId - args.startId + 1;
-    if (count > 50) {
-      throw new Error("Cannot create more than 50 tables at once");
+    if (count > MAX_BATCH_TABLES) {
+      throw new Error(`Cannot create more than ${MAX_BATCH_TABLES} tables at once`);
     }
 
     const existingTables = await ctx.db
@@ -310,7 +343,7 @@ export const batchCreateTables = mutation({
         continue;
       }
 
-      const qrCode = `${args.baseUrl}/menu/${args.restaurantId}?table=${tableNumber}`;
+      const qrCode = `${args.baseUrl}/menu/${args.restaurantId}?table=${encodeURIComponent(tableNumber)}`;
 
       const id = await ctx.db.insert("tables", {
         restaurantId: args.restaurantId,
@@ -342,6 +375,10 @@ export const updateTable = mutation({
     }
 
     await requireRestaurantAccess(ctx, table.restaurantId);
+
+    if (args.capacity !== undefined && (!Number.isInteger(args.capacity) || args.capacity < 1)) {
+      throw new Error("Capacity must be a positive integer");
+    }
 
     const updates: Partial<Doc<"tables">> = {};
     if (args.isActive !== undefined) updates.isActive = args.isActive;

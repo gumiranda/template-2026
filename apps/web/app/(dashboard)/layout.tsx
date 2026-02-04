@@ -6,7 +6,8 @@ import {
   SidebarTrigger,
 } from "@workspace/ui/components/sidebar";
 import { Badge } from "@workspace/ui/components/badge";
-import { UserPlus } from "lucide-react";
+import { Button } from "@workspace/ui/components/button";
+import { UserPlus, Store } from "lucide-react";
 import { RoleBadge } from "@/components/role-badge";
 import { AppSidebar } from "@/components/app-sidebar";
 import { MobileNav } from "@/components/mobile-nav";
@@ -20,7 +21,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     useNavigation();
 
   const { hasSuperadmin, isLoading } = useAuthRedirect({
-    whenApproved: undefined,
+    whenApproved: false,
   });
 
   if (isLoading) {
@@ -46,6 +47,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             {(isSuperadmin || isCeo) && <RoleBadge role={currentUser.role} />}
           </div>
           <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/">
+                <Store className="h-4 w-4" />
+              </Link>
+            </Button>
             {isSuperadminOrCeo && pendingUsersCount && pendingUsersCount > 0 && (
               <Link
                 href="/admin/pending-users"

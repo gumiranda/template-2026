@@ -1,31 +1,17 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
-import { getAuthenticatedUser, isRestaurantStaff } from "./lib/auth";
-import { batchFetchMenuItems } from "./lib/helpers";
-import { Role } from "./lib/types";
+import { requireRestaurantStaffAccess } from "./lib/auth";
+import { batchFetchMenuItems, validateQuantity } from "./lib/helpers";
 
 export const getCart = query({
   args: { tableId: v.id("tables") },
   handler: async (ctx, args) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user || !isRestaurantStaff(user.role)) {
-      throw new Error("Unauthorized: Only restaurant staff can view table carts");
-    }
-
     const table = await ctx.db.get(args.tableId);
     if (!table) {
       throw new Error("Table not found");
     }
 
-    const restaurant = await ctx.db.get(table.restaurantId);
-    if (!restaurant) {
-      throw new Error("Restaurant not found");
-    }
-
-    // SUPERADMIN can access any restaurant, others must be owner
-    if (user.role !== Role.SUPERADMIN && restaurant.ownerId !== user._id) {
-      throw new Error("Not authorized to access this restaurant's carts");
-    }
+    await requireRestaurantStaffAccess(ctx, table.restaurantId);
 
     const cart = await ctx.db
       .query("carts")
@@ -65,24 +51,14 @@ export const addToCart = mutation({
     quantity: v.number(),
   },
   handler: async (ctx, args) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user || !isRestaurantStaff(user.role)) {
-      throw new Error("Unauthorized: Only restaurant staff can modify table carts");
-    }
+    await requireRestaurantStaffAccess(ctx, args.restaurantId);
 
     const table = await ctx.db.get(args.tableId);
     if (!table || table.restaurantId !== args.restaurantId) {
       throw new Error("Invalid table for this restaurant");
     }
 
-    const restaurant = await ctx.db.get(args.restaurantId);
-    if (!restaurant) {
-      throw new Error("Restaurant not found");
-    }
-
-    if (user.role !== Role.SUPERADMIN && restaurant.ownerId !== user._id) {
-      throw new Error("Not authorized to modify this restaurant's carts");
-    }
+    validateQuantity(args.quantity);
 
     const menuItem = await ctx.db.get(args.menuItemId);
     if (!menuItem) {
@@ -95,26 +71,25 @@ export const addToCart = mutation({
       throw new Error("Menu item is not available");
     }
 
-    let cart = await ctx.db
+    const existingCart = await ctx.db
       .query("carts")
       .withIndex("by_tableId_and_isActive", (q) =>
         q.eq("tableId", args.tableId).eq("isActive", true)
       )
       .first();
 
-    if (!cart) {
-      const cartId = await ctx.db.insert("carts", {
-        tableId: args.tableId,
-        restaurantId: args.restaurantId,
-        isActive: true,
-      });
-      cart = (await ctx.db.get(cartId))!;
-    }
+    const cartId = existingCart
+      ? existingCart._id
+      : await ctx.db.insert("carts", {
+          tableId: args.tableId,
+          restaurantId: args.restaurantId,
+          isActive: true,
+        });
 
     const existing = await ctx.db
       .query("cartItems")
       .withIndex("by_cartId_and_menuItemId", (q) =>
-        q.eq("cartId", cart!._id).eq("menuItemId", args.menuItemId)
+        q.eq("cartId", cartId).eq("menuItemId", args.menuItemId)
       )
       .first();
 
@@ -126,7 +101,7 @@ export const addToCart = mutation({
     }
 
     return await ctx.db.insert("cartItems", {
-      cartId: cart._id,
+      cartId,
       menuItemId: args.menuItemId,
       quantity: args.quantity,
       price: menuItem.price,
@@ -138,24 +113,12 @@ export const addToCart = mutation({
 export const clearCart = mutation({
   args: { tableId: v.id("tables") },
   handler: async (ctx, args) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user || !isRestaurantStaff(user.role)) {
-      throw new Error("Unauthorized: Only restaurant staff can clear carts");
-    }
-
     const table = await ctx.db.get(args.tableId);
     if (!table) {
       throw new Error("Table not found");
     }
 
-    const restaurantForAuth = await ctx.db.get(table.restaurantId);
-    if (!restaurantForAuth) {
-      throw new Error("Restaurant not found");
-    }
-
-    if (user.role !== Role.SUPERADMIN && restaurantForAuth.ownerId !== user._id) {
-      throw new Error("Not authorized to clear this restaurant's carts");
-    }
+    await requireRestaurantStaffAccess(ctx, table.restaurantId);
 
     const cart = await ctx.db
       .query("carts")

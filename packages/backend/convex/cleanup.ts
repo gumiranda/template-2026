@@ -1,6 +1,6 @@
 import { internalMutation } from "./_generated/server";
-
-const ABANDONED_CART_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
+import { internal } from "./_generated/api";
+import { CLEANUP_BATCH_SIZE, ABANDONED_CART_THRESHOLD_MS } from "./lib/constants";
 
 export const deleteExpiredSessions = internalMutation({
   args: {},
@@ -10,7 +10,7 @@ export const deleteExpiredSessions = internalMutation({
     const expiredSessions = await ctx.db
       .query("sessions")
       .withIndex("by_expires_at", (q) => q.lt("expiresAt", now))
-      .take(100);
+      .take(CLEANUP_BATCH_SIZE);
 
     for (const session of expiredSessions) {
       const cartItems = await ctx.db
@@ -25,6 +25,11 @@ export const deleteExpiredSessions = internalMutation({
       await ctx.db.delete(session._id);
     }
 
+    // Self-schedule if there are more items to process
+    if (expiredSessions.length === CLEANUP_BATCH_SIZE) {
+      await ctx.scheduler.runAfter(0, internal.cleanup.deleteExpiredSessions);
+    }
+
     return { deletedSessions: expiredSessions.length };
   },
 });
@@ -34,17 +39,15 @@ export const deleteAbandonedCarts = internalMutation({
   handler: async (ctx) => {
     const threshold = Date.now() - ABANDONED_CART_THRESHOLD_MS;
 
-    // Find inactive carts older than threshold using _creationTime
+    // Find inactive carts older than threshold using _creationTime as a proxy.
+    // _creationTime is used because carts don't track when they became inactive.
+    // This means a cart created >24h ago that was recently deactivated could be
+    // cleaned up early, but this is acceptable for abandoned cart cleanup.
     const inactiveCarts = await ctx.db
       .query("carts")
-      .withIndex("by_restaurantId_and_isActive")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("isActive"), false),
-          q.lt(q.field("_creationTime"), threshold)
-        )
-      )
-      .take(100);
+      .withIndex("by_isActive", (q) => q.eq("isActive", false))
+      .filter((q) => q.lt(q.field("_creationTime"), threshold))
+      .take(CLEANUP_BATCH_SIZE);
 
     let deletedCarts = 0;
     for (const cart of inactiveCarts) {
@@ -59,6 +62,11 @@ export const deleteAbandonedCarts = internalMutation({
 
       await ctx.db.delete(cart._id);
       deletedCarts++;
+    }
+
+    // Self-schedule if there are more items to process
+    if (inactiveCarts.length === CLEANUP_BATCH_SIZE) {
+      await ctx.scheduler.runAfter(0, internal.cleanup.deleteAbandonedCarts);
     }
 
     return { deletedCarts };

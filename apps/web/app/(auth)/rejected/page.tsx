@@ -19,9 +19,9 @@ export default function RejectedPage() {
   const { currentUser, isLoading } = useAuthRedirect({
     whenApproved: "/",
     whenPending: "/pending-approval",
-    whenRejected: undefined,
-    whenNoUser: undefined,
-    whenNoSuperadmin: undefined,
+    whenRejected: false,
+    whenNoUser: false,
+    whenNoSuperadmin: false,
   });
 
   if (isLoading) {

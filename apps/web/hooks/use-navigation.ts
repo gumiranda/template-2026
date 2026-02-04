@@ -4,7 +4,7 @@ import { useCallback, useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
-import { LayoutDashboard, UserCog, Users, Building2, LucideIcon } from "lucide-react";
+import { LayoutDashboard, UserCog, Users, Building2, Tags, ImageIcon, LucideIcon } from "lucide-react";
 
 export interface NavItem {
   label: string;
@@ -51,6 +51,8 @@ export function useNavigation() {
         show: isAdmin,
         badge: pendingUsersCount && pendingUsersCount > 0 ? pendingUsersCount : undefined,
       },
+      { label: "Categorias", href: "/admin/food-categories", icon: Tags, show: isAdmin },
+      { label: "Banners", href: "/admin/banners", icon: ImageIcon, show: isAdmin },
     ];
   }, [userRole, pendingUsersCount]);
 

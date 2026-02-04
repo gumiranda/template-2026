@@ -1,5 +1,8 @@
 import type { QueryCtx, MutationCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
+import { resolveImageUrl, resolveStorageUrl } from "./storage";
+import { RestaurantStatus } from "./types";
+import { MAX_ORDER_ITEMS } from "./constants";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -10,6 +13,10 @@ export function isValidSessionId(sessionId: string): boolean {
 }
 
 export function isValidConvexId(id: string): boolean {
+  return CONVEX_ID_REGEX.test(id);
+}
+
+export function isValidRestaurantId(id: string): id is Id<"restaurants"> {
   return CONVEX_ID_REGEX.test(id);
 }
 
@@ -88,8 +95,100 @@ export function groupBy<T>(
   return map;
 }
 
-export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+export { SESSION_DURATION_MS, MAX_ORDER_ITEMS } from "./constants";
+
+export function validateQuantity(quantity: number): void {
+  if (quantity <= 0 || !Number.isInteger(quantity)) {
+    throw new Error("Quantity must be a positive integer");
+  }
+}
+
+export function validateOrderItems(
+  items: Array<{ quantity: number }>,
+): void {
+  if (items.length === 0) {
+    throw new Error("Order must contain at least one item");
+  }
+  if (items.length > MAX_ORDER_ITEMS) {
+    throw new Error(`Order cannot contain more than ${MAX_ORDER_ITEMS} items`);
+  }
+  for (const item of items) {
+    validateQuantity(item.quantity);
+  }
+}
 
 export function calculateTotalRevenue(orders: Array<{ total: number }>): number {
   return orders.reduce((sum, order) => sum + order.total, 0);
+}
+
+export function calculateDiscountedPrice(price: number, discountPercentage: number): number {
+  if (discountPercentage <= 0 || discountPercentage > 100) return price;
+  return Math.round(price * (1 - discountPercentage / 100));
+}
+
+export function isActiveRestaurant(
+  restaurant: Doc<"restaurants"> | null
+): restaurant is Doc<"restaurants"> {
+  return (
+    restaurant !== null &&
+    !restaurant.deletedAt &&
+    restaurant.status === RestaurantStatus.ACTIVE
+  );
+}
+
+export function filterUndefined(
+  obj: Record<string, unknown>
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) result[key] = value;
+  }
+  return result;
+}
+
+export async function fetchModifierGroupsWithOptions(
+  ctx: QueryCtx,
+  menuItemId: Id<"menuItems">
+) {
+  const modifierGroups = await ctx.db
+    .query("modifierGroups")
+    .withIndex("by_menuItem", (q) => q.eq("menuItemId", menuItemId))
+    .collect();
+
+  const groupsWithOptions = await Promise.all(
+    modifierGroups.map(async (group) => {
+      const options = await ctx.db
+        .query("modifierOptions")
+        .withIndex("by_modifierGroup", (q) =>
+          q.eq("modifierGroupId", group._id)
+        )
+        .collect();
+      return {
+        ...group,
+        options: options.sort((a, b) => a.order - b.order),
+      };
+    })
+  );
+
+  return groupsWithOptions.sort((a, b) => a.order - b.order);
+}
+
+export async function toPublicRestaurant(
+  ctx: QueryCtx,
+  restaurant: Doc<"restaurants">
+) {
+  const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
+  const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
+
+  return {
+    _id: restaurant._id,
+    name: restaurant.name,
+    address: restaurant.address,
+    description: restaurant.description,
+    logoUrl,
+    coverImageUrl,
+    deliveryFee: restaurant.deliveryFee ?? 0,
+    deliveryTimeMinutes: restaurant.deliveryTimeMinutes ?? 30,
+    rating: restaurant.rating ?? 0,
+  };
 }
