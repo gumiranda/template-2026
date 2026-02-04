@@ -90,6 +90,38 @@ export const getFoodCategoryWithProducts = query({
   },
 });
 
+export const getLinkedRestaurants = query({
+  args: { foodCategoryId: v.id("foodCategories") },
+  handler: async (ctx, args) => {
+    const user = await getAuthenticatedUser(ctx);
+    if (!user || !isAdmin(user.role)) {
+      throw new Error("Only admins can view linked restaurants");
+    }
+
+    const category = await ctx.db.get(args.foodCategoryId);
+    if (!category) return null;
+
+    const links = await ctx.db
+      .query("restaurantFoodCategories")
+      .withIndex("by_category", (q) =>
+        q.eq("foodCategoryId", args.foodCategoryId)
+      )
+      .collect();
+
+    const restaurants = await Promise.all(
+      links.map(async (link) => {
+        const restaurant = await ctx.db.get(link.restaurantId);
+        if (!restaurant) return null;
+        return { _id: restaurant._id, name: restaurant.name };
+      })
+    );
+
+    return restaurants.filter(
+      (r): r is NonNullable<typeof r> => r !== null
+    );
+  },
+});
+
 export const createFoodCategory = mutation({
   args: {
     name: v.string(),

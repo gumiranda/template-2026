@@ -31,8 +31,8 @@ export function RestaurantLinkDialog({
   categoryName,
 }: RestaurantLinkDialogProps) {
   const restaurants = useQuery(api.restaurants.listAllWithStats);
-  const categoryWithLinks = useQuery(
-    api.foodCategories.getFoodCategoryWithProducts,
+  const linkedRestaurants = useQuery(
+    api.foodCategories.getLinkedRestaurants,
     { foodCategoryId: categoryId }
   );
 
@@ -44,11 +44,9 @@ export function RestaurantLinkDialog({
   const [pending, setPending] = useState<Set<string>>(new Set());
 
   const linkedRestaurantIds = useMemo(() => {
-    if (!categoryWithLinks?.restaurants) return new Set<string>();
-    return new Set(
-      categoryWithLinks.restaurants.map((r) => r._id as string)
-    );
-  }, [categoryWithLinks]);
+    if (!linkedRestaurants) return new Set<string>();
+    return new Set(linkedRestaurants.map((r) => r._id as string));
+  }, [linkedRestaurants]);
 
   const handleToggle = useCallback(
     async (restaurantId: string, isCurrentlyLinked: boolean) => {
@@ -85,7 +83,7 @@ export function RestaurantLinkDialog({
     [categoryId]
   );
 
-  const isLoading = restaurants === undefined || categoryWithLinks === undefined;
+  const isLoading = restaurants === undefined || linkedRestaurants === undefined;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import Image from "next/image";
 import {
   Dialog,
@@ -46,6 +46,15 @@ export function FoodCategoryDialog({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      setForm(initialData);
+      setPreviewUrl(null);
+      setSelectedFile(null);
+      setIsSubmitting(false);
+    }
+  }, [open, initialData]);
 
   const resetState = useCallback(() => {
     setForm(initialData);
