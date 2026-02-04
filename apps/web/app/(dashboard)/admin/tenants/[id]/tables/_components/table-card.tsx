@@ -1,4 +1,5 @@
 import { QRCodeSVG } from "qrcode.react";
+import Link from "next/link";
 import type { Id } from "@workspace/backend/_generated/dataModel";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
@@ -16,7 +17,17 @@ import {
   BarChart3,
   Power,
   Trash2,
+  ExternalLink,
 } from "lucide-react";
+
+function extractPath(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname + parsed.search;
+  } catch {
+    return url;
+  }
+}
 
 interface TableCardProps {
   table: {
@@ -93,7 +104,15 @@ export function TableCard({
             level="M"
           />
         </div>
-        <p className="text-xs text-muted-foreground text-center mt-2">
+        <Link
+          href={extractPath(table.qrCode)}
+          target="_blank"
+          className="flex items-center justify-center gap-1 text-xs text-primary hover:underline mt-2"
+        >
+          <ExternalLink className="h-3 w-3" />
+          Abrir link da mesa
+        </Link>
+        <p className="text-xs text-muted-foreground text-center mt-1">
           Capacity: {table.capacity}
         </p>
       </CardContent>
