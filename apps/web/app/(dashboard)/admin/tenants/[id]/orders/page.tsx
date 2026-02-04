@@ -34,11 +34,11 @@ import { toast } from "sonner";
 import {
   ALL_STATUSES,
   ORDER_STATUS_CONFIG,
+  groupOrdersByTable,
   type StatusFilter,
   type OrderStatusType,
 } from "./_components/orders-types";
-import { DesktopOrdersTable } from "./_components/desktop-orders-table";
-import { MobileOrderCard } from "./_components/mobile-order-card";
+import { TableGroupCard } from "./_components/table-group-card";
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -120,26 +120,26 @@ function OrdersContent({
   const filteredOrders = useMemo(() => {
     if (!orders) return [];
 
-    return orders
-      .filter((order) => {
-        if (
-          state.statusFilter !== "all" &&
-          order.status !== state.statusFilter
-        ) {
-          return false;
-        }
-        if (
-          state.tableSearch &&
-          !order.table?.tableNumber
-            ?.toLowerCase()
-            .includes(state.tableSearch.toLowerCase())
-        ) {
-          return false;
-        }
-        return true;
-      })
-      .sort((a, b) => b.createdAt - a.createdAt);
-  }, [orders, state.statusFilter, state.tableSearch]);
+    return orders.filter((order) => {
+      if (
+        state.statusFilter !== "all" &&
+        order.status !== state.statusFilter
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [orders, state.statusFilter]);
+
+  const tableGroups = useMemo(() => {
+    const groups = groupOrdersByTable(filteredOrders);
+    if (!state.tableSearch) return groups;
+
+    const search = state.tableSearch.toLowerCase();
+    return groups.filter((g) =>
+      g.label.toLowerCase().includes(search)
+    );
+  }, [filteredOrders, state.tableSearch]);
 
   const handleStatusChange = useCallback(
     async (orderId: string, newStatus: OrderStatusType) => {
@@ -242,7 +242,7 @@ function OrdersContent({
       </div>
 
       {/* Empty state */}
-      {filteredOrders.length === 0 ? (
+      {tableGroups.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium">Nenhum pedido encontrado</h3>
@@ -253,26 +253,16 @@ function OrdersContent({
           </p>
         </div>
       ) : (
-        <>
-          {/* Desktop table */}
-          <DesktopOrdersTable
-            orders={filteredOrders}
-            onStatusChange={handleStatusChange}
-            updatingOrderId={state.updatingOrderId}
-          />
-
-          {/* Mobile cards */}
-          <div className="md:hidden space-y-3">
-            {filteredOrders.map((order) => (
-              <MobileOrderCard
-                key={order._id}
-                order={order}
-                onStatusChange={handleStatusChange}
-                updatingOrderId={state.updatingOrderId}
-              />
-            ))}
-          </div>
-        </>
+        <div className="space-y-4">
+          {tableGroups.map((group) => (
+            <TableGroupCard
+              key={group.key}
+              group={group}
+              onStatusChange={handleStatusChange}
+              updatingOrderId={state.updatingOrderId}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
