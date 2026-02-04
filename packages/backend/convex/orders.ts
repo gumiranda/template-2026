@@ -161,8 +161,8 @@ export const updateOrderStatus = mutation({
 
     await requireRestaurantStaffAccess(ctx, order.restaurantId);
 
-    const currentStatus = order.status as OrderStatusType;
-    const newStatus = args.status as OrderStatusType;
+    const currentStatus = order.status;
+    const newStatus = args.status;
     const allowedTransitions = VALID_STATUS_TRANSITIONS[currentStatus];
 
     if (!allowedTransitions || !allowedTransitions.includes(newStatus)) {

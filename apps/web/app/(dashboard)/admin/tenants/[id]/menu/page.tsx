@@ -11,9 +11,7 @@ import { Card, CardContent } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
 import { Badge } from "@workspace/ui/components/badge";
 import { Input } from "@workspace/ui/components/input";
-import { Label } from "@workspace/ui/components/label";
 import { Switch } from "@workspace/ui/components/switch";
-import { Textarea } from "@workspace/ui/components/textarea";
 import {
   Select,
   SelectContent,
@@ -21,13 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@workspace/ui/components/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -64,22 +55,13 @@ import {
   ImageIcon,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
-import { CATEGORY_ICONS, getCategoryIcon } from "@/lib/menu-constants";
 import { AdminGuard } from "@/components/admin-guard";
 import { cn } from "@workspace/ui/lib/utils";
 import { toast } from "sonner";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-
-type FilterStatus = "all" | "in_stock" | "out_of_stock";
-
-interface CategoryFormData {
-  name: string;
-  description: string;
-  icon: string;
-}
-
-const MOBILE_HIGHLIGHTS_COUNT = 3;
+import type { FilterStatus, CategoryFormData } from "./_components/menu-types";
+import { MobileCategoriesTab } from "./_components/mobile-categories-tab";
+import { MobileProductsTab } from "./_components/mobile-products-tab";
+import { CategoryDialog } from "./_components/category-dialog";
 
 // ─── Page Component ──────────────────────────────────────────────────────────
 
@@ -314,10 +296,9 @@ function MenuBuilderContent({
     setDeleteDialog(null);
   }, [deleteDialog, deleteItem]);
 
-  // ─── Derived: Icon Preview ──────────────────────────────────────────────────
-
-  const iconPreviewData = categoryForm.icon ? getCategoryIcon(categoryForm.icon) : null;
-  const IconPreviewComponent = iconPreviewData?.icon ?? null;
+  const handleCategoryFormChange = useCallback((update: Partial<CategoryFormData>) => {
+    setCategoryForm((prev) => ({ ...prev, ...update }));
+  }, []);
 
   // ─── Loading ────────────────────────────────────────────────────────────────
 
@@ -392,92 +373,19 @@ function MenuBuilderContent({
 
       <div className="flex gap-6">
         {/* ─── Sidebar (desktop only) ──────────────────────────────────── */}
-        <div className="hidden lg:block w-72 shrink-0">
-          <Card>
-            <CardContent className="p-4 space-y-3">
-              <div>
-                <h2 className="font-semibold text-sm">Menu Categories</h2>
-                <p className="text-xs text-muted-foreground">
-                  Drag handles to reorder
-                </p>
-              </div>
-
-              <div className="space-y-1">
-                {sortedCategories.map((category) => (
-                  <div
-                    key={category._id}
-                    draggable
-                    onDragStart={() => handleDragStart(category._id)}
-                    onDragOver={(e) => handleDragOver(e, category._id)}
-                    onDragEnd={handleDragEnd}
-                    onClick={() => setSelectedCategoryId(category._id)}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer group transition-colors",
-                      selectedCategoryId === category._id
-                        ? "bg-primary text-primary-foreground"
-                        : "hover:bg-muted"
-                    )}
-                  >
-                    <GripVertical className="h-4 w-4 shrink-0 opacity-40 cursor-grab" />
-                    <span className="text-sm font-medium truncate flex-1">
-                      {category.name}
-                    </span>
-                    <Badge
-                      variant={selectedCategoryId === category._id ? "secondary" : "outline"}
-                      className="text-xs h-5 px-1.5"
-                    >
-                      {category.items.length}
-                    </Badge>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        "h-6 w-6 opacity-0 group-hover:opacity-100",
-                        selectedCategoryId === category._id &&
-                          "hover:bg-primary-foreground/20 text-primary-foreground"
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenEditCategory(category);
-                      }}
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className={cn(
-                        "h-6 w-6 opacity-0 group-hover:opacity-100",
-                        selectedCategoryId === category._id &&
-                          "hover:bg-primary-foreground/20 text-primary-foreground"
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteDialog({
-                          type: "category",
-                          id: category._id,
-                          name: category.name,
-                        });
-                      }}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-
-              <Button
-                variant="outline"
-                className="w-full"
-                size="sm"
-                onClick={handleOpenAddCategory}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Category
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        <DesktopCategorySidebar
+          categories={sortedCategories}
+          selectedCategoryId={selectedCategoryId}
+          onSelectCategory={setSelectedCategoryId}
+          onEditCategory={handleOpenEditCategory}
+          onDeleteCategory={(cat) =>
+            setDeleteDialog({ type: "category", id: cat._id, name: cat.name })
+          }
+          onAddCategory={handleOpenAddCategory}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+        />
 
         {/* ─── Main Content ────────────────────────────────────────────── */}
         <div className="flex-1 min-w-0 space-y-4">
@@ -563,7 +471,6 @@ function MenuBuilderContent({
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
               {filteredItems.map((item) => (
                 <Card key={item._id} className="overflow-hidden">
-                  {/* Image */}
                   <div className="relative aspect-[4/3] bg-muted">
                     {item.imageUrl ? (
                       <Image
@@ -652,94 +559,14 @@ function MenuBuilderContent({
       </div>
 
       {/* ─── Category Dialog ───────────────────────────────────────────── */}
-      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingCategory ? "Edit Category" : "Add Category"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="cat-name">Name</Label>
-              <Input
-                id="cat-name"
-                value={categoryForm.name}
-                onChange={(e) =>
-                  setCategoryForm((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="e.g. Main Courses"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cat-desc">Description</Label>
-              <Textarea
-                id="cat-desc"
-                value={categoryForm.description}
-                onChange={(e) =>
-                  setCategoryForm((prev) => ({
-                    ...prev,
-                    description: e.target.value,
-                  }))
-                }
-                placeholder="Optional description"
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Category Icon</Label>
-              <Select
-                value={categoryForm.icon}
-                onValueChange={(v) =>
-                  setCategoryForm((prev) => ({ ...prev, icon: v }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select an icon" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORY_ICONS.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <SelectItem key={item.id} value={item.id}>
-                        <span className="flex items-center gap-2">
-                          <Icon className="h-4 w-4" />
-                          {item.label}
-                        </span>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            </div>
-            {iconPreviewData && IconPreviewComponent && (
-              <div className="flex items-center gap-3 rounded-md border p-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <IconPreviewComponent className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{categoryForm.name || "Category Name"}</p>
-                  <p className="text-xs text-muted-foreground">{iconPreviewData.label}</p>
-                </div>
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setCategoryDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveCategory}
-              disabled={!categoryForm.name.trim()}
-            >
-              {editingCategory ? "Save Changes" : "Create Category"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CategoryDialog
+        open={categoryDialogOpen}
+        onOpenChange={setCategoryDialogOpen}
+        isEditing={!!editingCategory}
+        form={categoryForm}
+        onFormChange={handleCategoryFormChange}
+        onSave={handleSaveCategory}
+      />
 
       {/* ─── Delete Confirmation ───────────────────────────────────────── */}
       <AlertDialog
@@ -774,74 +601,50 @@ function MenuBuilderContent({
   );
 }
 
-// ─── Mobile Subcomponents ─────────────────────────────────────────────────────
+// ─── Desktop Category Sidebar ─────────────────────────────────────────────────
 
-interface MobileCategoriesTabProps {
+interface DesktopCategorySidebarProps {
   categories: {
     _id: Id<"menuCategories">;
     name: string;
+    description?: string;
     icon?: string;
-    items: { _id: Id<"menuItems">; name: string; price: number; imageUrl: string | null; isActive: boolean }[];
+    items: { _id: Id<"menuItems"> }[];
   }[];
   selectedCategoryId: Id<"menuCategories"> | null;
   onSelectCategory: (id: Id<"menuCategories">) => void;
   onEditCategory: (cat: { _id: Id<"menuCategories">; name: string; description?: string; icon?: string }) => void;
+  onDeleteCategory: (cat: { _id: Id<"menuCategories">; name: string }) => void;
   onAddCategory: () => void;
   onDragStart: (id: Id<"menuCategories">) => void;
   onDragOver: (e: React.DragEvent, targetId: Id<"menuCategories">) => void;
   onDragEnd: () => void;
 }
 
-function MobileCategoriesTab({
+function DesktopCategorySidebar({
   categories,
   selectedCategoryId,
   onSelectCategory,
   onEditCategory,
+  onDeleteCategory,
   onAddCategory,
   onDragStart,
   onDragOver,
   onDragEnd,
-}: MobileCategoriesTabProps) {
-  const selectedCategory = useMemo(
-    () => categories.find((c) => c._id === selectedCategoryId) ?? null,
-    [categories, selectedCategoryId]
-  );
-
-  const activeCounts = useMemo(
-    () => new Map(categories.map((c) => [c._id, c.items.filter((i) => i.isActive).length])),
-    [categories]
-  );
-
-  const highlightItems = useMemo(
-    () => selectedCategory?.items.filter((i) => i.isActive).slice(0, MOBILE_HIGHLIGHTS_COUNT) ?? [],
-    [selectedCategory]
-  );
-
+}: DesktopCategorySidebarProps) {
   return (
-    <>
-      <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold">Minhas Categorias</h2>
-        <Button variant="outline" size="sm" onClick={onAddCategory}>
-          <Plus className="h-3.5 w-3.5 mr-1" />
-          Nova
-        </Button>
-      </div>
+    <div className="hidden lg:block w-72 shrink-0">
+      <Card>
+        <CardContent className="p-4 space-y-3">
+          <div>
+            <h2 className="font-semibold text-sm">Menu Categories</h2>
+            <p className="text-xs text-muted-foreground">
+              Drag handles to reorder
+            </p>
+          </div>
 
-      {categories.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <UtensilsCrossed className="h-10 w-10 text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">
-            Crie sua primeira categoria para começar
-          </p>
-        </div>
-      ) : (
-        <div className="divide-y rounded-md border">
-          {categories.map((category) => {
-            const iconData = getCategoryIcon(category.icon);
-            const Icon = iconData.icon;
-            const activeCount = activeCounts.get(category._id) ?? 0;
-
-            return (
+          <div className="space-y-1">
+            {categories.map((category) => (
               <div
                 key={category._id}
                 draggable
@@ -850,170 +653,67 @@ function MobileCategoriesTab({
                 onDragEnd={onDragEnd}
                 onClick={() => onSelectCategory(category._id)}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-3 cursor-pointer transition-colors",
-                  selectedCategoryId === category._id ? "bg-muted" : "hover:bg-muted/50"
+                  "flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer group transition-colors",
+                  selectedCategoryId === category._id
+                    ? "bg-primary text-primary-foreground"
+                    : "hover:bg-muted"
                 )}
               >
-                <GripVertical className="h-4 w-4 shrink-0 text-muted-foreground/40 cursor-grab" />
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-                  <Icon className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{category.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {activeCount} {activeCount === 1 ? "item ativo" : "itens ativos"}
-                  </p>
-                </div>
+                <GripVertical className="h-4 w-4 shrink-0 opacity-40 cursor-grab" />
+                <span className="text-sm font-medium truncate flex-1">
+                  {category.name}
+                </span>
+                <Badge
+                  variant={selectedCategoryId === category._id ? "secondary" : "outline"}
+                  className="text-xs h-5 px-1.5"
+                >
+                  {category.items.length}
+                </Badge>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 shrink-0"
+                  className={cn(
+                    "h-6 w-6 opacity-0 group-hover:opacity-100",
+                    selectedCategoryId === category._id &&
+                      "hover:bg-primary-foreground/20 text-primary-foreground"
+                  )}
                   onClick={(e) => {
                     e.stopPropagation();
                     onEditCategory(category);
                   }}
                 >
-                  <Pencil className="h-3.5 w-3.5" />
+                  <Pencil className="h-3 w-3" />
                 </Button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {selectedCategory && highlightItems.length > 0 && (
-        <div className="space-y-2 pt-2">
-          <h3 className="text-sm font-medium text-muted-foreground">
-            Destaques: {selectedCategory.name}
-          </h3>
-          <div className="divide-y rounded-md border">
-            {highlightItems.map((item) => (
-              <div key={item._id} className="flex items-center gap-3 px-3 py-2">
-                {item.imageUrl ? (
-                  <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full">
-                    <Image
-                      src={item.imageUrl}
-                      alt={item.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                    <span className="text-xs font-medium text-muted-foreground">
-                      {item.name.charAt(0)}
-                    </span>
-                  </div>
-                )}
-                <span className="flex-1 text-sm truncate">{item.name}</span>
-                <span className="text-sm font-medium text-primary">
-                  {formatCurrency(item.price)}
-                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-6 w-6 opacity-0 group-hover:opacity-100",
+                    selectedCategoryId === category._id &&
+                      "hover:bg-primary-foreground/20 text-primary-foreground"
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteCategory(category);
+                  }}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </Button>
               </div>
             ))}
           </div>
-        </div>
-      )}
-    </>
-  );
-}
 
-interface MobileProductsTabProps {
-  selectedCategory: {
-    _id: Id<"menuCategories">;
-    name: string;
-    items: { _id: Id<"menuItems">; name: string; description?: string; price: number; imageUrl: string | null; isActive: boolean }[];
-  } | null;
-  filteredItems: { _id: Id<"menuItems">; name: string; description?: string; price: number; imageUrl: string | null; isActive: boolean }[];
-  restaurantId: Id<"restaurants">;
-  onToggleItemStatus: (itemId: Id<"menuItems">, isActive: boolean) => void;
-}
-
-function MobileProductsTab({
-  selectedCategory,
-  filteredItems,
-  restaurantId,
-  onToggleItemStatus,
-}: MobileProductsTabProps) {
-  if (!selectedCategory) {
-    return (
-      <div className="flex flex-col items-center justify-center py-12 text-center">
-        <UtensilsCrossed className="h-10 w-10 text-muted-foreground mb-3" />
-        <p className="text-sm text-muted-foreground">
-          Selecione uma categoria na aba Categorias
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      <h2 className="text-base font-semibold">{selectedCategory.name}</h2>
-
-      {filteredItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <UtensilsCrossed className="h-10 w-10 text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">
-            Nenhum item nesta categoria
-          </p>
-        </div>
-      ) : (
-        <div className="divide-y rounded-md border">
-          {filteredItems.map((item) => (
-            <div key={item._id} className="flex items-center gap-3 px-3 py-3">
-              <Link
-                href={`/admin/tenants/${restaurantId}/menu/items/${item._id}/edit`}
-                className="flex flex-1 items-center gap-3 min-w-0 transition-colors hover:opacity-80"
-              >
-                {item.imageUrl ? (
-                  <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full">
-                    <Image
-                      src={item.imageUrl}
-                      alt={item.name}
-                      fill
-                      className="object-cover"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted">
-                    <span className="text-sm font-medium text-muted-foreground">
-                      {item.name.charAt(0)}
-                    </span>
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{item.name}</p>
-                  {item.description && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {item.description}
-                    </p>
-                  )}
-                  <p className="text-sm font-bold text-primary">
-                    {formatCurrency(item.price)}
-                  </p>
-                </div>
-              </Link>
-              <div className="flex shrink-0 flex-col items-end gap-1.5">
-                <Badge variant={item.isActive ? "default" : "destructive"} className="text-[10px]">
-                  {item.isActive ? "DISPONÍVEL" : "ESGOTADO"}
-                </Badge>
-                <Switch
-                  checked={item.isActive}
-                  onCheckedChange={(checked) => onToggleItemStatus(item._id, checked)}
-                  className="scale-75"
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <Button asChild className="w-full">
-        <Link href={`/admin/tenants/${restaurantId}/menu/items/new`}>
-          <Plus className="h-4 w-4 mr-2" />
-          Cadastrar Novo Prato
-        </Link>
-      </Button>
-    </>
+          <Button
+            variant="outline"
+            className="w-full"
+            size="sm"
+            onClick={onAddCategory}
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add Category
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

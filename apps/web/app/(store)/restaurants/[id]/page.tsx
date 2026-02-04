@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
+import { isValidConvexId } from "@workspace/backend/lib/helpers";
 import { Star } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Separator } from "@workspace/ui/components/separator";
@@ -23,7 +24,28 @@ export default function RestaurantDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+
+  if (!isValidConvexId(id)) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <h1 className="text-2xl font-bold">Restaurante não encontrado</h1>
+        <p className="mt-2 text-muted-foreground">
+          O ID fornecido não é válido.
+        </p>
+      </div>
+    );
+  }
+
   const restaurantId = id as Id<"restaurants">;
+
+  return <RestaurantDetail restaurantId={restaurantId} />;
+}
+
+function RestaurantDetail({
+  restaurantId,
+}: {
+  restaurantId: Id<"restaurants">;
+}) {
   const restaurant = useQuery(api.customerRestaurants.getPublicRestaurant, {
     restaurantId,
   });
@@ -141,13 +163,7 @@ export default function RestaurantDetailPage({
                         description: item.description,
                         price: item.price,
                         discountPercentage: item.discountPercentage ?? 0,
-                        discountedPrice:
-                          item.discountPercentage && item.discountPercentage > 0
-                            ? Math.round(
-                                item.price *
-                                  (1 - item.discountPercentage / 100)
-                              )
-                            : item.price,
+                        discountedPrice: item.discountedPrice,
                         imageUrl: item.imageUrl,
                       }}
                     />

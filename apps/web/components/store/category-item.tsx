@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import type { Id } from "@workspace/backend/_generated/dataModel";
 
@@ -15,12 +16,14 @@ export function CategoryItem({ category }: CategoryItemProps) {
       href={`/categories/${category._id}`}
       className="flex flex-col items-center gap-2 min-w-[80px] group"
     >
-      <div className="h-16 w-16 rounded-full bg-muted overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors">
+      <div className="relative h-16 w-16 rounded-full bg-muted overflow-hidden border-2 border-transparent group-hover:border-primary transition-colors">
         {category.imageUrl ? (
-          <img
+          <Image
             src={category.imageUrl}
             alt={category.name}
-            className="h-full w-full object-cover"
+            fill
+            sizes="64px"
+            className="object-cover"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-lg font-bold text-muted-foreground/50">

@@ -46,7 +46,8 @@ export default function RegisterPage() {
       }
     };
     autoRegister();
-  }, [isAuthenticated, hasSuperadmin, currentUser, addUser, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, hasSuperadmin, currentUser, router]);
 
   if (isLoading) {
     return <FullPageLoader />;

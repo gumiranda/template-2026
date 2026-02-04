@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { RestaurantStatus } from "./lib/types";
 import { resolveImageUrl, resolveStorageUrl } from "./files";
-import { toPublicRestaurant, isActiveRestaurant } from "./lib/helpers";
+import { toPublicRestaurant, isActiveRestaurant, calculateDiscountedPrice } from "./lib/helpers";
 
 import { MAX_PUBLIC_RESTAURANTS } from "./lib/constants";
 
@@ -80,7 +80,9 @@ export const getPublicRestaurant = query({
         const itemsWithImages = await Promise.all(
           activeItems.map(async (item) => {
             const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
-            return { ...item, imageUrl };
+            const discountPercentage = item.discountPercentage ?? 0;
+            const discountedPrice = calculateDiscountedPrice(item.price, discountPercentage);
+            return { ...item, imageUrl, discountedPrice };
           })
         );
 

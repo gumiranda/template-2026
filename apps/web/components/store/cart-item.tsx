@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { useCart } from "@/hooks/use-cart";
@@ -11,7 +12,7 @@ interface CartItemProps {
 }
 
 export function CartItem({ item }: CartItemProps) {
-  const { updateQuantity, removeFromCart } = useCart();
+  const { updateQuantity } = useCart();
 
   const modifiersTotal = item.selectedModifiers
     ? item.selectedModifiers.reduce((sum, m) => sum + m.price, 0)
@@ -21,9 +22,11 @@ export function CartItem({ item }: CartItemProps) {
   return (
     <div className="flex items-center gap-3">
       {item.imageUrl && (
-        <img
+        <Image
           src={item.imageUrl}
           alt={item.name}
+          width={64}
+          height={64}
           className="h-16 w-16 rounded-md object-cover"
         />
       )}

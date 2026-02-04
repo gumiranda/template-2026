@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/componen
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
-import { Badge } from "@workspace/ui/components/badge";
 import { Checkbox } from "@workspace/ui/components/checkbox";
 import {
   Select,
@@ -21,153 +20,30 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@workspace/ui/components/dialog";
-import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@workspace/ui/components/toggle-group";
-import {
   Loader2,
   Building2,
   ArrowLeft,
   Plus,
   Search,
   Filter,
-  Download,
-  Printer,
-  BarChart3,
-  MoreVertical,
+  ArrowUpDown,
   QrCode,
-  Trash2,
   Power,
   Diamond,
-  ArrowUpDown,
-  Sun,
-  Moon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/format";
 import { AdminGuard } from "@/components/admin-guard";
 import { StatCard } from "@/components/stat-card";
-
-type FormatTemplate = "tent-card-4x6" | "sticker-2x2";
-type ColorTheme = "light" | "dark";
-type StatusFilter = "all" | "active" | "inactive";
-type SortBy = "number" | "created" | "status";
-type SortOrder = "asc" | "desc";
-
-interface BatchSettings {
-  formatTemplate: FormatTemplate;
-  colorTheme: ColorTheme;
-  callToAction: string;
-  showTableNumber: boolean;
-}
-
-interface PageState {
-  searchQuery: string;
-  statusFilter: StatusFilter;
-  sortBy: SortBy;
-  sortOrder: SortOrder;
-  selectedTableIds: Set<string>;
-  generateForm: { startId: string; endId: string };
-  batchSettings: BatchSettings;
-  isGenerating: boolean;
-  deleteConfirmTableId: string | null;
-  statsTableId: string | null;
-}
-
-type PageAction =
-  | { type: "SET_SEARCH_QUERY"; payload: string }
-  | { type: "SET_STATUS_FILTER"; payload: StatusFilter }
-  | { type: "SET_SORT_BY"; payload: SortBy }
-  | { type: "SET_SORT_ORDER"; payload: SortOrder }
-  | { type: "TOGGLE_SORT_ORDER" }
-  | { type: "TOGGLE_TABLE_SELECTION"; payload: string }
-  | { type: "SELECT_ALL_TABLES"; payload: string[] }
-  | { type: "CLEAR_SELECTION" }
-  | { type: "SET_GENERATE_FORM"; payload: { startId?: string; endId?: string } }
-  | { type: "SET_BATCH_SETTING"; payload: Partial<BatchSettings> }
-  | { type: "SET_IS_GENERATING"; payload: boolean }
-  | { type: "SET_DELETE_CONFIRM_TABLE_ID"; payload: string | null }
-  | { type: "SET_STATS_TABLE_ID"; payload: string | null };
-
-const initialBatchSettings: BatchSettings = {
-  formatTemplate: "tent-card-4x6",
-  colorTheme: "light",
-  callToAction: "SCAN TO ORDER",
-  showTableNumber: true,
-};
-
-const initialState: PageState = {
-  searchQuery: "",
-  statusFilter: "all",
-  sortBy: "number",
-  sortOrder: "asc",
-  selectedTableIds: new Set(),
-  generateForm: { startId: "", endId: "" },
-  batchSettings: initialBatchSettings,
-  isGenerating: false,
-  deleteConfirmTableId: null,
-  statsTableId: null,
-};
-
-function pageReducer(state: PageState, action: PageAction): PageState {
-  switch (action.type) {
-    case "SET_SEARCH_QUERY":
-      return { ...state, searchQuery: action.payload };
-    case "SET_STATUS_FILTER":
-      return { ...state, statusFilter: action.payload };
-    case "SET_SORT_BY":
-      return { ...state, sortBy: action.payload };
-    case "SET_SORT_ORDER":
-      return { ...state, sortOrder: action.payload };
-    case "TOGGLE_SORT_ORDER":
-      return { ...state, sortOrder: state.sortOrder === "asc" ? "desc" : "asc" };
-    case "TOGGLE_TABLE_SELECTION": {
-      const newSet = new Set(state.selectedTableIds);
-      if (newSet.has(action.payload)) {
-        newSet.delete(action.payload);
-      } else {
-        newSet.add(action.payload);
-      }
-      return { ...state, selectedTableIds: newSet };
-    }
-    case "SELECT_ALL_TABLES":
-      return { ...state, selectedTableIds: new Set(action.payload) };
-    case "CLEAR_SELECTION":
-      return { ...state, selectedTableIds: new Set() };
-    case "SET_GENERATE_FORM":
-      return {
-        ...state,
-        generateForm: { ...state.generateForm, ...action.payload },
-      };
-    case "SET_BATCH_SETTING":
-      return {
-        ...state,
-        batchSettings: { ...state.batchSettings, ...action.payload },
-      };
-    case "SET_IS_GENERATING":
-      return { ...state, isGenerating: action.payload };
-    case "SET_DELETE_CONFIRM_TABLE_ID":
-      return { ...state, deleteConfirmTableId: action.payload };
-    case "SET_STATS_TABLE_ID":
-      return { ...state, statsTableId: action.payload };
-    default:
-      return state;
-  }
-}
+import {
+  pageReducer,
+  initialState,
+  type StatusFilter,
+  type SortBy,
+} from "./_components/tables-reducer";
+import { TableCard } from "./_components/table-card";
+import { DeleteConfirmDialog } from "./_components/delete-confirm-dialog";
+import { TableStatsDialog } from "./_components/table-stats-dialog";
+import { BatchActionsDesktop, BatchActionsMobile } from "./_components/batch-actions-panel";
 
 function BackToRestaurantButton({ restaurantId }: { restaurantId: string }) {
   return (
@@ -441,10 +317,8 @@ function TableManagementContent({
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
 
-      // Background
       pdf.setFillColor(bgColor);
       pdf.rect(0, 0, pageWidth, pageHeight, "F");
-
       pdf.setTextColor(textColor);
 
       const qrImageData = qrImages[index];
@@ -454,17 +328,14 @@ function TableManagementContent({
         const qrX = (pageWidth - qrSize) / 2;
         const qrY = 0.6;
 
-        // Add QR code image
         if (qrImageData) {
           pdf.addImage(qrImageData, "PNG", qrX, qrY, qrSize, qrSize);
         }
 
-        // Call to action text
         pdf.setFontSize(16);
         pdf.setFont("helvetica", "bold");
         pdf.text(batchSettings.callToAction, pageWidth / 2, qrY + qrSize + 0.35, { align: "center" });
 
-        // Table number
         if (batchSettings.showTableNumber) {
           pdf.setFontSize(32);
           const tableText = `TABLE ${table.tableNumber}`;
@@ -475,17 +346,14 @@ function TableManagementContent({
         const qrX = (pageWidth - qrSize) / 2;
         const qrY = 0.35;
 
-        // Call to action text
         pdf.setFontSize(7);
         pdf.setFont("helvetica", "bold");
         pdf.text(batchSettings.callToAction, pageWidth / 2, 0.22, { align: "center" });
 
-        // Add QR code image
         if (qrImageData) {
           pdf.addImage(qrImageData, "PNG", qrX, qrY, qrSize, qrSize);
         }
 
-        // Table number
         if (batchSettings.showTableNumber) {
           pdf.setFontSize(10);
           const tableText = `#${table.tableNumber}`;
@@ -581,6 +449,7 @@ function TableManagementContent({
             />
           </div>
 
+          {/* Generate Tables Form */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -643,6 +512,7 @@ function TableManagementContent({
             </CardContent>
           </Card>
 
+          {/* Search/Filter Toolbar */}
           <Card>
             <CardContent className="pt-6">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -724,6 +594,7 @@ function TableManagementContent({
             </CardContent>
           </Card>
 
+          {/* Table Grid */}
           {filteredAndSortedTables.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <QrCode className="h-12 w-12 text-muted-foreground mb-4" />
@@ -764,255 +635,22 @@ function TableManagementContent({
           )}
         </div>
 
-        <div className="hidden lg:block w-80 shrink-0">
-          <div className="sticky top-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Printer className="h-5 w-5" />
-                  Batch Actions
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="border rounded-lg p-4 bg-muted/50">
-                  <p className="text-xs text-muted-foreground mb-2 text-center">
-                    Live Preview
-                  </p>
-                  <div
-                    className={`aspect-[3/2] rounded-md flex flex-col items-center justify-center p-4 ${
-                      batchSettings.colorTheme === "dark"
-                        ? "bg-zinc-900 text-white"
-                        : "bg-white text-black border"
-                    }`}
-                  >
-                    <p className="text-xs font-bold mb-2">
-                      {batchSettings.callToAction}
-                    </p>
-                    <QRCodeSVG
-                      value="https://example.com/menu/preview?table=1"
-                      size={80}
-                      bgColor={batchSettings.colorTheme === "dark" ? "#18181b" : "#ffffff"}
-                      fgColor={batchSettings.colorTheme === "dark" ? "#ffffff" : "#000000"}
-                    />
-                    {batchSettings.showTableNumber && (
-                      <p className="text-lg font-bold mt-2">TABLE 1</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Format Template</Label>
-                  <Select
-                    value={batchSettings.formatTemplate}
-                    onValueChange={(value) =>
-                      dispatch({
-                        type: "SET_BATCH_SETTING",
-                        payload: { formatTemplate: value as FormatTemplate },
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="tent-card-4x6">Tent Card (4x6)</SelectItem>
-                      <SelectItem value="sticker-2x2">Sticker (2x2)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Color Theme</Label>
-                  <ToggleGroup
-                    type="single"
-                    value={batchSettings.colorTheme}
-                    onValueChange={(value) =>
-                      value &&
-                      dispatch({
-                        type: "SET_BATCH_SETTING",
-                        payload: { colorTheme: value as ColorTheme },
-                      })
-                    }
-                    className="w-full"
-                  >
-                    <ToggleGroupItem value="light" className="flex-1">
-                      <Sun className="h-4 w-4 mr-1" />
-                      Light
-                    </ToggleGroupItem>
-                    <ToggleGroupItem value="dark" className="flex-1">
-                      <Moon className="h-4 w-4 mr-1" />
-                      Dark
-                    </ToggleGroupItem>
-                  </ToggleGroup>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="call-to-action">Call to Action</Label>
-                  <Input
-                    id="call-to-action"
-                    value={batchSettings.callToAction}
-                    onChange={(e) =>
-                      dispatch({
-                        type: "SET_BATCH_SETTING",
-                        payload: { callToAction: e.target.value },
-                      })
-                    }
-                    placeholder="SCAN TO ORDER"
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="show-table-number"
-                      checked={batchSettings.showTableNumber}
-                      onCheckedChange={(checked) =>
-                        dispatch({
-                          type: "SET_BATCH_SETTING",
-                          payload: { showTableNumber: checked === true },
-                        })
-                      }
-                    />
-                    <Label htmlFor="show-table-number">Show Table Number</Label>
-                  </div>
-                </div>
-
-                <Button className="w-full" onClick={handlePrintAll}>
-                  <Printer className="mr-2 h-4 w-4" />
-                  Print {selectedTableIds.size > 0 ? `Selected (${selectedTableIds.size})` : "All"}
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        <BatchActionsDesktop
+          batchSettings={batchSettings}
+          selectedCount={selectedTableIds.size}
+          dispatch={dispatch}
+          onPrint={handlePrintAll}
+        />
       </div>
 
-      {/* MOBILE BATCH ACTIONS */}
-      <div className="lg:hidden">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Printer className="h-5 w-5" />
-              Impressao em Lote
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="border rounded-lg p-3 bg-muted/50">
-              <p className="text-xs text-muted-foreground mb-2 text-center">
-                Preview
-              </p>
-              <div
-                className={`aspect-[3/2] rounded-md flex flex-col items-center justify-center p-3 ${
-                  batchSettings.colorTheme === "dark"
-                    ? "bg-zinc-900 text-white"
-                    : "bg-white text-black border"
-                }`}
-              >
-                <p className="text-[10px] font-bold mb-1">
-                  {batchSettings.callToAction}
-                </p>
-                <QRCodeSVG
-                  value="https://example.com/menu/preview?table=1"
-                  size={60}
-                  bgColor={batchSettings.colorTheme === "dark" ? "#18181b" : "#ffffff"}
-                  fgColor={batchSettings.colorTheme === "dark" ? "#ffffff" : "#000000"}
-                />
-                {batchSettings.showTableNumber && (
-                  <p className="text-sm font-bold mt-1">TABLE 1</p>
-                )}
-              </div>
-            </div>
+      <BatchActionsMobile
+        batchSettings={batchSettings}
+        selectedCount={selectedTableIds.size}
+        dispatch={dispatch}
+        onPrint={handlePrintAll}
+      />
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label className="text-xs">Formato</Label>
-                <Select
-                  value={batchSettings.formatTemplate}
-                  onValueChange={(value) =>
-                    dispatch({
-                      type: "SET_BATCH_SETTING",
-                      payload: { formatTemplate: value as FormatTemplate },
-                    })
-                  }
-                >
-                  <SelectTrigger className="text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="tent-card-4x6">Tent Card (4x6)</SelectItem>
-                    <SelectItem value="sticker-2x2">Sticker (2x2)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs">Tema</Label>
-                <ToggleGroup
-                  type="single"
-                  value={batchSettings.colorTheme}
-                  onValueChange={(value) =>
-                    value &&
-                    dispatch({
-                      type: "SET_BATCH_SETTING",
-                      payload: { colorTheme: value as ColorTheme },
-                    })
-                  }
-                  className="w-full"
-                >
-                  <ToggleGroupItem value="light" className="flex-1 text-xs">
-                    <Sun className="h-3 w-3 mr-1" />
-                    Light
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="dark" className="flex-1 text-xs">
-                    <Moon className="h-3 w-3 mr-1" />
-                    Dark
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="mobile-call-to-action" className="text-xs">Call to Action</Label>
-              <Input
-                id="mobile-call-to-action"
-                value={batchSettings.callToAction}
-                onChange={(e) =>
-                  dispatch({
-                    type: "SET_BATCH_SETTING",
-                    payload: { callToAction: e.target.value },
-                  })
-                }
-                placeholder="SCAN TO ORDER"
-              />
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="mobile-show-table-number"
-                checked={batchSettings.showTableNumber}
-                onCheckedChange={(checked) =>
-                  dispatch({
-                    type: "SET_BATCH_SETTING",
-                    payload: { showTableNumber: checked === true },
-                  })
-                }
-              />
-              <Label htmlFor="mobile-show-table-number" className="text-sm">
-                Exibir numero da mesa
-              </Label>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* MOBILE FLOATING PRINT BUTTON */}
-      <div className="lg:hidden fixed bottom-6 left-4 right-4 z-40">
-        <Button className="w-full" onClick={handlePrintAll}>
-          <Printer className="mr-2 h-4 w-4" />
-          Imprimir {selectedTableIds.size > 0 ? `Selecionadas (${selectedTableIds.size})` : "Todas"}
-        </Button>
-      </div>
-
+      {/* Hidden QR codes for PDF generation */}
       <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
         {tables.map((table) => (
           <QRCodeSVG
@@ -1046,239 +684,5 @@ function TableManagementContent({
         tableId={statsTableId as Id<"tables"> | null}
       />
     </div>
-  );
-}
-
-interface TableCardProps {
-  table: {
-    _id: Id<"tables">;
-    tableNumber: string;
-    capacity: number;
-    isActive: boolean;
-    qrCode: string;
-  };
-  isSelected: boolean;
-  onToggleSelect: () => void;
-  onToggleStatus: () => void;
-  onDelete: () => void;
-  onDownloadQR: () => void;
-  onViewStats: () => void;
-}
-
-function TableCard({
-  table,
-  isSelected,
-  onToggleSelect,
-  onToggleStatus,
-  onDelete,
-  onDownloadQR,
-  onViewStats,
-}: TableCardProps) {
-  return (
-    <Card className={isSelected ? "ring-2 ring-primary" : ""}>
-      <CardContent className="pt-6">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Checkbox checked={isSelected} onCheckedChange={onToggleSelect} />
-            <span className="font-bold text-lg">#{table.tableNumber}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant={table.isActive ? "default" : "secondary"}>
-              {table.isActive ? "Active" : "Inactive"}
-            </Badge>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={onViewStats}>
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  View Stats
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onDownloadQR}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Download QR
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={onToggleStatus}>
-                  <Power className="mr-2 h-4 w-4" />
-                  {table.isActive ? "Deactivate" : "Activate"}
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={onDelete}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-        <div className="flex justify-center p-2 bg-white rounded-md">
-          <QRCodeSVG
-            id={`qr-${table._id}`}
-            value={table.qrCode}
-            size={100}
-            level="M"
-          />
-        </div>
-        <p className="text-xs text-muted-foreground text-center mt-2">
-          Capacity: {table.capacity}
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
-
-interface DeleteConfirmDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: () => void;
-  tableNumber: string;
-}
-
-function DeleteConfirmDialog({
-  open,
-  onOpenChange,
-  onConfirm,
-  tableNumber,
-}: DeleteConfirmDialogProps) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Delete Table #{tableNumber}?</DialogTitle>
-          <DialogDescription>
-            This action cannot be undone. This will permanently delete the table
-            and its QR code.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button variant="destructive" onClick={onConfirm}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-interface TableStatsDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  tableId: Id<"tables"> | null;
-}
-
-function TableStatsDialog({ open, onOpenChange, tableId }: TableStatsDialogProps) {
-  const analytics = useQuery(
-    api.tables.getTableAnalytics,
-    tableId ? { tableId } : "skip"
-  );
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[100dvh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Table Statistics
-            {analytics?.table && (
-              <Badge variant="outline" className="ml-2">
-                #{analytics.table.tableNumber}
-              </Badge>
-            )}
-          </DialogTitle>
-        </DialogHeader>
-
-        {analytics === undefined ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : analytics === null ? (
-          <p className="text-center text-muted-foreground py-8">
-            Failed to load analytics
-          </p>
-        ) : (
-          <div className="space-y-6">
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-              <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">Total Orders</p>
-                  <p className="text-2xl font-bold">{analytics.totalOrders}</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-2xl font-bold">
-                    {formatCurrency(analytics.totalRevenue)}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <p className="text-sm text-muted-foreground">Avg Order Value</p>
-                  <p className="text-2xl font-bold">
-                    {formatCurrency(analytics.avgOrderValue)}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div>
-              <h4 className="font-medium mb-2">Orders by Status</h4>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(analytics.ordersByStatus).map(([status, count]) => (
-                  <Badge key={status} variant="outline">
-                    {status}: {count}
-                  </Badge>
-                ))}
-                {Object.keys(analytics.ordersByStatus).length === 0 && (
-                  <p className="text-sm text-muted-foreground">No orders yet</p>
-                )}
-              </div>
-            </div>
-
-            <div>
-              <h4 className="font-medium mb-2">Recent Orders</h4>
-              {analytics.recentOrders.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No orders yet</p>
-              ) : (
-                <div className="space-y-2 max-h-48 overflow-y-auto">
-                  {analytics.recentOrders.map((order) => (
-                    <div
-                      key={order._id}
-                      className="flex items-center justify-between p-2 rounded-md bg-muted/50"
-                    >
-                      <div className="flex items-center gap-2">
-                        <Badge
-                          variant={
-                            order.status === "completed" ? "default" : "secondary"
-                          }
-                        >
-                          {order.status}
-                        </Badge>
-                        <span className="text-sm">
-                          {formatCurrency(order.total)}
-                        </span>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(order.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
   );
 }

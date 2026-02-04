@@ -33,7 +33,8 @@ export function useCart() {
     (item: Omit<CartItem, "quantity">, quantity: number = 1) => {
       setItems((prev) => {
         // If cart has items from a different restaurant, clear it
-        if (prev.length > 0 && prev[0]!.restaurantId !== item.restaurantId) {
+        const firstItem = prev[0];
+        if (firstItem && firstItem.restaurantId !== item.restaurantId) {
           toast.info("Carrinho limpo", {
             description:
               "Você adicionou um item de outro restaurante. O carrinho anterior foi limpo.",
@@ -49,10 +50,13 @@ export function useCart() {
 
         if (existingIndex >= 0) {
           const updated = [...prev];
-          updated[existingIndex] = {
-            ...updated[existingIndex]!,
-            quantity: updated[existingIndex]!.quantity + quantity,
-          };
+          const existing = updated[existingIndex];
+          if (existing) {
+            updated[existingIndex] = {
+              ...existing,
+              quantity: existing.quantity + quantity,
+            };
+          }
           return updated;
         }
 

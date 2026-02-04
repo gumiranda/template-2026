@@ -16,6 +16,10 @@ import { CartSummary } from "./cart-summary";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
+import { useMutation } from "convex/react";
+import { api } from "@workspace/backend/_generated/api";
+import { toast } from "sonner";
+import { useState } from "react";
 
 interface CartDrawerProps {
   open: boolean;
@@ -26,16 +30,37 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
   const { items, clearCart } = useCart();
   const { isSignedIn } = useUser();
   const router = useRouter();
+  const createOrder = useMutation(api.customerOrders.createDeliveryOrder);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!isSignedIn) {
       onOpenChange(false);
       router.push("/sign-in");
       return;
     }
-    // Navigate to checkout or show address form
-    onOpenChange(false);
-    router.push("/my-orders");
+
+    if (items.length === 0) return;
+
+    setIsSubmitting(true);
+    try {
+      await createOrder({
+        restaurantId: items[0]!.restaurantId,
+        deliveryAddress: "Endereço a definir",
+        items: items.map((item) => ({
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+        })),
+      });
+      clearCart();
+      onOpenChange(false);
+      toast.success("Pedido enviado com sucesso!");
+      router.push("/my-orders");
+    } catch {
+      toast.error("Erro ao enviar pedido. Tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -89,8 +114,13 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
 
             <CartSummary />
 
-            <Button className="w-full" size="lg" onClick={handleCheckout}>
-              Finalizar Pedido
+            <Button
+              className="w-full"
+              size="lg"
+              onClick={handleCheckout}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Enviando..." : "Finalizar Pedido"}
             </Button>
           </>
         )}
