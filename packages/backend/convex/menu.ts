@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { requireAdminRestaurantAccess } from "./lib/auth";
 import { groupBy } from "./lib/helpers";
+import { resolveStorageUrl } from "./files";
 
 export const getMenuByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
@@ -20,12 +21,42 @@ export const getMenuByRestaurant = query({
       )
       .collect();
 
-    const itemsByCategory = groupBy(allItems, (item) => item.categoryId.toString());
+    // Resolve image URLs for all items
+    const itemsWithUrls = await Promise.all(
+      allItems.map(async (item) => {
+        const imageUrl = await resolveStorageUrl(ctx, item.imageId) ?? item.imageUrl ?? null;
+        return { ...item, imageUrl };
+      })
+    );
+
+    const itemsByCategory = groupBy(itemsWithUrls, (item) => item.categoryId.toString());
 
     return categories.map((category) => ({
       ...category,
       items: itemsByCategory.get(category._id.toString()) ?? [],
     }));
+  },
+});
+
+export const searchMenuItems = query({
+  args: {
+    restaurantId: v.id("restaurants"),
+    searchQuery: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const items = await ctx.db
+      .query("menuItems")
+      .withSearchIndex("search_by_name", (q) =>
+        q.search("name", args.searchQuery).eq("restaurantId", args.restaurantId).eq("isActive", true)
+      )
+      .take(20);
+
+    return await Promise.all(
+      items.map(async (item) => {
+        const imageUrl = await resolveStorageUrl(ctx, item.imageId) ?? item.imageUrl ?? null;
+        return { ...item, imageUrl };
+      })
+    );
   },
 });
 
@@ -56,7 +87,7 @@ export const createItem = mutation({
     name: v.string(),
     description: v.optional(v.string()),
     price: v.number(),
-    imageUrl: v.optional(v.string()),
+    imageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
     await requireAdminRestaurantAccess(ctx, args.restaurantId);
@@ -72,7 +103,7 @@ export const createItem = mutation({
       name: args.name,
       description: args.description,
       price: args.price,
-      imageUrl: args.imageUrl,
+      imageId: args.imageId,
       isActive: true,
     });
   },
@@ -103,7 +134,7 @@ export const updateItem = mutation({
     name: v.optional(v.string()),
     description: v.optional(v.string()),
     price: v.optional(v.number()),
-    imageUrl: v.optional(v.string()),
+    imageId: v.optional(v.id("_storage")),
     categoryId: v.optional(v.id("menuCategories")),
   },
   handler: async (ctx, args) => {
@@ -119,6 +150,11 @@ export const updateItem = mutation({
       if (!category || category.restaurantId !== item.restaurantId) {
         throw new Error("Invalid category: Category does not belong to this restaurant");
       }
+    }
+
+    // If replacing image, delete old one from storage
+    if (args.imageId && item.imageId && item.imageId !== args.imageId) {
+      await ctx.storage.delete(item.imageId);
     }
 
     const { itemId, ...updates } = args;
@@ -140,6 +176,11 @@ export const deleteItem = mutation({
     }
 
     await requireAdminRestaurantAccess(ctx, item.restaurantId);
+
+    // Delete associated image from storage
+    if (item.imageId) {
+      await ctx.storage.delete(item.imageId);
+    }
 
     return await ctx.db.delete(args.itemId);
   },

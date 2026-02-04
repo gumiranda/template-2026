@@ -1,15 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useReducer, useMemo, useRef, Dispatch, SetStateAction } from "react";
 import { useQuery, useMutation } from "convex/react";
+import { useRouter } from "next/navigation";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card";
+import { Card, CardContent } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
@@ -48,118 +44,485 @@ import {
   Plus,
   Search,
   Filter,
-  Download,
-  Settings,
   ExternalLink,
   Users,
   DollarSign,
+  Pencil,
+  Upload,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   RESTAURANT_STATUSES,
   getRestaurantStatus,
 } from "@/lib/constants";
+import { formatCurrency } from "@/lib/utils";
 import { AdminGuard } from "@/components/admin-guard";
+import { StatCard } from "@/components/stat-card";
+import { useUploadFile } from "@/hooks/use-upload-file";
 
-interface CreateRestaurantForm {
+interface RestaurantForm {
   name: string;
-  subdomain: string;
   address: string;
   phone: string;
   description: string;
+  logoFile: File | null;
+  logoPreview: string | null;
 }
 
-const initialFormState: CreateRestaurantForm = {
+const initialFormData: RestaurantForm = {
   name: "",
-  subdomain: "",
   address: "",
   phone: "",
   description: "",
+  logoFile: null,
+  logoPreview: null,
 };
+
+interface PageState {
+  isCreateModalOpen: boolean;
+  isEditModalOpen: boolean;
+  editingRestaurantId: Id<"restaurants"> | null;
+  searchQuery: string;
+  statusFilter: string;
+  formData: RestaurantForm;
+  editFormData: RestaurantForm;
+  isCreateSubmitting: boolean;
+  isEditSubmitting: boolean;
+}
+
+type PageAction =
+  | { type: "OPEN_CREATE_MODAL" }
+  | { type: "CLOSE_CREATE_MODAL" }
+  | { type: "CREATE_SUCCESS" }
+  | { type: "OPEN_EDIT_MODAL"; payload: { id: Id<"restaurants">; data: RestaurantForm } }
+  | { type: "CLOSE_EDIT_MODAL" }
+  | { type: "EDIT_SUCCESS" }
+  | { type: "SET_SEARCH_QUERY"; payload: string }
+  | { type: "SET_STATUS_FILTER"; payload: string }
+  | { type: "SET_FORM_DATA"; payload: RestaurantForm }
+  | { type: "SET_EDIT_FORM_DATA"; payload: RestaurantForm }
+  | { type: "SET_CREATE_SUBMITTING"; payload: boolean }
+  | { type: "SET_EDIT_SUBMITTING"; payload: boolean };
+
+const initialState: PageState = {
+  isCreateModalOpen: false,
+  isEditModalOpen: false,
+  editingRestaurantId: null,
+  searchQuery: "",
+  statusFilter: "all",
+  formData: initialFormData,
+  editFormData: initialFormData,
+  isCreateSubmitting: false,
+  isEditSubmitting: false,
+};
+
+function pageReducer(state: PageState, action: PageAction): PageState {
+  switch (action.type) {
+    case "OPEN_CREATE_MODAL":
+      return { ...state, isCreateModalOpen: true };
+    case "CLOSE_CREATE_MODAL":
+      if (state.isCreateSubmitting) return state;
+      return { ...state, isCreateModalOpen: false, formData: initialFormData };
+    case "CREATE_SUCCESS":
+      return { ...state, isCreateModalOpen: false, formData: initialFormData, isCreateSubmitting: false };
+    case "OPEN_EDIT_MODAL":
+      return {
+        ...state,
+        isEditModalOpen: true,
+        editingRestaurantId: action.payload.id,
+        editFormData: action.payload.data,
+      };
+    case "CLOSE_EDIT_MODAL":
+      if (state.isEditSubmitting) return state;
+      return {
+        ...state,
+        isEditModalOpen: false,
+        editingRestaurantId: null,
+        editFormData: initialFormData,
+      };
+    case "EDIT_SUCCESS":
+      return {
+        ...state,
+        isEditModalOpen: false,
+        editingRestaurantId: null,
+        editFormData: initialFormData,
+        isEditSubmitting: false,
+      };
+    case "SET_SEARCH_QUERY":
+      return { ...state, searchQuery: action.payload };
+    case "SET_STATUS_FILTER":
+      return { ...state, statusFilter: action.payload };
+    case "SET_FORM_DATA":
+      return { ...state, formData: action.payload };
+    case "SET_EDIT_FORM_DATA":
+      return { ...state, editFormData: action.payload };
+    case "SET_CREATE_SUBMITTING":
+      return { ...state, isCreateSubmitting: action.payload };
+    case "SET_EDIT_SUBMITTING":
+      return { ...state, isEditSubmitting: action.payload };
+    default:
+      return state;
+  }
+}
+
+function validateRestaurantForm(form: RestaurantForm): string | null {
+  if (!form.name.trim()) return "Restaurant name is required";
+  if (!form.address.trim()) return "Address is required";
+  return null;
+}
+
+interface RestaurantFormDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  formData: RestaurantForm;
+  setFormData: Dispatch<SetStateAction<RestaurantForm>>;
+  onSubmit: () => void;
+  onCancel: () => void;
+  isSubmitting: boolean;
+  isEdit?: boolean;
+}
+
+function RestaurantFormDialog({
+  open,
+  onOpenChange,
+  formData,
+  setFormData,
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  isEdit = false,
+}: RestaurantFormDialogProps) {
+  const idPrefix = isEdit ? "edit-" : "";
+  const TitleIcon = isEdit ? Pencil : Building2;
+  const title = isEdit ? "Edit Restaurant" : "Create New Restaurant";
+  const submitText = isEdit ? "Save Changes" : "Create Restaurant";
+  const submittingText = isEdit ? "Saving..." : "Creating...";
+  const SubmitIcon = isEdit ? Pencil : Plus;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+
+    const preview = URL.createObjectURL(file);
+    setFormData((prev) => ({ ...prev, logoFile: file, logoPreview: preview }));
+  };
+
+  const handleRemoveLogo = () => {
+    if (formData.logoPreview) {
+      URL.revokeObjectURL(formData.logoPreview);
+    }
+    setFormData((prev) => ({ ...prev, logoFile: null, logoPreview: null }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <TitleIcon className="h-5 w-5" />
+            {title}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Logo</Label>
+            <div className="flex items-center gap-4">
+              {formData.logoPreview ? (
+                <div className="relative">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={formData.logoPreview} />
+                    <AvatarFallback className="bg-muted">
+                      {formData.name.slice(0, 2).toUpperCase() || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="absolute -top-1 -right-1 rounded-full bg-destructive p-0.5 text-destructive-foreground"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ) : (
+                <Avatar className="h-16 w-16">
+                  <AvatarFallback className="bg-muted">
+                    {formData.name.slice(0, 2).toUpperCase() || "?"}
+                  </AvatarFallback>
+                </Avatar>
+              )}
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoSelect}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="mr-2 h-3 w-3" />
+                  {formData.logoPreview ? "Change" : "Upload"}
+                </Button>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Max 5MB. PNG, JPG, or WebP.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}name`}>
+              Name <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id={`${idPrefix}name`}
+              placeholder="Restaurant name"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, name: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}address`}>
+              Address <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id={`${idPrefix}address`}
+              placeholder="123 Main St, City, State"
+              value={formData.address}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, address: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}phone`}>Phone</Label>
+            <Input
+              id={`${idPrefix}phone`}
+              placeholder="+1 (555) 123-4567"
+              value={formData.phone}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, phone: e.target.value }))
+              }
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor={`${idPrefix}description`}>Description</Label>
+            <Textarea
+              id={`${idPrefix}description`}
+              placeholder="A brief description of the restaurant..."
+              value={formData.description}
+              onChange={(e) =>
+                setFormData((prev) => ({ ...prev, description: e.target.value }))
+              }
+              rows={3}
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={onSubmit}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {submittingText}
+              </>
+            ) : (
+              <>
+                <SubmitIcon className="mr-2 h-4 w-4" />
+                {submitText}
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export default function TenantOverviewPage() {
   return (
     <AdminGuard>
-      {({ currentUser, isSuperadmin }) => (
-        <TenantOverviewContent
-          currentUser={currentUser}
-          isSuperadmin={isSuperadmin}
-        />
-      )}
+      {() => <TenantOverviewContent />}
     </AdminGuard>
   );
 }
 
-function TenantOverviewContent({
-  currentUser,
-  isSuperadmin,
-}: {
-  currentUser: { _id: Id<"users"> };
-  isSuperadmin: boolean;
-}) {
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [formData, setFormData] = useState<CreateRestaurantForm>(initialFormState);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+function TenantOverviewContent() {
+  const router = useRouter();
+  const [state, dispatch] = useReducer(pageReducer, initialState);
+  const {
+    isCreateModalOpen,
+    isEditModalOpen,
+    editingRestaurantId,
+    searchQuery,
+    statusFilter,
+    formData,
+    editFormData,
+    isCreateSubmitting,
+    isEditSubmitting,
+  } = state;
 
   const stats = useQuery(api.restaurants.getOverviewStats);
   const restaurants = useQuery(api.restaurants.listAllWithStats);
   const createRestaurant = useMutation(api.restaurants.create);
+  const updateRestaurant = useMutation(api.restaurants.update);
+  const { uploadFile } = useUploadFile();
 
-  const filteredRestaurants = restaurants?.filter((restaurant) => {
-    const matchesSearch =
-      restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      restaurant.subdomain?.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredRestaurants = useMemo(() => {
+    return restaurants?.filter((restaurant) => {
+      const matchesSearch =
+        restaurant.name.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesStatus =
-      statusFilter === "all" ||
-      (restaurant.status ?? "active") === statusFilter;
+      const matchesStatus =
+        statusFilter === "all" ||
+        (restaurant.status ?? "active") === statusFilter;
 
-    return matchesSearch && matchesStatus;
-  });
+      return matchesSearch && matchesStatus;
+    });
+  }, [restaurants, searchQuery, statusFilter]);
 
   const handleCreateRestaurant = async () => {
-    if (!formData.name.trim()) {
-      toast.error("Restaurant name is required");
-      return;
-    }
-    if (!formData.address.trim()) {
-      toast.error("Address is required");
+    const validationError = validateRestaurantForm(formData);
+    if (validationError) {
+      toast.error(validationError);
       return;
     }
 
-    setIsSubmitting(true);
+    dispatch({ type: "SET_CREATE_SUBMITTING", payload: true });
     try {
+      let logoId: Id<"_storage"> | undefined;
+      if (formData.logoFile) {
+        logoId = await uploadFile(formData.logoFile);
+      }
+
       await createRestaurant({
         name: formData.name.trim(),
         address: formData.address.trim(),
         phone: formData.phone.trim() || undefined,
         description: formData.description.trim() || undefined,
-        subdomain: formData.subdomain.trim() || undefined,
+        logoId,
       });
       toast.success("Restaurant created successfully");
-      setIsCreateModalOpen(false);
-      setFormData(initialFormState);
+      dispatch({ type: "CREATE_SUCCESS" });
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Failed to create restaurant"
       );
-    } finally {
-      setIsSubmitting(false);
+      dispatch({ type: "SET_CREATE_SUBMITTING", payload: false });
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(value);
+  const handleOpenEditModal = (restaurant: NonNullable<typeof restaurants>[number]) => {
+    dispatch({
+      type: "OPEN_EDIT_MODAL",
+      payload: {
+        id: restaurant._id,
+        data: {
+          name: restaurant.name,
+          address: restaurant.address,
+          phone: restaurant.phone ?? "",
+          description: restaurant.description ?? "",
+          logoFile: null,
+          logoPreview: restaurant.logoUrl ?? null,
+        },
+      },
+    });
+  };
+
+  const handleEditRestaurant = async () => {
+    if (!editingRestaurantId) return;
+
+    const validationError = validateRestaurantForm(editFormData);
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+
+    dispatch({ type: "SET_EDIT_SUBMITTING", payload: true });
+    try {
+      let logoId: Id<"_storage"> | undefined;
+      if (editFormData.logoFile) {
+        logoId = await uploadFile(editFormData.logoFile);
+      }
+
+      await updateRestaurant({
+        id: editingRestaurantId,
+        options: {
+          name: editFormData.name.trim(),
+          address: editFormData.address.trim(),
+          phone: editFormData.phone.trim(),
+          description: editFormData.description.trim(),
+          logoId,
+        },
+      });
+      toast.success("Restaurant updated successfully");
+      dispatch({ type: "EDIT_SUCCESS" });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update restaurant"
+      );
+      dispatch({ type: "SET_EDIT_SUBMITTING", payload: false });
+    }
+  };
+
+  const handleManageRestaurant = (restaurantId: Id<"restaurants">) => {
+    router.push(`/admin/tenants/${restaurantId}`);
+  };
+
+  const handleCancelCreate = () => {
+    dispatch({ type: "CLOSE_CREATE_MODAL" });
+  };
+
+  const handleCancelEdit = () => {
+    dispatch({ type: "CLOSE_EDIT_MODAL" });
+  };
+
+  const setFormData: Dispatch<SetStateAction<RestaurantForm>> = (action) => {
+    const newData = typeof action === "function" ? action(formData) : action;
+    dispatch({ type: "SET_FORM_DATA", payload: newData });
+  };
+
+  const setEditFormData: Dispatch<SetStateAction<RestaurantForm>> = (action) => {
+    const newData = typeof action === "function" ? action(editFormData) : action;
+    dispatch({ type: "SET_EDIT_FORM_DATA", payload: newData });
   };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Tenant Overview</h1>
@@ -168,77 +531,37 @@ function TenantOverviewContent({
           </p>
         </div>
         <Button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="bg-green-600 hover:bg-green-700"
+          onClick={() => dispatch({ type: "OPEN_CREATE_MODAL" })}
         >
           <Plus className="mr-2 h-4 w-4" />
           Create New Restaurant
         </Button>
       </div>
 
-      {/* Metric Cards */}
       <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Restaurants</CardTitle>
-            <Building2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {stats === undefined ? (
-              <Loader2 className="h-6 w-6 animate-spin" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{stats?.totalRestaurants ?? 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  {stats?.activeRestaurants ?? 0} active
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Sessions</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {stats === undefined ? (
-              <Loader2 className="h-6 w-6 animate-spin" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">{stats?.activeSessions ?? 0}</div>
-                <p className="text-xs text-muted-foreground">
-                  Current active sessions
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {stats === undefined ? (
-              <Loader2 className="h-6 w-6 animate-spin" />
-            ) : (
-              <>
-                <div className="text-2xl font-bold">
-                  {formatCurrency(stats?.totalRevenue ?? 0)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  From all completed orders
-                </p>
-              </>
-            )}
-          </CardContent>
-        </Card>
+        <StatCard
+          title="Total Restaurants"
+          value={stats?.totalRestaurants ?? 0}
+          subtext={`${stats?.activeRestaurants ?? 0} active`}
+          icon={Building2}
+          isLoading={stats === undefined}
+        />
+        <StatCard
+          title="Active Sessions"
+          value={stats?.activeSessions ?? 0}
+          subtext="Current active sessions"
+          icon={Users}
+          isLoading={stats === undefined}
+        />
+        <StatCard
+          title="Total Revenue"
+          value={formatCurrency(stats?.totalRevenue ?? 0)}
+          subtext="From all completed orders"
+          icon={DollarSign}
+          isLoading={stats === undefined}
+        />
       </div>
 
-      {/* Search and Filters */}
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -248,13 +571,13 @@ function TenantOverviewContent({
                 <Input
                   placeholder="Search restaurants..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => dispatch({ type: "SET_SEARCH_QUERY", payload: e.target.value })}
                   className="pl-9"
                 />
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Select value={statusFilter} onValueChange={(value) => dispatch({ type: "SET_STATUS_FILTER", payload: value })}>
                 <SelectTrigger className="w-[140px]">
                   <Filter className="mr-2 h-4 w-4" />
                   <SelectValue placeholder="Status" />
@@ -268,15 +591,11 @@ function TenantOverviewContent({
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="icon">
-                <Download className="h-4 w-4" />
-              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Restaurants Table */}
       <Card>
         <CardContent className="pt-6">
           {restaurants === undefined ? (
@@ -313,19 +632,12 @@ function TenantOverviewContent({
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarImage src={restaurant.logoUrl} />
+                            <AvatarImage src={restaurant.logoUrl ?? undefined} />
                             <AvatarFallback className="bg-muted">
                               {restaurant.name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <div className="font-medium">{restaurant.name}</div>
-                            {restaurant.subdomain && (
-                              <div className="text-sm text-muted-foreground">
-                                {restaurant.subdomain}.restaurantix.com
-                              </div>
-                            )}
-                          </div>
+                          <div className="font-medium">{restaurant.name}</div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -342,11 +654,19 @@ function TenantOverviewContent({
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button variant="outline" size="sm">
-                            <Settings className="mr-1 h-3 w-3" />
-                            Configure
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenEditModal(restaurant)}
+                          >
+                            <Pencil className="mr-1 h-3 w-3" />
+                            Edit
                           </Button>
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleManageRestaurant(restaurant._id)}
+                          >
                             <ExternalLink className="mr-1 h-3 w-3" />
                             Manage
                           </Button>
@@ -361,123 +681,26 @@ function TenantOverviewContent({
         </CardContent>
       </Card>
 
-      {/* Create Restaurant Modal */}
-      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5" />
-              Create New Restaurant
-            </DialogTitle>
-          </DialogHeader>
+      <RestaurantFormDialog
+        open={isCreateModalOpen}
+        onOpenChange={(open) => dispatch({ type: open ? "OPEN_CREATE_MODAL" : "CLOSE_CREATE_MODAL" })}
+        formData={formData}
+        setFormData={setFormData}
+        onSubmit={handleCreateRestaurant}
+        onCancel={handleCancelCreate}
+        isSubmitting={isCreateSubmitting}
+      />
 
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">
-                Name <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="name"
-                placeholder="Restaurant name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, name: e.target.value }))
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="subdomain">Subdomain</Label>
-              <div className="flex items-center">
-                <Input
-                  id="subdomain"
-                  placeholder="my-restaurant"
-                  value={formData.subdomain}
-                  onChange={(e) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      subdomain: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""),
-                    }))
-                  }
-                  className="rounded-r-none"
-                />
-                <span className="inline-flex items-center rounded-r-md border border-l-0 border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
-                  .restaurantix.com
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="address">
-                Address <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="address"
-                placeholder="123 Main St, City, State"
-                value={formData.address}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, address: e.target.value }))
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                placeholder="+1 (555) 123-4567"
-                value={formData.phone}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, phone: e.target.value }))
-                }
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="A brief description of the restaurant..."
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, description: e.target.value }))
-                }
-                rows={3}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsCreateModalOpen(false);
-                setFormData(initialFormState);
-              }}
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleCreateRestaurant}
-              disabled={isSubmitting}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create Restaurant
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RestaurantFormDialog
+        open={isEditModalOpen}
+        onOpenChange={(open) => { if (!open) dispatch({ type: "CLOSE_EDIT_MODAL" }); }}
+        formData={editFormData}
+        setFormData={setEditFormData}
+        onSubmit={handleEditRestaurant}
+        onCancel={handleCancelEdit}
+        isSubmitting={isEditSubmitting}
+        isEdit
+      />
     </div>
   );
 }

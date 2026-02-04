@@ -1,11 +1,16 @@
 import type { QueryCtx, MutationCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
 
-// UUID v4 format validation regex
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const CONVEX_ID_REGEX = /^[a-z][a-z0-9]{31}$/;
 
 export function isValidSessionId(sessionId: string): boolean {
   return UUID_REGEX.test(sessionId);
+}
+
+export function isValidConvexId(id: string): boolean {
+  return CONVEX_ID_REGEX.test(id);
 }
 
 type ValidateSessionOptions = {
@@ -84,3 +89,7 @@ export function groupBy<T>(
 }
 
 export const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+
+export function calculateTotalRevenue(orders: Array<{ total: number }>): number {
+  return orders.reduce((sum, order) => sum + order.total, 0);
+}

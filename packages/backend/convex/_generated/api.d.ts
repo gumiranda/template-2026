@@ -9,6 +9,10 @@
  */
 
 import type * as carts from "../carts.js";
+import type * as cleanup from "../cleanup.js";
+import type * as clerkWebhook from "../clerkWebhook.js";
+import type * as crons from "../crons.js";
+import type * as files from "../files.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
 import type * as lib_helpers from "../lib/helpers.js";
@@ -37,6 +41,10 @@ import type {
  */
 declare const fullApi: ApiFromModules<{
   carts: typeof carts;
+  cleanup: typeof cleanup;
+  clerkWebhook: typeof clerkWebhook;
+  crons: typeof crons;
+  files: typeof files;
   http: typeof http;
   "lib/auth": typeof lib_auth;
   "lib/helpers": typeof lib_helpers;

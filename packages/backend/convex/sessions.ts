@@ -32,11 +32,21 @@ export const createSession = mutation({
 
     if (existing) return existing._id;
 
+    // Rate limiting: max 10 active sessions per table to prevent abuse
+    const now = Date.now();
+    const activeTableSessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_table", (q) => q.eq("tableId", args.tableId))
+      .collect();
+    const activeCount = activeTableSessions.filter((s) => s.expiresAt > now).length;
+    if (activeCount >= 10) {
+      throw new Error("Too many active sessions for this table. Please try again later.");
+    }
+
     return await ctx.db.insert("sessions", {
       sessionId: args.sessionId,
       restaurantId: args.restaurantId,
       tableId: args.tableId,
-      createdAt: Date.now(),
       expiresAt: Date.now() + SESSION_DURATION_MS,
     });
   },
@@ -86,8 +96,9 @@ export const addToSessionCart = mutation({
 
     const existing = await ctx.db
       .query("sessionCartItems")
-      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
-      .filter((q) => q.eq(q.field("menuItemId"), args.menuItemId))
+      .withIndex("by_sessionId_and_menuItemId", (q) =>
+        q.eq("sessionId", args.sessionId).eq("menuItemId", args.menuItemId)
+      )
       .first();
 
     if (existing) {
