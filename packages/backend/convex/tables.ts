@@ -2,14 +2,12 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import {
-  getAuthenticatedUser,
-  isRestaurantStaff,
-  canManageRestaurant,
   requireRestaurantAccess,
+  requireRestaurantStaffAccess,
 } from "./lib/auth";
 import { batchFetchMenuItems, groupBy } from "./lib/helpers";
 import { OrderStatus } from "./lib/types";
-import { MAX_RECENT_ORDERS } from "./lib/constants";
+import { MAX_RECENT_ORDERS, MAX_BATCH_TABLES } from "./lib/constants";
 
 // NOTE: This query is intentionally public (no auth check) to support the
 // QR code flow where unauthenticated customers scan a table's QR code and
@@ -43,15 +41,7 @@ export const listByRestaurant = query({
 export const getTablesOverview = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user || !isRestaurantStaff(user.role)) {
-      throw new Error("Unauthorized: Only restaurant staff can view tables overview");
-    }
-
-    const canAccess = await canManageRestaurant(ctx, user._id, args.restaurantId);
-    if (!canAccess) {
-      throw new Error("Not authorized to access this restaurant's tables");
-    }
+    await requireRestaurantStaffAccess(ctx, args.restaurantId);
 
     const tables = await ctx.db
       .query("tables")
@@ -175,15 +165,7 @@ export const createTable = mutation({
 export const getTableStats = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user || !isRestaurantStaff(user.role)) {
-      throw new Error("Unauthorized: Only restaurant staff can view table stats");
-    }
-
-    const canAccess = await canManageRestaurant(ctx, user._id, args.restaurantId);
-    if (!canAccess) {
-      throw new Error("Not authorized to access this restaurant's tables");
-    }
+    await requireRestaurantStaffAccess(ctx, args.restaurantId);
 
     const tables = await ctx.db
       .query("tables")
@@ -207,15 +189,7 @@ export const getTableStats = query({
 export const listTablesWithQR = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {
-    const user = await getAuthenticatedUser(ctx);
-    if (!user || !isRestaurantStaff(user.role)) {
-      throw new Error("Unauthorized: Only restaurant staff can view tables");
-    }
-
-    const canAccess = await canManageRestaurant(ctx, user._id, args.restaurantId);
-    if (!canAccess) {
-      throw new Error("Not authorized to access this restaurant's tables");
-    }
+    await requireRestaurantStaffAccess(ctx, args.restaurantId);
 
     const tables = await ctx.db
       .query("tables")
@@ -244,15 +218,7 @@ export const getTableAnalytics = query({
       throw new Error("Table not found");
     }
 
-    const user = await getAuthenticatedUser(ctx);
-    if (!user || !isRestaurantStaff(user.role)) {
-      throw new Error("Unauthorized: Only restaurant staff can view table analytics");
-    }
-
-    const canAccess = await canManageRestaurant(ctx, user._id, table.restaurantId);
-    if (!canAccess) {
-      throw new Error("Not authorized to access this table's analytics");
-    }
+    await requireRestaurantStaffAccess(ctx, table.restaurantId);
 
     const orders = await ctx.db
       .query("orders")
@@ -329,8 +295,8 @@ export const batchCreateTables = mutation({
       throw new Error("End ID must be an integer greater than or equal to Start ID");
     }
     const count = args.endId - args.startId + 1;
-    if (count > 50) {
-      throw new Error("Cannot create more than 50 tables at once");
+    if (count > MAX_BATCH_TABLES) {
+      throw new Error(`Cannot create more than ${MAX_BATCH_TABLES} tables at once`);
     }
 
     const existingTables = await ctx.db

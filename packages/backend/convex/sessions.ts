@@ -1,6 +1,9 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { validateSession, batchFetchMenuItems, SESSION_DURATION_MS, isValidSessionId, validateQuantity } from "./lib/helpers";
+import { MAX_SESSIONS_PER_TABLE } from "./lib/constants";
+
+const MAX_CART_ITEM_QUANTITY = 99;
 
 export const createSession = mutation({
   args: {
@@ -39,7 +42,7 @@ export const createSession = mutation({
       .withIndex("by_table", (q) => q.eq("tableId", args.tableId))
       .collect();
     const activeCount = activeTableSessions.filter((s) => s.expiresAt > now).length;
-    if (activeCount >= 10) {
+    if (activeCount >= MAX_SESSIONS_PER_TABLE) {
       throw new Error("Too many active sessions for this table. Please try again later.");
     }
 
@@ -104,8 +107,12 @@ export const addToSessionCart = mutation({
       .first();
 
     if (existing) {
+      const newQuantity = existing.quantity + args.quantity;
+      if (newQuantity > MAX_CART_ITEM_QUANTITY) {
+        throw new Error(`Cannot exceed ${MAX_CART_ITEM_QUANTITY} units per item`);
+      }
       await ctx.db.patch(existing._id, {
-        quantity: existing.quantity + args.quantity,
+        quantity: newQuantity,
       });
       return existing._id;
     }

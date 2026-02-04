@@ -218,6 +218,7 @@ export default defineSchema({
     quantity: v.number(),
     price: v.number(),
     totalPrice: v.number(),
+    notes: v.optional(v.string()),
   })
     .index("by_order", ["orderId"])
     .index("by_menu_item", ["menuItemId"]),

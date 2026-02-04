@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { requireAdminRestaurantAccess, requireRestaurantStaffAccess } from "./lib/auth";
 import { groupBy, fetchModifierGroupsWithOptions, filterUndefined } from "./lib/helpers";
-import { MAX_DESCRIPTION_LENGTH } from "./lib/constants";
+import { MAX_DESCRIPTION_LENGTH, MAX_SEARCH_RESULTS } from "./lib/constants";
 import { resolveImageUrl } from "./files";
 
 const VALID_ICON_IDS = [
@@ -83,7 +83,7 @@ export const searchMenuItems = query({
       .withSearchIndex("search_by_name", (q) =>
         q.search("name", args.searchQuery).eq("restaurantId", args.restaurantId).eq("isActive", true)
       )
-      .take(20);
+      .take(MAX_SEARCH_RESULTS);
 
     return await Promise.all(
       items.map(async (item) => {

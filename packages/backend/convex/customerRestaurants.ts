@@ -4,9 +4,10 @@ import { RestaurantStatus } from "./lib/types";
 import { resolveImageUrl, resolveStorageUrl } from "./files";
 import { toPublicRestaurant, isActiveRestaurant, calculateDiscountedPrice } from "./lib/helpers";
 
-import { MAX_PUBLIC_RESTAURANTS } from "./lib/constants";
+import { MAX_PUBLIC_RESTAURANTS, MAX_SEARCH_RESULTS } from "./lib/constants";
 
 const MAX_RECOMMENDED = 10;
+const MAX_SEARCH_QUERY_LENGTH = 200;
 
 export const listPublicRestaurants = query({
   args: {},
@@ -33,13 +34,16 @@ export const searchPublicRestaurants = query({
   args: { searchQuery: v.string() },
   handler: async (ctx, args) => {
     if (!args.searchQuery.trim()) return [];
+    if (args.searchQuery.length > MAX_SEARCH_QUERY_LENGTH) {
+      throw new Error(`Search query must be ${MAX_SEARCH_QUERY_LENGTH} characters or less`);
+    }
 
     const results = await ctx.db
       .query("restaurants")
       .withSearchIndex("search_by_name", (q) =>
         q.search("name", args.searchQuery).eq("status", RestaurantStatus.ACTIVE)
       )
-      .take(20);
+      .take(MAX_SEARCH_RESULTS);
 
     const activeResults = results.filter((r) => !r.deletedAt);
 

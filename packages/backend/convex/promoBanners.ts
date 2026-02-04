@@ -82,6 +82,14 @@ export const updateBanner = mutation({
       throw new Error("Only admins can update banners");
     }
 
+    if (args.title !== undefined) {
+      const title = args.title.trim();
+      if (!title || title.length > 200) {
+        throw new Error("Title must be between 1 and 200 characters");
+      }
+      args = { ...args, title };
+    }
+
     if (args.linkUrl) validateLinkUrl(args.linkUrl);
 
     const { id, ...updates } = args;

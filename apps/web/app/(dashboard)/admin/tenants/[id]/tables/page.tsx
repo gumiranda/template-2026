@@ -6,27 +6,12 @@ import Link from "next/link";
 import { QRCodeSVG } from "qrcode.react";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
-import { isValidConvexId } from "@workspace/backend/lib/helpers";
-import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
 import { Button } from "@workspace/ui/components/button";
-import { Input } from "@workspace/ui/components/input";
-import { Label } from "@workspace/ui/components/label";
-import { Checkbox } from "@workspace/ui/components/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select";
 import {
   Loader2,
   Building2,
   ArrowLeft,
-  Plus,
-  Search,
-  Filter,
-  ArrowUpDown,
   QrCode,
   Power,
   Diamond,
@@ -34,16 +19,13 @@ import {
 import { toast } from "sonner";
 import { AdminGuard } from "@/components/admin-guard";
 import { StatCard } from "@/components/stat-card";
-import {
-  pageReducer,
-  initialState,
-  type StatusFilter,
-  type SortBy,
-} from "./_components/tables-reducer";
-import { TableCard } from "./_components/table-card";
+import { pageReducer, initialState } from "./_components/tables-reducer";
 import { DeleteConfirmDialog } from "./_components/delete-confirm-dialog";
 import { TableStatsDialog } from "./_components/table-stats-dialog";
 import { BatchActionsDesktop, BatchActionsMobile } from "./_components/batch-actions-panel";
+import { GenerateTablesForm } from "./_components/generate-tables-form";
+import { TableSearchToolbar } from "./_components/table-search-toolbar";
+import { TableGrid } from "./_components/table-grid";
 
 function BackToRestaurantButton({ restaurantId }: { restaurantId: string }) {
   return (
@@ -62,7 +44,7 @@ export default function TableManagementPage({
 }) {
   const { id } = use(params);
 
-  if (!isValidConvexId(id)) {
+  if (!isValidRestaurantId(id)) {
     return (
       <AdminGuard>
         {() => (
@@ -82,7 +64,7 @@ export default function TableManagementPage({
 
   return (
     <AdminGuard>
-      {() => <TableManagementContent restaurantId={id as Id<"restaurants">} />}
+      {() => <TableManagementContent restaurantId={id} />}
     </AdminGuard>
   );
 }
@@ -227,7 +209,10 @@ function TableManagementContent({
   const handleDownloadQR = useCallback(
     (table: NonNullable<typeof tables>[number]) => {
       const svg = document.getElementById(`qr-${table._id}`);
-      if (!svg) return;
+      if (!svg) {
+        toast.error("Falha ao carregar QR code. Atualize a página.");
+        return;
+      }
 
       const svgData = new XMLSerializer().serializeToString(svg);
       const canvas = document.createElement("canvas");
@@ -449,190 +434,32 @@ function TableManagementContent({
             />
           </div>
 
-          {/* Generate Tables Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Generate Tables
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap items-end gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="start-id">START ID</Label>
-                  <Input
-                    id="start-id"
-                    type="number"
-                    min="1"
-                    placeholder="1"
-                    value={generateForm.startId}
-                    onChange={(e) =>
-                      dispatch({
-                        type: "SET_GENERATE_FORM",
-                        payload: { startId: e.target.value },
-                      })
-                    }
-                    className="w-24"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="end-id">END ID</Label>
-                  <Input
-                    id="end-id"
-                    type="number"
-                    min="1"
-                    placeholder="10"
-                    value={generateForm.endId}
-                    onChange={(e) =>
-                      dispatch({
-                        type: "SET_GENERATE_FORM",
-                        payload: { endId: e.target.value },
-                      })
-                    }
-                    className="w-24"
-                  />
-                </div>
-                <Button
-                  onClick={handleGenerateTables}
-                  disabled={isGenerating || !generateForm.startId || !generateForm.endId}
-                  className="w-full sm:w-auto"
-                >
-                  {isGenerating ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="mr-2 h-4 w-4" />
-                  )}
-                  Generate
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Maximum 50 tables per batch. Existing table numbers will be skipped.
-              </p>
-            </CardContent>
-          </Card>
+          <GenerateTablesForm
+            generateForm={generateForm}
+            isGenerating={isGenerating}
+            dispatch={dispatch}
+            onGenerate={handleGenerateTables}
+          />
 
-          {/* Search/Filter Toolbar */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <div className="flex flex-1 items-center gap-2">
-                  <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      placeholder="Search tables..."
-                      value={searchQuery}
-                      onChange={(e) =>
-                        dispatch({
-                          type: "SET_SEARCH_QUERY",
-                          payload: e.target.value,
-                        })
-                      }
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Select
-                    value={statusFilter}
-                    onValueChange={(value) =>
-                      dispatch({
-                        type: "SET_STATUS_FILTER",
-                        payload: value as StatusFilter,
-                      })
-                    }
-                  >
-                    <SelectTrigger className="w-[120px] sm:w-[130px]">
-                      <Filter className="mr-2 h-4 w-4" />
-                      <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select
-                    value={sortBy}
-                    onValueChange={(value) =>
-                      dispatch({ type: "SET_SORT_BY", payload: value as SortBy })
-                    }
-                  >
-                    <SelectTrigger className="w-[120px] sm:w-[130px]">
-                      <SelectValue placeholder="Sort by" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="number">Number</SelectItem>
-                      <SelectItem value="created">Created</SelectItem>
-                      <SelectItem value="status">Status</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => dispatch({ type: "TOGGLE_SORT_ORDER" })}
-                  >
-                    <ArrowUpDown className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-              {filteredAndSortedTables.length > 0 && (
-                <div className="flex items-center gap-2 mt-4">
-                  <Checkbox
-                    id="select-all"
-                    checked={
-                      selectedTableIds.size === filteredAndSortedTables.length &&
-                      filteredAndSortedTables.length > 0
-                    }
-                    onCheckedChange={handleSelectAll}
-                  />
-                  <Label htmlFor="select-all" className="text-sm text-muted-foreground">
-                    Select all ({selectedTableIds.size} of {filteredAndSortedTables.length})
-                  </Label>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <TableSearchToolbar
+            searchQuery={searchQuery}
+            statusFilter={statusFilter}
+            sortBy={sortBy}
+            selectedCount={selectedTableIds.size}
+            totalCount={filteredAndSortedTables.length}
+            dispatch={dispatch}
+            onSelectAll={handleSelectAll}
+          />
 
-          {/* Table Grid */}
-          {filteredAndSortedTables.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <QrCode className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium">No tables found</h3>
-              <p className="text-muted-foreground">
-                {searchQuery || statusFilter !== "all"
-                  ? "Try adjusting your filters"
-                  : "Generate your first tables to get started"}
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredAndSortedTables.map((table) => (
-                <TableCard
-                  key={table._id}
-                  table={table}
-                  isSelected={selectedTableIds.has(table._id)}
-                  onToggleSelect={() =>
-                    dispatch({
-                      type: "TOGGLE_TABLE_SELECTION",
-                      payload: table._id,
-                    })
-                  }
-                  onToggleStatus={() => handleToggleStatus(table._id)}
-                  onDelete={() =>
-                    dispatch({
-                      type: "SET_DELETE_CONFIRM_TABLE_ID",
-                      payload: table._id,
-                    })
-                  }
-                  onDownloadQR={() => handleDownloadQR(table)}
-                  onViewStats={() =>
-                    dispatch({ type: "SET_STATS_TABLE_ID", payload: table._id })
-                  }
-                />
-              ))}
-            </div>
-          )}
+          <TableGrid
+            tables={filteredAndSortedTables}
+            selectedTableIds={selectedTableIds}
+            searchQuery={searchQuery}
+            statusFilter={statusFilter}
+            dispatch={dispatch}
+            onToggleStatus={handleToggleStatus}
+            onDownloadQR={handleDownloadQR}
+          />
         </div>
 
         <BatchActionsDesktop
@@ -651,7 +478,7 @@ function TableManagementContent({
       />
 
       {/* Hidden QR codes for PDF generation */}
-      <div style={{ position: "absolute", left: "-9999px", top: "-9999px" }}>
+      <div className="absolute -left-[9999px] -top-[9999px]">
         {tables.map((table) => (
           <QRCodeSVG
             key={`hidden-${table._id}`}

@@ -16,7 +16,10 @@ import {
   ToggleGroupItem,
 } from "@workspace/ui/components/toggle-group";
 import { Printer, Sun, Moon } from "lucide-react";
+import { cn } from "@workspace/ui/lib/utils";
 import type { BatchSettings, ColorTheme, FormatTemplate, PageAction } from "./tables-reducer";
+
+const DESKTOP_SIZE_THRESHOLD = 60;
 
 interface BatchActionsPanelProps {
   batchSettings: BatchSettings;
@@ -43,7 +46,7 @@ export function BatchActionsDesktop({
           </CardHeader>
           <CardContent className="space-y-6">
             <BatchPreview batchSettings={batchSettings} size={80} />
-            <BatchSettingsForm batchSettings={batchSettings} dispatch={dispatch} />
+            <BatchSettingsFields batchSettings={batchSettings} dispatch={dispatch} idPrefix="desktop" />
             <Button className="w-full" onClick={onPrint}>
               <Printer className="mr-2 h-4 w-4" />
               Print {selectedCount > 0 ? `Selected (${selectedCount})` : "All"}
@@ -73,84 +76,7 @@ export function BatchActionsMobile({
           </CardHeader>
           <CardContent className="space-y-4">
             <BatchPreview batchSettings={batchSettings} size={60} />
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label className="text-xs">Formato</Label>
-                <Select
-                  value={batchSettings.formatTemplate}
-                  onValueChange={(value) =>
-                    dispatch({
-                      type: "SET_BATCH_SETTING",
-                      payload: { formatTemplate: value as FormatTemplate },
-                    })
-                  }
-                >
-                  <SelectTrigger className="text-xs">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="tent-card-4x6">Tent Card (4x6)</SelectItem>
-                    <SelectItem value="sticker-2x2">Sticker (2x2)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label className="text-xs">Tema</Label>
-                <ToggleGroup
-                  type="single"
-                  value={batchSettings.colorTheme}
-                  onValueChange={(value) =>
-                    value &&
-                    dispatch({
-                      type: "SET_BATCH_SETTING",
-                      payload: { colorTheme: value as ColorTheme },
-                    })
-                  }
-                  className="w-full"
-                >
-                  <ToggleGroupItem value="light" className="flex-1 text-xs">
-                    <Sun className="h-3 w-3 mr-1" />
-                    Light
-                  </ToggleGroupItem>
-                  <ToggleGroupItem value="dark" className="flex-1 text-xs">
-                    <Moon className="h-3 w-3 mr-1" />
-                    Dark
-                  </ToggleGroupItem>
-                </ToggleGroup>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="mobile-call-to-action" className="text-xs">Call to Action</Label>
-              <Input
-                id="mobile-call-to-action"
-                value={batchSettings.callToAction}
-                onChange={(e) =>
-                  dispatch({
-                    type: "SET_BATCH_SETTING",
-                    payload: { callToAction: e.target.value },
-                  })
-                }
-                placeholder="SCAN TO ORDER"
-              />
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="mobile-show-table-number"
-                checked={batchSettings.showTableNumber}
-                onCheckedChange={(checked) =>
-                  dispatch({
-                    type: "SET_BATCH_SETTING",
-                    payload: { showTableNumber: checked === true },
-                  })
-                }
-              />
-              <Label htmlFor="mobile-show-table-number" className="text-sm">
-                Exibir numero da mesa
-              </Label>
-            </div>
+            <BatchSettingsFields batchSettings={batchSettings} dispatch={dispatch} idPrefix="mobile" compact />
           </CardContent>
         </Card>
       </div>
@@ -173,20 +99,20 @@ function BatchPreview({
   size: number;
 }) {
   const isDark = batchSettings.colorTheme === "dark";
+  const isLarge = size > DESKTOP_SIZE_THRESHOLD;
 
   return (
     <div className="border rounded-lg p-3 bg-muted/50">
       <p className="text-xs text-muted-foreground mb-2 text-center">
-        {size > 60 ? "Live Preview" : "Preview"}
+        {isLarge ? "Live Preview" : "Preview"}
       </p>
       <div
-        className={`aspect-[3/2] rounded-md flex flex-col items-center justify-center p-3 ${
-          isDark
-            ? "bg-zinc-900 text-white"
-            : "bg-white text-black border"
-        }`}
+        className={cn(
+          "aspect-[3/2] rounded-md flex flex-col items-center justify-center p-3",
+          isDark ? "bg-zinc-900 text-white" : "bg-white text-black border"
+        )}
       >
-        <p className={`${size > 60 ? "text-xs" : "text-[10px]"} font-bold mb-${size > 60 ? "2" : "1"}`}>
+        <p className={cn("font-bold", isLarge ? "text-xs mb-2" : "text-[10px] mb-1")}>
           {batchSettings.callToAction}
         </p>
         <QRCodeSVG
@@ -196,7 +122,7 @@ function BatchPreview({
           fgColor={isDark ? "#ffffff" : "#000000"}
         />
         {batchSettings.showTableNumber && (
-          <p className={`${size > 60 ? "text-lg" : "text-sm"} font-bold mt-${size > 60 ? "2" : "1"}`}>
+          <p className={cn("font-bold", isLarge ? "text-lg mt-2" : "text-sm mt-1")}>
             TABLE 1
           </p>
         )}
@@ -205,65 +131,75 @@ function BatchPreview({
   );
 }
 
-function BatchSettingsForm({
+function BatchSettingsFields({
   batchSettings,
   dispatch,
+  idPrefix,
+  compact = false,
 }: {
   batchSettings: BatchSettings;
   dispatch: React.Dispatch<PageAction>;
+  idPrefix: string;
+  compact?: boolean;
 }) {
+  const labelSize = compact ? "text-xs" : undefined;
+
   return (
     <>
-      <div className="space-y-2">
-        <Label>Format Template</Label>
-        <Select
-          value={batchSettings.formatTemplate}
-          onValueChange={(value) =>
-            dispatch({
-              type: "SET_BATCH_SETTING",
-              payload: { formatTemplate: value as FormatTemplate },
-            })
-          }
-        >
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="tent-card-4x6">Tent Card (4x6)</SelectItem>
-            <SelectItem value="sticker-2x2">Sticker (2x2)</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className={compact ? "grid grid-cols-2 gap-3" : "space-y-2"}>
+        <div className="space-y-2">
+          <Label className={labelSize}>{compact ? "Formato" : "Format Template"}</Label>
+          <Select
+            value={batchSettings.formatTemplate}
+            onValueChange={(value) =>
+              dispatch({
+                type: "SET_BATCH_SETTING",
+                payload: { formatTemplate: value as FormatTemplate },
+              })
+            }
+          >
+            <SelectTrigger className={compact ? "text-xs" : undefined}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tent-card-4x6">Tent Card (4x6)</SelectItem>
+              <SelectItem value="sticker-2x2">Sticker (2x2)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label className={labelSize}>{compact ? "Tema" : "Color Theme"}</Label>
+          <ToggleGroup
+            type="single"
+            value={batchSettings.colorTheme}
+            onValueChange={(value) =>
+              value &&
+              dispatch({
+                type: "SET_BATCH_SETTING",
+                payload: { colorTheme: value as ColorTheme },
+              })
+            }
+            className="w-full"
+          >
+            <ToggleGroupItem value="light" className={cn("flex-1", compact && "text-xs")}>
+              <Sun className={cn("mr-1", compact ? "h-3 w-3" : "h-4 w-4")} />
+              Light
+            </ToggleGroupItem>
+            <ToggleGroupItem value="dark" className={cn("flex-1", compact && "text-xs")}>
+              <Moon className={cn("mr-1", compact ? "h-3 w-3" : "h-4 w-4")} />
+              Dark
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
       </div>
 
       <div className="space-y-2">
-        <Label>Color Theme</Label>
-        <ToggleGroup
-          type="single"
-          value={batchSettings.colorTheme}
-          onValueChange={(value) =>
-            value &&
-            dispatch({
-              type: "SET_BATCH_SETTING",
-              payload: { colorTheme: value as ColorTheme },
-            })
-          }
-          className="w-full"
-        >
-          <ToggleGroupItem value="light" className="flex-1">
-            <Sun className="h-4 w-4 mr-1" />
-            Light
-          </ToggleGroupItem>
-          <ToggleGroupItem value="dark" className="flex-1">
-            <Moon className="h-4 w-4 mr-1" />
-            Dark
-          </ToggleGroupItem>
-        </ToggleGroup>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="call-to-action">Call to Action</Label>
+        <Label htmlFor={`${idPrefix}-call-to-action`} className={labelSize}>
+          Call to Action
+        </Label>
         <Input
-          id="call-to-action"
+          id={`${idPrefix}-call-to-action`}
           value={batchSettings.callToAction}
           onChange={(e) =>
             dispatch({
@@ -275,20 +211,20 @@ function BatchSettingsForm({
         />
       </div>
 
-      <div className="space-y-3">
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="show-table-number"
-            checked={batchSettings.showTableNumber}
-            onCheckedChange={(checked) =>
-              dispatch({
-                type: "SET_BATCH_SETTING",
-                payload: { showTableNumber: checked === true },
-              })
-            }
-          />
-          <Label htmlFor="show-table-number">Show Table Number</Label>
-        </div>
+      <div className="flex items-center space-x-2">
+        <Checkbox
+          id={`${idPrefix}-show-table-number`}
+          checked={batchSettings.showTableNumber}
+          onCheckedChange={(checked) =>
+            dispatch({
+              type: "SET_BATCH_SETTING",
+              payload: { showTableNumber: checked === true },
+            })
+          }
+        />
+        <Label htmlFor={`${idPrefix}-show-table-number`} className="text-sm">
+          {compact ? "Exibir numero da mesa" : "Show Table Number"}
+        </Label>
       </div>
     </>
   );

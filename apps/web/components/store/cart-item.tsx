@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo, useCallback } from "react";
 import Image from "next/image";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
@@ -14,10 +15,21 @@ interface CartItemProps {
 export function CartItem({ item }: CartItemProps) {
   const { updateQuantity } = useCart();
 
-  const modifiersTotal = item.selectedModifiers
-    ? item.selectedModifiers.reduce((sum, m) => sum + m.price, 0)
-    : 0;
+  const modifiersTotal = useMemo(
+    () => item.selectedModifiers
+      ? item.selectedModifiers.reduce((sum, m) => sum + m.price, 0)
+      : 0,
+    [item.selectedModifiers]
+  );
   const unitPrice = item.discountedPrice + modifiersTotal;
+
+  const handleDecrement = useCallback(() => {
+    updateQuantity(item.menuItemId, item.quantity - 1, item.selectedModifiers);
+  }, [updateQuantity, item.menuItemId, item.quantity, item.selectedModifiers]);
+
+  const handleIncrement = useCallback(() => {
+    updateQuantity(item.menuItemId, item.quantity + 1, item.selectedModifiers);
+  }, [updateQuantity, item.menuItemId, item.quantity, item.selectedModifiers]);
 
   return (
     <div className="flex items-center gap-3">
@@ -46,13 +58,7 @@ export function CartItem({ item }: CartItemProps) {
           variant="outline"
           size="icon"
           className="h-7 w-7"
-          onClick={() =>
-            updateQuantity(
-              item.menuItemId,
-              item.quantity - 1,
-              item.selectedModifiers
-            )
-          }
+          onClick={handleDecrement}
         >
           {item.quantity === 1 ? (
             <Trash2 className="h-3 w-3" />
@@ -65,13 +71,7 @@ export function CartItem({ item }: CartItemProps) {
           variant="outline"
           size="icon"
           className="h-7 w-7"
-          onClick={() =>
-            updateQuantity(
-              item.menuItemId,
-              item.quantity + 1,
-              item.selectedModifiers
-            )
-          }
+          onClick={handleIncrement}
         >
           <Plus className="h-3 w-3" />
         </Button>

@@ -1,10 +1,10 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { OrderStatus } from "./lib/types";
+import { OrderStatus, OrderType } from "./lib/types";
 import type { OrderStatusType } from "./lib/types";
 import { requireRestaurantStaffAccess } from "./lib/auth";
-import { batchFetchTables, batchFetchMenuItems, validateSession, validateOrderItems } from "./lib/helpers";
+import { batchFetchTables, batchFetchMenuItems, validateSession, validateOrderItems, calculateDiscountedPrice } from "./lib/helpers";
 import { orderStatusValidator } from "./schema";
 
 const MAX_NOTES_LENGTH = 500;
@@ -100,6 +100,9 @@ export const createOrder = mutation({
     const menuItemIds = args.items.map((item) => item.menuItemId);
     const menuMap = await batchFetchMenuItems(ctx, menuItemIds);
 
+    let subtotalPrice = 0;
+    let totalDiscounts = 0;
+
     const itemsWithServerPrices = args.items.map((item) => {
       const menuItem = menuMap.get(item.menuItemId.toString());
       if (!menuItem || menuItem.restaurantId !== args.restaurantId) {
@@ -108,25 +111,38 @@ export const createOrder = mutation({
       if (!menuItem.isActive) {
         throw new Error(`Menu item "${menuItem.name}" is no longer available`);
       }
+
+      const originalTotal = menuItem.price * item.quantity;
+      const discountPercentage = menuItem.discountPercentage ?? 0;
+      const discountedPrice = calculateDiscountedPrice(menuItem.price, discountPercentage);
+      const discountedTotal = discountedPrice * item.quantity;
+      const itemDiscount = originalTotal - discountedTotal;
+
+      subtotalPrice += originalTotal;
+      totalDiscounts += itemDiscount;
+
       return {
         menuItemId: item.menuItemId,
         name: menuItem.name,
         quantity: item.quantity,
-        price: menuItem.price,
-        totalPrice: menuItem.price * item.quantity,
+        price: discountedPrice,
+        totalPrice: discountedTotal,
         notes: item.notes,
       };
     });
 
-    const total = itemsWithServerPrices.reduce((sum, item) => sum + item.totalPrice, 0);
+    const total = subtotalPrice - totalDiscounts;
     const now = Date.now();
 
     const orderId = await ctx.db.insert("orders", {
       restaurantId: args.restaurantId,
       tableId: args.tableId,
       sessionId: args.sessionId,
+      orderType: OrderType.DINE_IN,
       status: OrderStatus.PENDING,
       total,
+      subtotalPrice,
+      totalDiscounts,
       createdAt: now,
       updatedAt: now,
     });
@@ -140,6 +156,7 @@ export const createOrder = mutation({
           quantity: item.quantity,
           price: item.price,
           totalPrice: item.totalPrice,
+          notes: item.notes,
         })
       )
     );

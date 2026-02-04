@@ -4,6 +4,15 @@ import Image from "next/image";
 import Link from "next/link";
 import type { Id } from "@workspace/backend/_generated/dataModel";
 
+function isSafeHref(url: string): boolean {
+  try {
+    const parsed = new URL(url, window.location.origin);
+    return parsed.protocol === "https:" || parsed.protocol === "http:" || url.startsWith("/");
+  } catch {
+    return false;
+  }
+}
+
 interface PromoBannerProps {
   banner: {
     _id: Id<"promoBanners">;
@@ -32,7 +41,7 @@ export function PromoBanner({ banner }: PromoBannerProps) {
     </div>
   );
 
-  if (banner.linkUrl) {
+  if (banner.linkUrl && isSafeHref(banner.linkUrl)) {
     return <Link href={banner.linkUrl}>{content}</Link>;
   }
 

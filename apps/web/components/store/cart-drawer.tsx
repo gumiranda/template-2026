@@ -40,12 +40,13 @@ export function CartDrawer({ open, onOpenChange }: CartDrawerProps) {
       return;
     }
 
-    if (items.length === 0) return;
+    const firstItem = items[0];
+    if (!firstItem) return;
 
     setIsSubmitting(true);
     try {
       await createOrder({
-        restaurantId: items[0]!.restaurantId,
+        restaurantId: firstItem.restaurantId,
         deliveryAddress: "Endereço a definir",
         items: items.map((item) => ({
           menuItemId: item.menuItemId,

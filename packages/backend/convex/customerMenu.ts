@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
 import { calculateDiscountedPrice, isActiveRestaurant, fetchModifierGroupsWithOptions } from "./lib/helpers";
-import { MAX_ITEMS_PER_RESTAURANT } from "./lib/constants";
+import { MAX_ITEMS_PER_RESTAURANT, MAX_RELATED_PRODUCTS, MAX_DISCOUNT_CANDIDATES, MAX_RECOMMENDED_PRODUCTS } from "./lib/constants";
 import { resolveImageUrl } from "./files";
 
 export const getPublicMenuByRestaurant = query({
@@ -88,7 +88,7 @@ export const getProductDetails = query({
     const relatedProducts = await Promise.all(
       relatedItems
         .filter((ri) => ri._id !== args.menuItemId)
-        .slice(0, 6)
+        .slice(0, MAX_RELATED_PRODUCTS)
         .map(async (ri) => {
           const riImageUrl = await resolveImageUrl(ctx, ri.imageId, ri.imageUrl);
           const riDiscount = ri.discountPercentage ?? 0;
@@ -147,7 +147,7 @@ export const getRecommendedProducts = query({
       .query("menuItems")
       .withIndex("by_discount")
       .order("desc")
-      .take(200);
+      .take(MAX_DISCOUNT_CANDIDATES);
 
     const discountedItems = candidateItems.filter(
       (item) =>
@@ -156,7 +156,7 @@ export const getRecommendedProducts = query({
         item.discountPercentage > 0
     );
 
-    const top = discountedItems.slice(0, 20);
+    const top = discountedItems.slice(0, MAX_RECOMMENDED_PRODUCTS);
 
     return Promise.all(
       top.map(async (item) => {

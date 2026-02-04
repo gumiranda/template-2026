@@ -2,6 +2,7 @@ import type { QueryCtx, MutationCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
 import { resolveImageUrl, resolveStorageUrl } from "./storage";
 import { RestaurantStatus } from "./types";
+import { MAX_ORDER_ITEMS } from "./constants";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -12,6 +13,10 @@ export function isValidSessionId(sessionId: string): boolean {
 }
 
 export function isValidConvexId(id: string): boolean {
+  return CONVEX_ID_REGEX.test(id);
+}
+
+export function isValidRestaurantId(id: string): id is Id<"restaurants"> {
   return CONVEX_ID_REGEX.test(id);
 }
 
@@ -89,8 +94,6 @@ export function groupBy<T>(
   }
   return map;
 }
-
-import { MAX_ORDER_ITEMS } from "./constants";
 
 export { SESSION_DURATION_MS, MAX_ORDER_ITEMS } from "./constants";
 

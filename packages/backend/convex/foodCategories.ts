@@ -92,6 +92,17 @@ export const createFoodCategory = mutation({
       throw new Error("Order must be a non-negative number");
     }
 
+    if (args.imageUrl) {
+      try {
+        const parsed = new URL(args.imageUrl);
+        if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+          throw new Error("Invalid protocol");
+        }
+      } catch {
+        throw new Error("imageUrl must be a valid HTTP or HTTPS URL");
+      }
+    }
+
     return ctx.db.insert("foodCategories", {
       name,
       imageId: args.imageId,
@@ -115,6 +126,18 @@ export const updateFoodCategory = mutation({
     const user = await getAuthenticatedUser(ctx);
     if (!user || !isAdmin(user.role)) {
       throw new Error("Only admins can update food categories");
+    }
+
+    if (args.name !== undefined) {
+      const name = args.name.trim();
+      if (!name || name.length > 200) {
+        throw new Error("Category name must be between 1 and 200 characters");
+      }
+      args = { ...args, name };
+    }
+
+    if (args.order !== undefined && args.order < 0) {
+      throw new Error("Order must be a non-negative number");
     }
 
     const { id, ...updates } = args;

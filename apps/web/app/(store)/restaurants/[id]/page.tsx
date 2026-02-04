@@ -4,8 +4,8 @@ import { use } from "react";
 import Image from "next/image";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
-import { Id } from "@workspace/backend/_generated/dataModel";
-import { isValidConvexId } from "@workspace/backend/lib/helpers";
+import type { Id } from "@workspace/backend/_generated/dataModel";
+import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
 import { Star } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Separator } from "@workspace/ui/components/separator";
@@ -25,7 +25,7 @@ export default function RestaurantDetailPage({
 }) {
   const { id } = use(params);
 
-  if (!isValidConvexId(id)) {
+  if (!isValidRestaurantId(id)) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <h1 className="text-2xl font-bold">Restaurante não encontrado</h1>
@@ -36,9 +36,7 @@ export default function RestaurantDetailPage({
     );
   }
 
-  const restaurantId = id as Id<"restaurants">;
-
-  return <RestaurantDetail restaurantId={restaurantId} />;
+  return <RestaurantDetail restaurantId={id} />;
 }
 
 function RestaurantDetail({
