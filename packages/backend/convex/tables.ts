@@ -12,6 +12,31 @@ import { MAX_RECENT_ORDERS, MAX_BATCH_TABLES } from "./lib/constants";
 // NOTE: This query is intentionally public (no auth check) to support the
 // QR code flow where unauthenticated customers scan a table's QR code and
 // need to see table info. Only public fields are returned (no qrCode).
+export const getByTableNumber = query({
+  args: {
+    restaurantId: v.id("restaurants"),
+    tableNumber: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const table = await ctx.db
+      .query("tables")
+      .withIndex("by_restaurantId_and_tableNumber", (q) =>
+        q.eq("restaurantId", args.restaurantId).eq("tableNumber", args.tableNumber)
+      )
+      .first();
+
+    if (!table || !table.isActive) return null;
+
+    return {
+      _id: table._id,
+      restaurantId: table.restaurantId,
+      tableNumber: table.tableNumber,
+      capacity: table.capacity,
+      isActive: table.isActive,
+    };
+  },
+});
+
 export const listByRestaurant = query({
   args: { restaurantId: v.id("restaurants") },
   handler: async (ctx, args) => {

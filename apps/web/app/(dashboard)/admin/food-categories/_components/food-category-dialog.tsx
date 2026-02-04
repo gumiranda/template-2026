@@ -73,6 +73,16 @@ export function FoodCategoryDialog({
   );
   const [pendingLinks, setPendingLinks] = useState<Set<string>>(new Set());
 
+  const uniqueRestaurants = useMemo(() => {
+    if (!restaurants) return [];
+    const seen = new Set<string>();
+    return restaurants.filter((r) => {
+      if (seen.has(r._id)) return false;
+      seen.add(r._id);
+      return true;
+    });
+  }, [restaurants]);
+
   const linkedIds = useMemo(() => {
     if (!linkedRestaurants) return new Set<string>();
     return new Set(linkedRestaurants.map((r) => r._id as string));
@@ -294,13 +304,13 @@ export function FoodCategoryDialog({
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
-            ) : restaurants.length === 0 ? (
+            ) : uniqueRestaurants.length === 0 ? (
               <p className="text-sm text-muted-foreground py-2">
                 Nenhum restaurante cadastrado.
               </p>
             ) : (
               <div className="max-h-[200px] overflow-y-auto rounded-md border p-3 space-y-3">
-                {restaurants.map((restaurant) => {
+                {uniqueRestaurants.map((restaurant) => {
                   const isLinked = editingId
                     ? linkedIds.has(restaurant._id)
                     : createModeSelection.has(restaurant._id);

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { use, useState, useReducer, useMemo, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import Link from "next/link";
 import { api } from "@workspace/backend/_generated/api";
@@ -49,6 +49,7 @@ import {
 import { AdminGuard } from "@/components/admin-guard";
 import { toast } from "sonner";
 import type { FilterStatus, CategoryFormData } from "./_components/menu-types";
+import { menuDialogReducer, menuDialogInitialState } from "./_components/menu-reducer";
 import { MobileCategoriesTab } from "./_components/mobile-categories-tab";
 import { MobileProductsTab } from "./_components/mobile-products-tab";
 import { CategoryDialog } from "./_components/category-dialog";
@@ -111,24 +112,16 @@ function MenuBuilderContent({
 }) {
   const menu = useQuery(api.menu.getMenuByRestaurant, { restaurantId });
 
-  // State
+  // Independent state
   const [selectedCategoryId, setSelectedCategoryId] = useState<Id<"menuCategories"> | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
-
-  // Category modal state
-  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
-  const [editingCategory, setEditingCategory] = useState<{ _id: Id<"menuCategories">; name: string; description?: string; icon?: string } | null>(null);
-  const [categoryForm, setCategoryForm] = useState<CategoryFormData>({ name: "", description: "", icon: "" });
-
-  // Mobile tab state
   const [mobileTab, setMobileTab] = useState<MobileTab>("categorias");
 
-  // Delete confirmation state
-  const [deleteDialog, setDeleteDialog] = useState<{ type: "category" | "item"; id: string; name: string } | null>(null);
+  // Coupled dialog/drag state via reducer
+  const [dialogState, dispatchDialog] = useReducer(menuDialogReducer, menuDialogInitialState);
+  const { categoryDialog, deleteDialog, draggedCategoryId } = dialogState;
 
-  // Drag state
-  const [draggedCategoryId, setDraggedCategoryId] = useState<Id<"menuCategories"> | null>(null);
   const pendingReorderRef = useRef<{ id: Id<"menuCategories">; order: number }[] | null>(null);
 
   // Mutations
@@ -183,50 +176,46 @@ function MenuBuilderContent({
   // ─── Category Handlers ──────────────────────────────────────────────────────
 
   const handleOpenAddCategory = useCallback(() => {
-    setEditingCategory(null);
-    setCategoryForm({ name: "", description: "", icon: "" });
-    setCategoryDialogOpen(true);
+    dispatchDialog({ type: "OPEN_ADD_CATEGORY" });
   }, []);
 
   const handleOpenEditCategory = useCallback(
     (cat: { _id: Id<"menuCategories">; name: string; description?: string; icon?: string }) => {
-      setEditingCategory(cat);
-      setCategoryForm({ name: cat.name, description: cat.description ?? "", icon: cat.icon ?? "" });
-      setCategoryDialogOpen(true);
+      dispatchDialog({ type: "OPEN_EDIT_CATEGORY", payload: cat });
     },
     []
   );
 
   const handleSaveCategory = useCallback(async () => {
-    if (!categoryForm.name.trim()) return;
+    if (!categoryDialog.form.name.trim()) return;
 
-    const icon = categoryForm.icon || undefined;
+    const icon = categoryDialog.form.icon || undefined;
 
     try {
-      if (editingCategory) {
+      if (categoryDialog.editing) {
         await updateCategory({
-          categoryId: editingCategory._id,
-          name: categoryForm.name.trim(),
-          description: categoryForm.description.trim() || undefined,
+          categoryId: categoryDialog.editing._id,
+          name: categoryDialog.form.name.trim(),
+          description: categoryDialog.form.description.trim() || undefined,
           icon,
         });
         toast.success("Category updated");
       } else {
         const newId = await createCategory({
           restaurantId,
-          name: categoryForm.name.trim(),
-          description: categoryForm.description.trim() || undefined,
+          name: categoryDialog.form.name.trim(),
+          description: categoryDialog.form.description.trim() || undefined,
           order: sortedCategories.length,
           icon,
         });
         setSelectedCategoryId(newId);
         toast.success("Category created");
       }
-      setCategoryDialogOpen(false);
+      dispatchDialog({ type: "CLOSE_CATEGORY_DIALOG" });
     } catch {
       toast.error("Failed to save category");
     }
-  }, [categoryForm, editingCategory, createCategory, updateCategory, restaurantId, sortedCategories.length]);
+  }, [categoryDialog, createCategory, updateCategory, restaurantId, sortedCategories.length]);
 
   const handleDeleteCategory = useCallback(async () => {
     if (!deleteDialog || deleteDialog.type !== "category") return;
@@ -239,7 +228,7 @@ function MenuBuilderContent({
     } catch {
       toast.error("Failed to delete category");
     }
-    setDeleteDialog(null);
+    dispatchDialog({ type: "CLOSE_DELETE_DIALOG" });
   }, [deleteDialog, deleteCategory, selectedCategoryId]);
 
   const handleMobileCategorySelect = useCallback((categoryId: Id<"menuCategories">) => {
@@ -250,7 +239,7 @@ function MenuBuilderContent({
   // ─── Drag & Drop Handlers ─────────────────────────────────────────────────
 
   const handleDragStart = useCallback((categoryId: Id<"menuCategories">) => {
-    setDraggedCategoryId(categoryId);
+    dispatchDialog({ type: "SET_DRAGGED_CATEGORY", payload: categoryId });
   }, []);
 
   const handleDragOver = useCallback(
@@ -276,7 +265,7 @@ function MenuBuilderContent({
       reorderCategories({ restaurantId, orderedIds: pendingReorderRef.current });
       pendingReorderRef.current = null;
     }
-    setDraggedCategoryId(null);
+    dispatchDialog({ type: "CLEAR_DRAGGED_CATEGORY" });
   }, [reorderCategories, restaurantId]);
 
   // ─── Item Handlers ──────────────────────────────────────────────────────────
@@ -300,11 +289,11 @@ function MenuBuilderContent({
     } catch {
       toast.error("Failed to delete item");
     }
-    setDeleteDialog(null);
+    dispatchDialog({ type: "CLOSE_DELETE_DIALOG" });
   }, [deleteDialog, deleteItem]);
 
   const handleCategoryFormChange = useCallback((update: Partial<CategoryFormData>) => {
-    setCategoryForm((prev) => ({ ...prev, ...update }));
+    dispatchDialog({ type: "SET_CATEGORY_FORM", payload: update });
   }, []);
 
   const deleteHandlers: Record<"category" | "item", () => void> = useMemo(
@@ -391,7 +380,7 @@ function MenuBuilderContent({
           onSelectCategory={setSelectedCategoryId}
           onEditCategory={handleOpenEditCategory}
           onDeleteCategory={(cat) =>
-            setDeleteDialog({ type: "category", id: cat._id, name: cat.name })
+            dispatchDialog({ type: "OPEN_DELETE_DIALOG", payload: { type: "category", id: cat._id, name: cat.name } })
           }
           onAddCategory={handleOpenAddCategory}
           onDragStart={handleDragStart}
@@ -467,7 +456,7 @@ function MenuBuilderContent({
             hasFilters={!!searchQuery || filterStatus !== "all"}
             onToggleItemStatus={handleToggleItemStatus}
             onDeleteItem={(item) =>
-              setDeleteDialog({ type: "item", id: item._id, name: item.name })
+              dispatchDialog({ type: "OPEN_DELETE_DIALOG", payload: { type: "item", id: item._id, name: item.name } })
             }
           />
         </div>
@@ -475,10 +464,10 @@ function MenuBuilderContent({
 
       {/* ─── Category Dialog ───────────────────────────────────────────── */}
       <CategoryDialog
-        open={categoryDialogOpen}
-        onOpenChange={setCategoryDialogOpen}
-        isEditing={!!editingCategory}
-        form={categoryForm}
+        open={categoryDialog.open}
+        onOpenChange={(open) => !open && dispatchDialog({ type: "CLOSE_CATEGORY_DIALOG" })}
+        isEditing={!!categoryDialog.editing}
+        form={categoryDialog.form}
         onFormChange={handleCategoryFormChange}
         onSave={handleSaveCategory}
       />
@@ -486,7 +475,7 @@ function MenuBuilderContent({
       {/* ─── Delete Confirmation ───────────────────────────────────────── */}
       <AlertDialog
         open={!!deleteDialog}
-        onOpenChange={(open) => !open && setDeleteDialog(null)}
+        onOpenChange={(open) => !open && dispatchDialog({ type: "CLOSE_DELETE_DIALOG" })}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
