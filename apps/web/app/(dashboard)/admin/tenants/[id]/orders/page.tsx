@@ -262,6 +262,7 @@ function OrdersContent({
                 <TableGroupCard
                   key={group.key}
                   group={group}
+                  restaurantId={restaurantId}
                   onStatusChange={handleStatusChange}
                   updatingOrderId={state.updatingOrderId}
                 />

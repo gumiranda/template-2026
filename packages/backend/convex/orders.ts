@@ -38,7 +38,7 @@ export const getOrdersByRestaurant = query({
         .filter((id): id is string => id !== undefined)
     )];
 
-    // Fetch sessions to check their status
+    // Fetch sessions to get their status
     const sessions = await Promise.all(
       sessionIds.map((sessionId) =>
         ctx.db
@@ -48,26 +48,20 @@ export const getOrdersByRestaurant = query({
       )
     );
 
-    // Build a set of closed session IDs
-    const closedSessionIds = new Set(
-      sessions
-        .filter((s) => s?.status === SessionStatus.CLOSED)
-        .map((s) => s!.sessionId)
-    );
+    // Build a map of session status
+    const sessionStatusMap = new Map<string, string>();
+    sessions.forEach((s) => {
+      if (s) sessionStatusMap.set(s.sessionId, s.status ?? "open");
+    });
 
-    // Filter out orders from closed sessions (keep delivery orders without sessionId)
-    const activeOrders = orders.filter(
-      (order) => !order.sessionId || !closedSessionIds.has(order.sessionId)
-    );
-
-    const tableIds = activeOrders
+    const tableIds = orders
       .map((o) => o.tableId)
       .filter((id): id is Id<"tables"> => id !== undefined);
 
     const tableMap = await batchFetchTables(ctx, tableIds);
 
     const orderItemsArrays = await Promise.all(
-      activeOrders.map((order) =>
+      orders.map((order) =>
         ctx.db
           .query("orderItems")
           .withIndex("by_order", (q) => q.eq("orderId", order._id))
@@ -76,17 +70,20 @@ export const getOrdersByRestaurant = query({
     );
 
     const itemsMap = new Map<string, (typeof orderItemsArrays)[0]>();
-    activeOrders.forEach((order, i) => {
+    orders.forEach((order, i) => {
       const items = orderItemsArrays[i];
       if (items) itemsMap.set(order._id.toString(), items);
     });
 
-    return activeOrders.map((order) => ({
+    return orders.map((order) => ({
       ...order,
       table: order.tableId
         ? tableMap.get(order.tableId.toString()) ?? null
         : null,
       items: itemsMap.get(order._id.toString()) ?? [],
+      sessionStatus: order.sessionId
+        ? sessionStatusMap.get(order.sessionId) ?? "open"
+        : null,
     }));
   },
 });

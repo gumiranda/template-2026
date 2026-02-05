@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useMutation } from "convex/react";
+import { api } from "@workspace/backend/_generated/api";
+import type { Id } from "@workspace/backend/_generated/dataModel";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
-import { ChevronDown, ChevronUp, UtensilsCrossed, Truck } from "lucide-react";
+import { ChevronDown, ChevronUp, UtensilsCrossed, Truck, CheckCircle2, Receipt, Loader2 } from "lucide-react";
+import { cn } from "@workspace/ui/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import { getStatusConfig, type OrderStatusType, type TableGroup } from "./orders-types";
 import { OrderStatusSelect } from "./order-status-select";
+import { toast } from "sonner";
 
 const MAX_VISIBLE_ITEMS = 3;
 
@@ -26,21 +31,43 @@ function formatDate(timestamp: number): string {
 
 interface TableGroupCardProps {
   group: TableGroup;
+  restaurantId: Id<"restaurants">;
   onStatusChange: (orderId: string, newStatus: OrderStatusType) => void;
   updatingOrderId: string | null;
 }
 
 export function TableGroupCard({
   group,
+  restaurantId,
   onStatusChange,
   updatingOrderId,
 }: TableGroupCardProps) {
   const [expanded, setExpanded] = useState(true);
+  const [isSettling, setIsSettling] = useState(false);
+  const settleBill = useMutation(api.billManagement.settleBill);
+
   const isDelivery = group.tableNumber === null;
+  const canSettle = !isDelivery && group.sessionId && !group.sessionClosed;
   const Icon = isDelivery ? Truck : UtensilsCrossed;
 
+  const handleSettleBill = useCallback(async () => {
+    if (!group.sessionId) return;
+    setIsSettling(true);
+    try {
+      await settleBill({ sessionId: group.sessionId, restaurantId });
+      toast.success("Conta fechada com sucesso");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Erro ao fechar conta"
+      );
+    } finally {
+      setIsSettling(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [group.sessionId, restaurantId]);
+
   return (
-    <Card>
+    <Card className={cn(group.sessionClosed && "opacity-60")}>
       <Button
         variant="ghost"
         className="w-full flex items-center justify-between px-4 py-3 h-auto"
@@ -50,6 +77,12 @@ export function TableGroupCard({
           <Icon className="h-5 w-5 text-muted-foreground" />
           <span className="font-semibold text-base">{group.label}</span>
           <Badge variant="secondary">{group.orders.length} pedido(s)</Badge>
+          {group.sessionClosed && (
+            <Badge variant="outline" className="gap-1 text-green-600 border-green-200 bg-green-50">
+              <CheckCircle2 className="h-3 w-3" />
+              Conta fechada
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <span className="font-semibold text-sm">
@@ -62,6 +95,25 @@ export function TableGroupCard({
           )}
         </div>
       </Button>
+
+      {canSettle && (
+        <div className="px-4 pb-3 -mt-1">
+          <Button
+            size="sm"
+            variant="outline"
+            className="w-full gap-2"
+            onClick={handleSettleBill}
+            disabled={isSettling}
+          >
+            {isSettling ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Receipt className="h-4 w-4" />
+            )}
+            Fechar Conta
+          </Button>
+        </div>
+      )}
 
       {expanded && (
         <CardContent className="pt-0 space-y-3">
