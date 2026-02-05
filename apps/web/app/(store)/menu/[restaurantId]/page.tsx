@@ -20,6 +20,7 @@ import { useSessionCart } from "@/hooks/use-session-cart";
 import { formatCurrency } from "@/lib/format";
 
 const SESSION_STORAGE_PREFIX = "dine-in-session-";
+const DEVICE_ID_KEY = "dine-in-device-id";
 
 function getStoredSessionId(restaurantId: string, tableNumber: string): string | null {
   if (typeof window === "undefined") return null;
@@ -29,6 +30,16 @@ function getStoredSessionId(restaurantId: string, tableNumber: string): string |
 function storeSessionId(restaurantId: string, tableNumber: string, sessionId: string) {
   if (typeof window === "undefined") return;
   sessionStorage.setItem(`${SESSION_STORAGE_PREFIX}${restaurantId}-${tableNumber}`, sessionId);
+}
+
+function getDeviceId(): string {
+  if (typeof window === "undefined") return "";
+  let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+  if (!deviceId) {
+    deviceId = uuidv4();
+    localStorage.setItem(DEVICE_ID_KEY, deviceId);
+  }
+  return deviceId;
 }
 
 export default function DineInMenuPage({
@@ -75,6 +86,7 @@ function DineInContent({
   );
   const [sessionReady, setSessionReady] = useState(false);
   const [tableOccupied, setTableOccupied] = useState(false);
+  const [alreadyAtAnotherTable, setAlreadyAtAnotherTable] = useState(false);
   const sessionCreateAttempted = useRef(false);
 
   const restaurant = useQuery(api.customerRestaurants.getPublicRestaurant, {
@@ -97,6 +109,7 @@ function DineInContent({
       sessionId,
       restaurantId,
       tableId: table._id,
+      deviceId: getDeviceId(),
     })
       .then((result) => {
         // Use the sessionId returned by backend (may be from existing active session)
@@ -118,6 +131,12 @@ function DineInContent({
         // Table is occupied by another customer
         if (errorMessage.includes("TABLE_OCCUPIED")) {
           setTableOccupied(true);
+          return;
+        }
+
+        // Device already has an active session at another table
+        if (errorMessage.includes("ALREADY_AT_ANOTHER_TABLE")) {
+          setAlreadyAtAnotherTable(true);
           return;
         }
 
@@ -194,6 +213,18 @@ function DineInContent({
         </p>
         <p className="mt-1 text-muted-foreground">
           Aguarde o garcom fechar a conta anterior.
+        </p>
+      </div>
+    );
+  }
+
+  if (alreadyAtAnotherTable) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <AlertCircle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+        <h1 className="text-2xl font-bold">Voce ja esta em outra mesa</h1>
+        <p className="mt-2 text-muted-foreground">
+          Feche sua conta na mesa atual antes de acessar outra.
         </p>
       </div>
     );

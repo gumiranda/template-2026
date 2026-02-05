@@ -10,11 +10,17 @@ export const createSession = mutation({
     sessionId: v.string(),
     restaurantId: v.id("restaurants"),
     tableId: v.id("tables"),
+    deviceId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     // Validate session ID format (must be UUID v4)
     if (!isValidSessionId(args.sessionId)) {
       throw new Error("Invalid session ID format: must be a valid UUID v4");
+    }
+
+    // Validate deviceId format if provided (must be UUID v4)
+    if (args.deviceId && !isValidSessionId(args.deviceId)) {
+      throw new Error("Invalid device ID format: must be a valid UUID v4");
     }
 
     // Validate restaurant and table exist
@@ -29,6 +35,30 @@ export const createSession = mutation({
     }
 
     const now = Date.now();
+
+    // Check if this device already has an active session at a different table
+    if (args.deviceId) {
+      const existingDeviceSessions = await ctx.db
+        .query("sessions")
+        .withIndex("by_restaurantId_and_deviceId", (q) =>
+          q.eq("restaurantId", args.restaurantId).eq("deviceId", args.deviceId)
+        )
+        .collect();
+
+      const activeDeviceSession = existingDeviceSessions.find(
+        (s) => s.status !== SessionStatus.CLOSED && s.expiresAt > now
+      );
+
+      // If device has active session on DIFFERENT table, block
+      if (activeDeviceSession && activeDeviceSession.tableId !== args.tableId) {
+        throw new Error("ALREADY_AT_ANOTHER_TABLE");
+      }
+
+      // If device has active session on SAME table, return it
+      if (activeDeviceSession && activeDeviceSession.tableId === args.tableId) {
+        return { _id: activeDeviceSession._id, sessionId: activeDeviceSession.sessionId };
+      }
+    }
 
     // Check for existing session with this sessionId
     const existing = await ctx.db
@@ -72,6 +102,7 @@ export const createSession = mutation({
       sessionId: args.sessionId,
       restaurantId: args.restaurantId,
       tableId: args.tableId,
+      deviceId: args.deviceId,
       expiresAt: now + SESSION_DURATION_MS,
     });
 

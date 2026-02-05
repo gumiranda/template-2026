@@ -150,6 +150,7 @@ export default defineSchema({
     sessionId: v.string(),
     restaurantId: v.id("restaurants"),
     tableId: v.id("tables"),
+    deviceId: v.optional(v.string()),
     status: v.optional(sessionStatusValidator),
     closedAt: v.optional(v.number()),
     closedBy: v.optional(v.id("users")),
@@ -161,7 +162,8 @@ export default defineSchema({
     .index("by_table", ["tableId"])
     .index("by_restaurant", ["restaurantId"])
     .index("by_expires_at", ["expiresAt"])
-    .index("by_restaurantId_and_status", ["restaurantId", "status"]),
+    .index("by_restaurantId_and_status", ["restaurantId", "status"])
+    .index("by_restaurantId_and_deviceId", ["restaurantId", "deviceId"]),
 
   carts: defineTable({
     tableId: v.id("tables"),
