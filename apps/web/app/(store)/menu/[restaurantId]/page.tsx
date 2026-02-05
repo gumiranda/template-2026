@@ -118,14 +118,6 @@ function DineInContent({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table, sessionId]);
 
-  // Reset order context when leaving
-  useEffect(() => {
-    return () => {
-      setOrderContext({ type: "delivery" });
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const handleAddToCart = useCallback(
     async (menuItemId: Id<"menuItems">, itemName: string) => {
       try {

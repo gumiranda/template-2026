@@ -16,26 +16,12 @@ import { orderContextAtom } from "@/lib/atoms/order-context";
 import { useSessionBill } from "@/hooks/use-session-bill";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@workspace/ui/lib/utils";
+import { getStatusConfig } from "@/app/(dashboard)/admin/tenants/[id]/orders/_components/orders-types";
 
 interface BillDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCloseBill?: () => void;
-}
-
-const ORDER_STATUS_CONFIG: Record<string, { label: string; variant: "default" | "secondary" | "outline" | "destructive" }> = {
-  pending: { label: "Pendente", variant: "outline" },
-  confirmed: { label: "Confirmado", variant: "secondary" },
-  preparing: { label: "Preparando", variant: "secondary" },
-  ready: { label: "Pronto", variant: "default" },
-  served: { label: "Servido", variant: "default" },
-  delivering: { label: "Entregando", variant: "secondary" },
-  completed: { label: "Concluído", variant: "default" },
-  canceled: { label: "Cancelado", variant: "destructive" },
-};
-
-function getStatusConfig(status: string) {
-  return ORDER_STATUS_CONFIG[status] ?? { label: status, variant: "outline" as const };
 }
 
 function formatTime(timestamp: number): string {

@@ -11,17 +11,22 @@ export function useSessionBill(sessionId: string | null) {
   );
 
   const totalBill = useMemo(
-    () => orders?.reduce((sum, order) => sum + order.total, 0) ?? 0,
+    () =>
+      orders
+        ?.filter((order) => order.status !== "canceled")
+        .reduce((sum, order) => sum + order.total, 0) ?? 0,
     [orders]
   );
 
   const itemCount = useMemo(
     () =>
-      orders?.reduce(
-        (sum, order) =>
-          sum + order.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
-        0
-      ) ?? 0,
+      orders
+        ?.filter((order) => order.status !== "canceled")
+        .reduce(
+          (sum, order) =>
+            sum + order.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
+          0
+        ) ?? 0,
     [orders]
   );
 

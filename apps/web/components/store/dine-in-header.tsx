@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ShoppingCart, Receipt, Bell } from "lucide-react";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
@@ -34,16 +34,17 @@ export function DineInHeader({
   const { itemCount: billItemCount } = useSessionBill(sessionId);
 
   const [showPulse, setShowPulse] = useState(false);
-  const [prevCartCount, setPrevCartCount] = useState(0);
+  const prevCartCount = useRef(0);
 
   useEffect(() => {
-    if (cartItemCount > prevCartCount) {
+    if (cartItemCount > prevCartCount.current) {
       setShowPulse(true);
       const timer = setTimeout(() => setShowPulse(false), 1000);
+      prevCartCount.current = cartItemCount;
       return () => clearTimeout(timer);
     }
-    setPrevCartCount(cartItemCount);
-  }, [cartItemCount, prevCartCount]);
+    prevCartCount.current = cartItemCount;
+  }, [cartItemCount]);
 
   if (orderContext.type !== "dine_in") return null;
 
@@ -61,6 +62,7 @@ export function DineInHeader({
                   size="sm"
                   onClick={onCallWaiter}
                   className="text-amber-500"
+                  aria-label="Chamar Garçom"
                 >
                   <Bell className="h-5 w-5" />
                 </Button>

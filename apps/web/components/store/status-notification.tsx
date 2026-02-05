@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChefHat, Timer, User, Check, Receipt, RefreshCw } from "lucide-react";
 import { Progress } from "@workspace/ui/components/progress";
@@ -17,7 +17,6 @@ const NOTIFICATION_CONFIG: Record<StatusNotificationType, {
   duration: number;
   icon: typeof ChefHat;
   bgColor: string;
-  statusActive: string;
   title: { active: string; completed: string };
   description: { active: string; completed: string };
   completedLabel: string;
@@ -26,7 +25,6 @@ const NOTIFICATION_CONFIG: Record<StatusNotificationType, {
     duration: 2,
     icon: ChefHat,
     bgColor: "bg-primary/10 text-primary",
-    statusActive: "preparing",
     title: {
       active: "Preparando seu pedido...",
       completed: "Pedido enviado!",
@@ -41,7 +39,6 @@ const NOTIFICATION_CONFIG: Record<StatusNotificationType, {
     duration: 1,
     icon: User,
     bgColor: "bg-amber-500/10 text-amber-500",
-    statusActive: "coming",
     title: {
       active: "Chamando garçom...",
       completed: "Garçom a caminho!",
@@ -56,7 +53,6 @@ const NOTIFICATION_CONFIG: Record<StatusNotificationType, {
     duration: 1,
     icon: Receipt,
     bgColor: "bg-blue-500/10 text-blue-500",
-    statusActive: "processing",
     title: {
       active: "Processando conta...",
       completed: "Conta fechada!",
@@ -71,7 +67,6 @@ const NOTIFICATION_CONFIG: Record<StatusNotificationType, {
     duration: 3,
     icon: RefreshCw,
     bgColor: "bg-green-500/10 text-green-500",
-    statusActive: "resetting",
     title: {
       active: "Finalizando atendimento...",
       completed: "Mesa liberada!",
@@ -93,10 +88,6 @@ export function StatusNotification({ type, show, onComplete }: StatusNotificatio
   const config = NOTIFICATION_CONFIG[type];
   const Icon = config.icon;
 
-  const handleComplete = useCallback(() => {
-    onComplete();
-  }, [onComplete]);
-
   useEffect(() => {
     if (!show) {
       setProgress(0);
@@ -107,6 +98,7 @@ export function StatusNotification({ type, show, onComplete }: StatusNotificatio
     const startTime = Date.now();
     const durationMs = config.duration * 1000;
     let rafId: number;
+    let completeTimeoutId: NodeJS.Timeout;
 
     const updateProgress = () => {
       const elapsed = Date.now() - startTime;
@@ -118,7 +110,7 @@ export function StatusNotification({ type, show, onComplete }: StatusNotificatio
         rafId = requestAnimationFrame(updateProgress);
       } else {
         setIsCompleted(true);
-        setTimeout(handleComplete, COMPLETED_DISPLAY_MS);
+        completeTimeoutId = setTimeout(onComplete, COMPLETED_DISPLAY_MS);
       }
     };
 
@@ -126,8 +118,9 @@ export function StatusNotification({ type, show, onComplete }: StatusNotificatio
 
     return () => {
       cancelAnimationFrame(rafId);
+      clearTimeout(completeTimeoutId);
     };
-  }, [show, config.duration, handleComplete]);
+  }, [show, config.duration, onComplete]);
 
   const remainingSeconds = Math.ceil(config.duration - (config.duration * progress) / 100);
 

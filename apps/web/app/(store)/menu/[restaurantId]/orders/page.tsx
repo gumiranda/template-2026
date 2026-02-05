@@ -3,11 +3,14 @@
 import { use, useState, useEffect } from "react";
 import Link from "next/link";
 import { useQuery } from "convex/react";
+import { useSetAtom } from "jotai";
 import { api } from "@workspace/backend/_generated/api";
+import type { Id } from "@workspace/backend/_generated/dataModel";
 import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
 import { Button } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { ArrowLeft, AlertCircle, ClipboardList } from "lucide-react";
+import { orderContextAtom } from "@/lib/atoms/order-context";
 import { SessionOrderCard } from "./_components/session-order-card";
 
 const SESSION_STORAGE_PREFIX = "dine-in-session-";
@@ -55,6 +58,7 @@ function SessionOrdersContent({
   restaurantId: string;
   tableNumber: string;
 }) {
+  const setOrderContext = useSetAtom(orderContextAtom);
   const [sessionId, setSessionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -65,6 +69,24 @@ function SessionOrdersContent({
     api.orders.getSessionOrders,
     sessionId ? { sessionId } : "skip"
   );
+
+  const table = useQuery(
+    api.tables.getByTableNumber,
+    sessionId ? { restaurantId: restaurantId as Id<"restaurants">, tableNumber } : "skip"
+  );
+
+  // Restore order context for dine-in header
+  useEffect(() => {
+    if (!sessionId || !table) return;
+
+    setOrderContext({
+      type: "dine_in",
+      sessionId,
+      tableId: table._id,
+      tableNumber,
+      restaurantId: restaurantId as Id<"restaurants">,
+    });
+  }, [sessionId, table, tableNumber, restaurantId, setOrderContext]);
 
   const menuHref = `/menu/${restaurantId}?table=${tableNumber}`;
 
