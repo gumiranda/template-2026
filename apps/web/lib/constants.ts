@@ -12,6 +12,14 @@ export function getRestaurantStatus(statusId: string | undefined) {
   return RESTAURANT_STATUSES.find((s) => s.id === statusId) ?? RESTAURANT_STATUSES[0];
 }
 
+export function getStatusBadgeConfig(statusId: string | undefined): { label: string; className: string } {
+  const status = getRestaurantStatus(statusId);
+  return {
+    label: status.name.toUpperCase(),
+    className: `${status.color} text-white`,
+  };
+}
+
 export const ROLES = [
   { id: "superadmin", name: "Superadmin", icon: Shield },
   { id: "ceo", name: "CEO", icon: Crown },

@@ -64,7 +64,7 @@ function AdminUsersContent({
   isSuperadmin: boolean;
   isCeo: boolean;
 }) {
-  const { results: users, status: paginationStatus, loadMore } = usePaginatedQuery(
+  const { results: users, status: paginationStatus } = usePaginatedQuery(
     api.users.getAllUsers,
     {},
     { initialNumItems: 50 }
@@ -264,7 +264,7 @@ function AdminUsersContent({
 
             {(selectedRole === "superadmin" || selectedRole === "ceo") && (
               <p className="text-sm text-muted-foreground">
-                Superadmins and CEOs don't have an associated sector.
+                Superadmins and CEOs don&apos;t have an associated sector.
               </p>
             )}
           </div>

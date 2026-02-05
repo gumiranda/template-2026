@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as billManagement from "../billManagement.js";
 import type * as carts from "../carts.js";
 import type * as cleanup from "../cleanup.js";
 import type * as clerkWebhook from "../clerkWebhook.js";
@@ -20,8 +21,12 @@ import type * as files from "../files.js";
 import type * as foodCategories from "../foodCategories.js";
 import type * as http from "../http.js";
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_cartHelpers from "../lib/cartHelpers.js";
 import type * as lib_constants from "../lib/constants.js";
 import type * as lib_helpers from "../lib/helpers.js";
+import type * as lib_orderHelpers from "../lib/orderHelpers.js";
+import type * as lib_sessionHelpers from "../lib/sessionHelpers.js";
+import type * as lib_slug from "../lib/slug.js";
 import type * as lib_storage from "../lib/storage.js";
 import type * as lib_types from "../lib/types.js";
 import type * as menu from "../menu.js";
@@ -51,6 +56,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  billManagement: typeof billManagement;
   carts: typeof carts;
   cleanup: typeof cleanup;
   clerkWebhook: typeof clerkWebhook;
@@ -63,8 +69,12 @@ declare const fullApi: ApiFromModules<{
   foodCategories: typeof foodCategories;
   http: typeof http;
   "lib/auth": typeof lib_auth;
+  "lib/cartHelpers": typeof lib_cartHelpers;
   "lib/constants": typeof lib_constants;
   "lib/helpers": typeof lib_helpers;
+  "lib/orderHelpers": typeof lib_orderHelpers;
+  "lib/sessionHelpers": typeof lib_sessionHelpers;
+  "lib/slug": typeof lib_slug;
   "lib/storage": typeof lib_storage;
   "lib/types": typeof lib_types;
   menu: typeof menu;

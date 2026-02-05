@@ -1,13 +1,25 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
+import { useSetAtom } from "jotai";
 import { api } from "@workspace/backend/_generated/api";
+import type { Id } from "@workspace/backend/_generated/dataModel";
 import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
 import { Button } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
-import { ArrowLeft, AlertCircle, ClipboardList } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@workspace/ui/components/breadcrumb";
+import { AlertCircle, ClipboardList, Loader2 } from "lucide-react";
+import { orderContextAtom } from "@/lib/atoms/order-context";
 import { SessionOrderCard } from "./_components/session-order-card";
 
 const SESSION_STORAGE_PREFIX = "dine-in-session-";
@@ -32,9 +44,9 @@ export default function SessionOrdersPage({
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-bold">Link invalido</h1>
+        <h1 className="text-2xl font-bold">Link inválido</h1>
         <p className="mt-2 text-muted-foreground">
-          Este link nao e valido. Volte ao menu e tente novamente.
+          Este link não é válido. Volte ao menu e tente novamente.
         </p>
       </div>
     );
@@ -55,7 +67,10 @@ function SessionOrdersContent({
   restaurantId: string;
   tableNumber: string;
 }) {
+  const setOrderContext = useSetAtom(orderContextAtom);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   useEffect(() => {
     setSessionId(getStoredSessionId(restaurantId, tableNumber));
@@ -66,18 +81,42 @@ function SessionOrdersContent({
     sessionId ? { sessionId } : "skip"
   );
 
+  const table = useQuery(
+    api.tables.getByTableNumber,
+    sessionId ? { restaurantId: restaurantId as Id<"restaurants">, tableNumber } : "skip"
+  );
+
+  useEffect(() => {
+    if (!sessionId || !table) return;
+
+    setOrderContext({
+      type: "dine_in",
+      sessionId,
+      tableId: table._id,
+      tableNumber,
+      restaurantId: restaurantId as Id<"restaurants">,
+    });
+  }, [sessionId, table, tableNumber, restaurantId, setOrderContext]);
+
   const menuHref = `/menu/${restaurantId}?table=${tableNumber}`;
+
+  const handleGoToMenu = () => {
+    startTransition(() => {
+      router.push(menuHref);
+    });
+  };
 
   if (!sessionId) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <ClipboardList className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <h1 className="text-xl font-bold">Nenhuma sessao encontrada</h1>
+        <h1 className="text-xl font-bold">Nenhuma sessão encontrada</h1>
         <p className="mt-2 text-muted-foreground">
-          Voce precisa acessar o cardapio primeiro.
+          Você precisa acessar o cardápio primeiro.
         </p>
-        <Button asChild className="mt-6">
-          <Link href={menuHref}>Ir para o cardapio</Link>
+        <Button onClick={handleGoToMenu} disabled={isPending} className="mt-6">
+          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Ir para o cardápio
         </Button>
       </div>
     );
@@ -95,29 +134,29 @@ function SessionOrdersContent({
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon">
-          <Link href={menuHref}>
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-xl font-bold">Meus Pedidos</h1>
-          <p className="text-sm text-muted-foreground">Mesa {tableNumber}</p>
-        </div>
-      </div>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={menuHref}>Cardápio</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Meus Pedidos - Mesa {tableNumber}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
-      {/* Orders */}
       {orders.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <ClipboardList className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium">Nenhum pedido ainda</h3>
           <p className="text-muted-foreground">
-            Adicione itens do cardapio e envie seu pedido.
+            Adicione itens do cardápio e envie seu pedido.
           </p>
           <Button asChild className="mt-6">
-            <Link href={menuHref}>Voltar ao cardapio</Link>
+            <Link href={menuHref}>Voltar ao cardápio</Link>
           </Button>
         </div>
       ) : (
@@ -127,7 +166,7 @@ function SessionOrdersContent({
           ))}
 
           <Button asChild variant="outline" className="w-full">
-            <Link href={menuHref}>Voltar ao cardapio</Link>
+            <Link href={menuHref}>Voltar ao cardápio</Link>
           </Button>
         </div>
       )}

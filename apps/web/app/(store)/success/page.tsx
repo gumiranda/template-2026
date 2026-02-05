@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAction } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
@@ -12,16 +12,18 @@ function SuccessContent() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const syncAfterSuccess = useAction(api.stripe.syncAfterSuccess);
+  const syncAttemptedRef = useRef(false);
   const [synced, setSynced] = useState(false);
 
   useEffect(() => {
-    if (sessionId && !synced) {
+    if (sessionId && !syncAttemptedRef.current) {
+      syncAttemptedRef.current = true;
       syncAfterSuccess({ sessionId })
         .then(() => setSynced(true))
         .catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, synced]);
+  }, [sessionId]);
 
   return synced ? (
     <div className="space-y-4">

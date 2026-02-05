@@ -11,26 +11,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-
-interface MenuItemFormHeaderProps {
-  restaurantId: string;
-  itemName?: string;
-  isActive: boolean;
-  onIsActiveChange: (value: boolean) => void;
-}
+import { useMenuItemFormContext } from "./context";
 
 const STATUS_OPTIONS = {
   active: { label: "Active", variant: "default" as const },
   inactive: { label: "Inactive", variant: "secondary" as const },
 };
 
-export function MenuItemFormHeader({
-  restaurantId,
-  itemName,
-  isActive,
-  onIsActiveChange,
-}: MenuItemFormHeaderProps) {
-  const isEditing = !!itemName;
+export function MenuItemFormHeader() {
+  const { restaurantId, existingItemName, isActive, setIsActive } =
+    useMenuItemFormContext();
+
+  const isEditing = !!existingItemName;
 
   return (
     <div className="flex items-center justify-between">
@@ -42,7 +34,7 @@ export function MenuItemFormHeader({
         </Button>
         <div>
           <h1 className="text-2xl font-bold">
-            {isEditing ? `Edit Item: ${itemName}` : "New Item"}
+            {isEditing ? `Edit Item: ${existingItemName}` : "New Item"}
           </h1>
           <p className="text-sm text-muted-foreground">
             {isEditing
@@ -58,7 +50,7 @@ export function MenuItemFormHeader({
         </Badge>
         <Select
           value={isActive ? "active" : "inactive"}
-          onValueChange={(v) => onIsActiveChange(v === "active")}
+          onValueChange={(v) => setIsActive(v === "active")}
         >
           <SelectTrigger className="w-32">
             <SelectValue />

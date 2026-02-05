@@ -39,8 +39,7 @@ import {
   type OrderStatusType,
 } from "./_components/orders-types";
 import { TableGroupCard } from "./_components/table-group-card";
-
-// ─── State ───────────────────────────────────────────────────────────────────
+import { BillRequestsPanel } from "./_components/bill-requests-panel";
 
 interface OrdersState {
   statusFilter: StatusFilter;
@@ -70,8 +69,6 @@ const INITIAL_STATE: OrdersState = {
   updatingOrderId: null,
 };
 
-// ─── Page ────────────────────────────────────────────────────────────────────
-
 export default function OrdersPage({
   params,
 }: {
@@ -86,9 +83,9 @@ export default function OrdersPage({
           <div className="space-y-6">
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium">ID de restaurante invalido</h3>
+              <h3 className="text-lg font-medium">ID de restaurante inválido</h3>
               <p className="text-muted-foreground">
-                O formato do ID fornecido nao e valido.
+                O formato do ID fornecido não é válido.
               </p>
             </div>
           </div>
@@ -105,8 +102,6 @@ export default function OrdersPage({
     </AdminGuard>
   );
 }
-
-// ─── Content ─────────────────────────────────────────────────────────────────
 
 function OrdersContent({
   restaurantId,
@@ -174,7 +169,6 @@ function OrdersContent({
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -195,7 +189,6 @@ function OrdersContent({
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Button asChild variant="ghost" size="icon">
           <Link href={`/admin/tenants/${restaurantId}`}>
@@ -205,7 +198,6 @@ function OrdersContent({
         <h1 className="text-2xl font-bold">Pedidos</h1>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -241,29 +233,39 @@ function OrdersContent({
         </Select>
       </div>
 
-      {/* Empty state */}
-      {tableGroups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium">Nenhum pedido encontrado</h3>
-          <p className="text-muted-foreground">
-            {orders.length === 0
-              ? "Este restaurante ainda nao recebeu pedidos."
-              : "Nenhum pedido corresponde aos filtros aplicados."}
-          </p>
+      <div className="grid gap-6 lg:grid-cols-[1fr_350px]">
+        <div>
+          {tableGroups.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium">Nenhum pedido encontrado</h3>
+              <p className="text-muted-foreground">
+                {orders.length === 0
+                  ? "Este restaurante ainda não recebeu pedidos."
+                  : "Nenhum pedido corresponde aos filtros aplicados."}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {tableGroups.map((group) => (
+                <TableGroupCard
+                  key={group.key}
+                  group={group}
+                  restaurantId={restaurantId}
+                  onStatusChange={handleStatusChange}
+                  updatingOrderId={state.updatingOrderId}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="space-y-4">
-          {tableGroups.map((group) => (
-            <TableGroupCard
-              key={group.key}
-              group={group}
-              onStatusChange={handleStatusChange}
-              updatingOrderId={state.updatingOrderId}
-            />
-          ))}
+
+        <div className="hidden lg:block">
+          <div className="sticky top-6">
+            <BillRequestsPanel restaurantId={restaurantId} />
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }

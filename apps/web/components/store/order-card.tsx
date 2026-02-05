@@ -23,11 +23,12 @@ interface OrderCardProps {
       quantity: number;
     }>;
   };
+  onClick?: (orderId: Id<"orders">) => void;
 }
 
 const MAX_VISIBLE_ITEMS = 3;
 
-export function OrderCard({ order }: OrderCardProps) {
+export function OrderCard({ order, onClick }: OrderCardProps) {
   const date = new Date(order.createdAt);
   const formattedDate = new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
@@ -38,7 +39,10 @@ export function OrderCard({ order }: OrderCardProps) {
   }).format(date);
 
   return (
-    <Card>
+    <Card
+      className={onClick ? "cursor-pointer transition-shadow hover:shadow-md" : ""}
+      onClick={onClick ? () => onClick(order._id) : undefined}
+    >
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">

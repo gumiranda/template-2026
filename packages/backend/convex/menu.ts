@@ -1,35 +1,9 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { requireAdminRestaurantAccess, requireRestaurantStaffAccess } from "./lib/auth";
-import { groupBy, fetchModifierGroupsWithOptions, filterUndefined } from "./lib/helpers";
-import { MAX_DESCRIPTION_LENGTH, MAX_SEARCH_RESULTS } from "./lib/constants";
+import { groupBy, fetchModifierGroupsWithOptions, filterUndefined, validateIcon } from "./lib/helpers";
+import { MAX_DESCRIPTION_LENGTH, MAX_SEARCH_RESULTS, MAX_ITEM_NAME_LENGTH, MAX_CATEGORY_NAME_LENGTH, MAX_ITEM_PRICE } from "./lib/constants";
 import { resolveImageUrl } from "./files";
-
-const VALID_ICON_IDS = [
-  "utensils-crossed",
-  "wine",
-  "coffee",
-  "cake",
-  "beef",
-  "salad",
-  "fish",
-  "pizza",
-  "sandwich",
-  "egg",
-  "leaf",
-  "ice-cream-cone",
-];
-const MAX_ICON_LENGTH = 50;
-
-function validateIcon(icon: string | undefined): string | undefined {
-  if (icon === undefined) return undefined;
-  const trimmed = icon.trim();
-  if (!trimmed) return undefined;
-  if (trimmed.length > MAX_ICON_LENGTH || !VALID_ICON_IDS.includes(trimmed)) {
-    throw new Error("Invalid icon ID");
-  }
-  return trimmed;
-}
 
 // NOTE: This query returns all items (active and inactive) for the admin panel.
 // Requires staff auth to prevent exposing inactive/draft items to the public.
@@ -106,16 +80,16 @@ export const createCategory = mutation({
     await requireAdminRestaurantAccess(ctx, args.restaurantId);
 
     const name = args.name.trim();
-    if (!name || name.length > 200) {
-      throw new Error("Category name must be between 1 and 200 characters");
+    if (!name || name.length > MAX_CATEGORY_NAME_LENGTH) {
+      throw new Error(`Category name must be between 1 and ${MAX_CATEGORY_NAME_LENGTH} characters`);
     }
 
     if (args.description && args.description.length > MAX_DESCRIPTION_LENGTH) {
       throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
     }
 
-    if (args.order < 0) {
-      throw new Error("Order must be a non-negative number");
+    if (!Number.isFinite(args.order) || !Number.isInteger(args.order) || args.order < 0) {
+      throw new Error("Order must be a non-negative integer");
     }
 
     const icon = validateIcon(args.icon);
@@ -150,23 +124,23 @@ export const createItem = mutation({
     await requireAdminRestaurantAccess(ctx, args.restaurantId);
 
     const name = args.name.trim();
-    if (!name || name.length > 200) {
-      throw new Error("Item name must be between 1 and 200 characters");
+    if (!name || name.length > MAX_ITEM_NAME_LENGTH) {
+      throw new Error(`Item name must be between 1 and ${MAX_ITEM_NAME_LENGTH} characters`);
     }
 
     if (args.description && args.description.length > MAX_DESCRIPTION_LENGTH) {
       throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
     }
 
-    if (args.price <= 0) {
-      throw new Error("Price must be greater than zero");
+    if (!Number.isFinite(args.price) || args.price <= 0 || args.price > MAX_ITEM_PRICE) {
+      throw new Error(`Price must be between 1 and ${MAX_ITEM_PRICE} cents`);
     }
 
     if (
       args.discountPercentage !== undefined &&
-      (args.discountPercentage < 0 || args.discountPercentage > 100)
+      (!Number.isFinite(args.discountPercentage) || args.discountPercentage < 0 || args.discountPercentage > 100)
     ) {
-      throw new Error("Discount percentage must be between 0 and 100");
+      throw new Error("Discount percentage must be a number between 0 and 100");
     }
 
     if (args.tags && args.tags.length > MAX_TAGS) {
@@ -236,15 +210,15 @@ export const updateItem = mutation({
       throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
     }
 
-    if (args.price !== undefined && args.price <= 0) {
-      throw new Error("Price must be greater than zero");
+    if (args.price !== undefined && (!Number.isFinite(args.price) || args.price <= 0 || args.price > MAX_ITEM_PRICE)) {
+      throw new Error(`Price must be between 1 and ${MAX_ITEM_PRICE} cents`);
     }
 
     if (
       args.discountPercentage !== undefined &&
-      (args.discountPercentage < 0 || args.discountPercentage > 100)
+      (!Number.isFinite(args.discountPercentage) || args.discountPercentage < 0 || args.discountPercentage > 100)
     ) {
-      throw new Error("Discount percentage must be between 0 and 100");
+      throw new Error("Discount percentage must be a number between 0 and 100");
     }
 
     if (args.tags && args.tags.length > MAX_TAGS) {
@@ -314,14 +288,18 @@ export const updateCategory = mutation({
 
     if (args.name !== undefined) {
       const trimmedName = args.name.trim();
-      if (!trimmedName || trimmedName.length > 200) {
-        throw new Error("Category name must be between 1 and 200 characters");
+      if (!trimmedName || trimmedName.length > MAX_CATEGORY_NAME_LENGTH) {
+        throw new Error(`Category name must be between 1 and ${MAX_CATEGORY_NAME_LENGTH} characters`);
       }
       args = { ...args, name: trimmedName };
     }
 
     if (args.description !== undefined && args.description.length > MAX_DESCRIPTION_LENGTH) {
       throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
+    }
+
+    if (args.order !== undefined && (!Number.isFinite(args.order) || !Number.isInteger(args.order) || args.order < 0)) {
+      throw new Error("Order must be a non-negative integer");
     }
 
     const validatedIcon = validateIcon(args.icon);
@@ -422,11 +400,11 @@ export const saveModifierGroups = mutation({
       }
       for (const option of group.options) {
         const optName = option.name.trim();
-        if (!optName || optName.length > 200) {
-          throw new Error("Option name must be between 1 and 200 characters");
+        if (!optName || optName.length > MAX_ITEM_NAME_LENGTH) {
+          throw new Error(`Option name must be between 1 and ${MAX_ITEM_NAME_LENGTH} characters`);
         }
-        if (option.price < 0) {
-          throw new Error("Option price must be >= 0");
+        if (!Number.isFinite(option.price) || option.price < 0) {
+          throw new Error("Option price must be a non-negative number");
         }
       }
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import Image from "next/image";
 import { ImageIcon, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Badge } from "@workspace/ui/components/badge";
@@ -15,28 +16,20 @@ import {
   ACCEPTED_IMAGE_TYPES,
   MAX_IMAGE_SIZE_BYTES,
 } from "@/lib/menu-constants";
+import { useMenuItemFormContext } from "./context";
 
-interface DishPhotoCardProps {
-  imagePreview: string | null;
-  imageFile: File | null;
-  onImageChange: (file: File | null) => void;
-  onRemoveImage: () => void;
-}
+export function DishPhotoCard() {
+  const { imagePreview, imageFile, handleImageChange, handleRemoveImage } =
+    useMenuItemFormContext();
 
-export function DishPhotoCard({
-  imagePreview,
-  imageFile,
-  onImageChange,
-  onRemoveImage,
-}: DishPhotoCardProps) {
   const handleDrop = useCallback(
     (acceptedFiles: File[]) => {
       const file = acceptedFiles[0];
       if (file) {
-        onImageChange(file);
+        handleImageChange(file);
       }
     },
-    [onImageChange]
+    [handleImageChange]
   );
 
   return (
@@ -52,10 +45,12 @@ export function DishPhotoCard({
         {imagePreview ? (
           <div className="space-y-3">
             <div className="relative aspect-square w-full overflow-hidden rounded-lg border bg-muted">
-              <img
+              <Image
                 src={imagePreview}
                 alt="Dish preview"
-                className="h-full w-full object-cover"
+                fill
+                className="object-cover"
+                unoptimized
               />
             </div>
             <div className="flex gap-2">
@@ -78,7 +73,7 @@ export function DishPhotoCard({
                 variant="outline"
                 size="icon"
                 className="shrink-0"
-                onClick={onRemoveImage}
+                onClick={handleRemoveImage}
               >
                 <Trash2 className="h-4 w-4" />
               </Button>

@@ -5,6 +5,7 @@ import { RestaurantStatus, OrderStatus } from "./lib/types";
 import { calculateTotalRevenue } from "./lib/helpers";
 import { MAX_DESCRIPTION_LENGTH } from "./lib/constants";
 import { resolveImageUrl, resolveStorageUrl } from "./files";
+import { generateSlug, ensureUniqueSlug } from "./lib/slug";
 
 export const list = query({
   args: {},
@@ -67,8 +68,17 @@ export const create = mutation({
       }
     }
 
+    // Generate unique slug
+    const baseSlug = generateSlug(name);
+    const existingRestaurants = await ctx.db.query("restaurants").collect();
+    const existingSlugs = new Set(
+      existingRestaurants.map((r) => r.slug).filter((s): s is string => !!s)
+    );
+    const slug = ensureUniqueSlug(baseSlug, existingSlugs);
+
     return ctx.db.insert("restaurants", {
       name,
+      slug,
       address,
       phone: args.phone?.trim(),
       description: args.description,
@@ -405,6 +415,36 @@ export const migrateRestaurantStatus = internalMutation({
     for (const restaurant of restaurants) {
       if (restaurant.status === undefined) {
         await ctx.db.patch(restaurant._id, { status: RestaurantStatus.ACTIVE });
+        migratedCount++;
+      }
+    }
+
+    return { migratedCount };
+  },
+});
+
+export const migrateRestaurantSlugs = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const restaurants = await ctx.db.query("restaurants").collect();
+    const existingSlugs = new Set<string>();
+    let migratedCount = 0;
+
+    // First pass: collect existing slugs
+    for (const restaurant of restaurants) {
+      if (restaurant.slug) {
+        existingSlugs.add(restaurant.slug);
+      }
+    }
+
+    // Second pass: generate slugs for restaurants without them
+    for (const restaurant of restaurants) {
+      if (!restaurant.slug) {
+        const baseSlug = generateSlug(restaurant.name);
+        const slug = ensureUniqueSlug(baseSlug, existingSlugs);
+        existingSlugs.add(slug);
+
+        await ctx.db.patch(restaurant._id, { slug });
         migratedCount++;
       }
     }

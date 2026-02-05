@@ -6,7 +6,15 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: "https",
-        hostname: "**",
+        hostname: "*.convex.cloud",
+      },
+      {
+        protocol: "https",
+        hostname: "*.convex.site",
+      },
+      {
+        protocol: "https",
+        hostname: "*.clerk.com",
       },
     ],
   },

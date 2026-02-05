@@ -10,6 +10,10 @@ const isPublicRoute = createRouteMatcher([
   "/products(.*)",
   "/categories(.*)",
   "/success(.*)",
+  "/solucoes(.*)",
+  "/for(.*)",
+  "/vs(.*)",
+  "/r(.*)",
 ]);
 
 const securityHeaders = {
@@ -17,6 +21,9 @@ const securityHeaders = {
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "strict-origin-when-cross-origin",
   "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+  "Content-Security-Policy":
+    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://*.clerk.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.convex.cloud https://*.convex.site https://*.clerk.com; font-src 'self' data:; connect-src 'self' https://*.convex.cloud https://*.convex.site https://*.clerk.accounts.dev https://*.clerk.com wss://*.convex.cloud; frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com; frame-ancestors 'none';",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
 };
 
 export default clerkMiddleware(async (auth, req) => {

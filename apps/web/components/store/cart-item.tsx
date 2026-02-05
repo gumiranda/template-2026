@@ -59,6 +59,7 @@ export function CartItem({ item }: CartItemProps) {
           size="icon"
           className="h-7 w-7"
           onClick={handleDecrement}
+          aria-label={item.quantity === 1 ? "Remover item" : "Diminuir quantidade"}
         >
           {item.quantity === 1 ? (
             <Trash2 className="h-3 w-3" />
@@ -72,6 +73,7 @@ export function CartItem({ item }: CartItemProps) {
           size="icon"
           className="h-7 w-7"
           onClick={handleIncrement}
+          aria-label="Aumentar quantidade"
         >
           <Plus className="h-3 w-3" />
         </Button>

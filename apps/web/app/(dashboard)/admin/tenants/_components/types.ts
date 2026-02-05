@@ -1,4 +1,3 @@
-import type { Dispatch, SetStateAction } from "react";
 import type { Id } from "@workspace/backend/_generated/dataModel";
 
 export interface RestaurantWithStats {
@@ -32,11 +31,13 @@ export const initialFormData: RestaurantForm = {
   logoPreview: null,
 };
 
+export type RestaurantFormUpdater = RestaurantForm | ((prev: RestaurantForm) => RestaurantForm);
+
 export interface RestaurantFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   formData: RestaurantForm;
-  setFormData: Dispatch<SetStateAction<RestaurantForm>>;
+  setFormData: (action: RestaurantFormUpdater) => void;
   onSubmit: () => void;
   onCancel: () => void;
   isSubmitting: boolean;

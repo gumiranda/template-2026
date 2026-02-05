@@ -1,9 +1,8 @@
 "use client";
 
-import { use, useReducer, useMemo, useCallback } from "react";
+import { use, useReducer, useMemo, useCallback, lazy, Suspense } from "react";
 import { useQuery, useMutation } from "convex/react";
 import Link from "next/link";
-import QRCode from "qrcode";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
@@ -22,6 +21,9 @@ import { StatCard } from "@/components/stat-card";
 import { pageReducer, initialState } from "./_components/tables-reducer";
 import { DeleteConfirmDialog } from "./_components/delete-confirm-dialog";
 import { TableStatsDialog } from "./_components/table-stats-dialog";
+const TableCartDialog = lazy(() =>
+  import("./_components/table-cart-dialog").then((m) => ({ default: m.TableCartDialog }))
+);
 import { BatchActionsDesktop, BatchActionsMobile } from "./_components/batch-actions-panel";
 import { GenerateTablesForm } from "./_components/generate-tables-form";
 import { TableSearchToolbar } from "./_components/table-search-toolbar";
@@ -86,6 +88,7 @@ function TableManagementContent({
     isGenerating,
     deleteConfirmTableId,
     statsTableId,
+    cartDialogTableId,
   } = state;
 
   const restaurant = useQuery(api.restaurants.getWithStats, { id: restaurantId });
@@ -209,6 +212,7 @@ function TableManagementContent({
   const handleDownloadQR = useCallback(
     async (table: NonNullable<typeof tables>[number]) => {
       try {
+        const QRCode = await import("qrcode");
         const dataUrl = await QRCode.toDataURL(table.qrCode, {
           width: 400,
           errorCorrectionLevel: "H",
@@ -241,7 +245,10 @@ function TableManagementContent({
     const bgColor = isDark ? "#1a1a1a" : "#ffffff";
     const textColor = isDark ? "#ffffff" : "#000000";
 
-    const { jsPDF } = await import("jspdf");
+    const [{ jsPDF }, QRCode] = await Promise.all([
+      import("jspdf"),
+      import("qrcode"),
+    ]);
 
     const qrImages = await Promise.all(
       tablesToPrint.map((table) =>
@@ -426,6 +433,9 @@ function TableManagementContent({
             dispatch={dispatch}
             onToggleStatus={handleToggleStatus}
             onDownloadQR={handleDownloadQR}
+            onManageCart={(tableId) =>
+              dispatch({ type: "SET_CART_DIALOG_TABLE_ID", payload: tableId })
+            }
           />
         </div>
 
@@ -462,6 +472,22 @@ function TableManagementContent({
         }
         tableId={statsTableId as Id<"tables"> | null}
       />
+
+      {cartDialogTableId !== null && (
+        <Suspense fallback={null}>
+          <TableCartDialog
+            tableId={cartDialogTableId as Id<"tables">}
+            restaurantId={restaurantId}
+            tableNumber={
+              tables.find((t) => t._id === cartDialogTableId)?.tableNumber ?? ""
+            }
+            open={true}
+            onOpenChange={(open) =>
+              !open && dispatch({ type: "SET_CART_DIALOG_TABLE_ID", payload: null })
+            }
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

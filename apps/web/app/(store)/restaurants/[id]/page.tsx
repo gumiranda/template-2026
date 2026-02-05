@@ -1,181 +1,128 @@
-"use client";
-
-import { use } from "react";
-import Image from "next/image";
-import { useQuery } from "convex/react";
-import { api } from "@workspace/backend/_generated/api";
-import type { Id } from "@workspace/backend/_generated/dataModel";
+import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
-import { Star } from "lucide-react";
-import { Button } from "@workspace/ui/components/button";
-import { Separator } from "@workspace/ui/components/separator";
-import { Skeleton } from "@workspace/ui/components/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
-import { DeliveryInfo } from "@/components/store/delivery-info";
-import { ProductCard } from "@/components/store/product-card";
-import { useToggleFavorite } from "@/hooks/use-toggle-favorite";
-import { useUser } from "@clerk/nextjs";
-import { Heart } from "lucide-react";
-import { cn } from "@workspace/ui/lib/utils";
+import { fetchQuery, fetchForSchema, api } from "@/lib/convex-server";
+import { RestaurantContent } from "@/components/store/restaurant-content";
+import { RestaurantSchema, BreadcrumbSchema } from "@/components/seo/json-ld";
 
-export default function RestaurantDetailPage({
-  params,
-}: {
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
+
+interface PageProps {
   params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+
+  if (!isValidRestaurantId(id)) {
+    return {
+      title: "Restaurante não encontrado",
+    };
+  }
+
+  try {
+    const restaurant = await fetchQuery(api.customerRestaurants.getPublicRestaurant, {
+      restaurantId: id,
+    });
+
+    if (!restaurant) {
+      return {
+        title: "Restaurante não encontrado",
+      };
+    }
+
+    // If restaurant has a slug, indicate this is not the canonical URL
+    const canonicalUrl = restaurant.slug
+      ? `/r/${restaurant.slug}`
+      : `/restaurants/${id}`;
+
+    const title = restaurant.name;
+    const description =
+      restaurant.description ||
+      `Peça online do ${restaurant.name}. Veja o cardápio completo e faça seu pedido.`;
+
+    return {
+      title,
+      description,
+      alternates: {
+        canonical: canonicalUrl,
+      },
+      robots: restaurant.slug
+        ? { index: false, follow: true } // Don't index old URL if slug exists
+        : { index: true, follow: true },
+      openGraph: {
+        title,
+        description,
+        type: "website",
+        images: restaurant.coverImageUrl
+          ? [{ url: restaurant.coverImageUrl, width: 1200, height: 630, alt: restaurant.name }]
+          : restaurant.logoUrl
+            ? [{ url: restaurant.logoUrl, width: 400, height: 400, alt: restaurant.name }]
+            : undefined,
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: restaurant.coverImageUrl || restaurant.logoUrl || undefined,
+      },
+    };
+  } catch {
+    return {
+      title: "Restaurante",
+    };
+  }
+}
+
+export default async function RestaurantDetailPage({ params }: PageProps) {
+  const { id } = await params;
 
   if (!isValidRestaurantId(id)) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <h1 className="text-2xl font-bold">Restaurante não encontrado</h1>
-        <p className="mt-2 text-muted-foreground">
-          O ID fornecido não é válido.
-        </p>
+        <p className="mt-2 text-muted-foreground">O ID fornecido não é válido.</p>
       </div>
     );
   }
 
-  return <RestaurantDetail restaurantId={id} />;
-}
+  // Fetch restaurant to check for slug and redirect
+  const restaurant = await fetchForSchema(() =>
+    fetchQuery(api.customerRestaurants.getPublicRestaurant, { restaurantId: id })
+  );
 
-function RestaurantDetail({
-  restaurantId,
-}: {
-  restaurantId: Id<"restaurants">;
-}) {
-  const restaurant = useQuery(api.customerRestaurants.getPublicRestaurant, {
-    restaurantId,
-  });
-  const { isSignedIn } = useUser();
-  const { isFavorite, toggle } = useToggleFavorite();
-
-  if (restaurant === undefined) {
-    return (
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        <Skeleton className="h-48 w-full rounded-lg" />
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-48" />
-      </div>
-    );
+  // 301 redirect to slug-based URL if slug exists
+  if (restaurant?.slug) {
+    redirect(`/r/${restaurant.slug}`);
   }
 
-  if (restaurant === null) {
-    return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold">Restaurante não encontrado</h1>
-        <p className="mt-2 text-muted-foreground">
-          Este restaurante pode ter sido removido ou não está disponível.
-        </p>
-      </div>
-    );
-  }
-
-  const favorited = isFavorite(restaurant._id);
+  // Canonical URL (for restaurants without slugs yet)
+  const canonicalUrl = `/restaurants/${id}`;
 
   return (
-    <div>
-      {/* Cover Image */}
-      <div className="relative h-48 bg-muted md:h-64">
-        {restaurant.coverImageUrl ? (
-          <Image
-            src={restaurant.coverImageUrl}
-            alt={restaurant.name}
-            fill
-            sizes="100vw"
-            className="object-cover"
-            priority
+    <>
+      {restaurant && (
+        <>
+          <RestaurantSchema
+            name={restaurant.name}
+            description={restaurant.description}
+            address={restaurant.address}
+            phone={restaurant.phone}
+            imageUrl={restaurant.coverImageUrl || restaurant.logoUrl}
+            rating={restaurant.rating}
+            url={`${baseUrl}${canonicalUrl}`}
           />
-        ) : restaurant.logoUrl ? (
-          <Image
-            src={restaurant.logoUrl}
-            alt={restaurant.name}
-            fill
-            sizes="100vw"
-            className="object-cover"
-            priority
+          <BreadcrumbSchema
+            baseUrl={baseUrl}
+            items={[
+              { name: "Início", href: "/" },
+              { name: "Restaurantes", href: "/restaurants" },
+              { name: restaurant.name, href: canonicalUrl },
+            ]}
           />
-        ) : null}
-      </div>
-
-      <div className="container mx-auto px-4 py-6 space-y-6">
-        {/* Restaurant Info */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold">{restaurant.name}</h1>
-            {restaurant.description && (
-              <p className="text-muted-foreground">{restaurant.description}</p>
-            )}
-            <div className="flex items-center gap-4">
-              {restaurant.rating > 0 && (
-                <div className="flex items-center gap-1">
-                  <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm font-medium">
-                    {restaurant.rating.toFixed(1)}
-                  </span>
-                </div>
-              )}
-              <DeliveryInfo
-                deliveryFee={restaurant.deliveryFee}
-                deliveryTimeMinutes={restaurant.deliveryTimeMinutes}
-              />
-            </div>
-          </div>
-          {isSignedIn && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => toggle(restaurant._id)}
-            >
-              <Heart
-                className={cn(
-                  "h-5 w-5",
-                  favorited && "fill-red-500 text-red-500"
-                )}
-              />
-            </Button>
-          )}
-        </div>
-
-        <Separator />
-
-        {/* Menu Categories */}
-        {restaurant.categories.length > 0 ? (
-          <Tabs defaultValue={restaurant.categories[0]?._id}>
-            <TabsList className="w-full justify-start overflow-x-auto">
-              {restaurant.categories.map((category) => (
-                <TabsTrigger key={category._id} value={category._id}>
-                  {category.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            {restaurant.categories.map((category) => (
-              <TabsContent key={category._id} value={category._id}>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                  {category.items.map((item) => (
-                    <ProductCard
-                      key={item._id}
-                      product={{
-                        _id: item._id,
-                        name: item.name,
-                        description: item.description,
-                        price: item.price,
-                        discountPercentage: item.discountPercentage ?? 0,
-                        discountedPrice: item.discountedPrice,
-                        imageUrl: item.imageUrl,
-                      }}
-                    />
-                  ))}
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
-        ) : (
-          <p className="text-center text-muted-foreground py-8">
-            Nenhum item no cardápio ainda.
-          </p>
-        )}
-      </div>
-    </div>
+        </>
+      )}
+      <RestaurantContent restaurantId={id} />
+    </>
   );
 }

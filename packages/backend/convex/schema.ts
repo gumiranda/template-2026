@@ -36,6 +36,12 @@ const restaurantStatusValidator = v.union(
   v.literal("inactive")
 );
 
+const sessionStatusValidator = v.union(
+  v.literal("open"),
+  v.literal("requesting_closure"),
+  v.literal("closed")
+);
+
 export default defineSchema({
   users: defineTable({
     name: v.string(),
@@ -55,6 +61,7 @@ export default defineSchema({
 
   restaurants: defineTable({
     name: v.string(),
+    slug: v.optional(v.string()),
     address: v.string(),
     phone: v.optional(v.string()),
     description: v.optional(v.string()),
@@ -73,6 +80,7 @@ export default defineSchema({
   })
     .index("by_owner", ["ownerId"])
     .index("by_status", ["status"])
+    .index("by_slug", ["slug"])
     .index("by_owner_and_deletedAt", ["ownerId", "deletedAt"])
     .searchIndex("search_by_name", {
       searchField: "name",
@@ -144,6 +152,10 @@ export default defineSchema({
     sessionId: v.string(),
     restaurantId: v.id("restaurants"),
     tableId: v.id("tables"),
+    deviceId: v.optional(v.string()),
+    status: v.optional(sessionStatusValidator),
+    closedAt: v.optional(v.number()),
+    closedBy: v.optional(v.id("users")),
     // Deprecated: use _creationTime instead. Kept optional for backward compatibility.
     createdAt: v.optional(v.number()),
     expiresAt: v.number(),
@@ -151,7 +163,9 @@ export default defineSchema({
     .index("by_session_id", ["sessionId"])
     .index("by_table", ["tableId"])
     .index("by_restaurant", ["restaurantId"])
-    .index("by_expires_at", ["expiresAt"]),
+    .index("by_expires_at", ["expiresAt"])
+    .index("by_restaurantId_and_status", ["restaurantId", "status"])
+    .index("by_restaurantId_and_deviceId", ["restaurantId", "deviceId"]),
 
   carts: defineTable({
     tableId: v.id("tables"),
@@ -183,6 +197,15 @@ export default defineSchema({
     quantity: v.number(),
     price: v.number(),
     addedAt: v.number(),
+    modifiers: v.optional(
+      v.array(
+        v.object({
+          groupName: v.string(),
+          optionName: v.string(),
+          price: v.number(),
+        })
+      )
+    ),
   })
     .index("by_session", ["sessionId"])
     .index("by_menu_item", ["menuItemId"])
@@ -219,6 +242,15 @@ export default defineSchema({
     price: v.number(),
     totalPrice: v.number(),
     notes: v.optional(v.string()),
+    modifiers: v.optional(
+      v.array(
+        v.object({
+          groupName: v.string(),
+          optionName: v.string(),
+          price: v.number(),
+        })
+      )
+    ),
   })
     .index("by_order", ["orderId"])
     .index("by_menu_item", ["menuItemId"]),

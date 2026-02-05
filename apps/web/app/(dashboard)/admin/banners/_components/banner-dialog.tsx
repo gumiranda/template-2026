@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import {
   Dialog,
@@ -15,6 +15,7 @@ import { Label } from "@workspace/ui/components/label";
 import { Switch } from "@workspace/ui/components/switch";
 import { Loader2, Upload, ImageIcon } from "lucide-react";
 import type { Id } from "@workspace/backend/_generated/dataModel";
+import { toast } from "sonner";
 import type { BannerFormData } from "./banner-types";
 
 interface BannerDialogProps {
@@ -47,28 +48,18 @@ export function BannerDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (open) {
-      setForm(initialData);
-      setPreviewUrl(null);
-      setSelectedFile(null);
-      setIsSubmitting(false);
-    }
-  }, [open, initialData]);
-
-  const resetState = useCallback(() => {
-    setForm(initialData);
-    setPreviewUrl(null);
-    setSelectedFile(null);
-    setIsSubmitting(false);
-  }, [initialData]);
-
   const handleOpenChange = useCallback(
     (value: boolean) => {
-      if (!value) resetState();
+      if (value) {
+        // Reset state when dialog opens
+        setForm(initialData);
+        setPreviewUrl(null);
+        setSelectedFile(null);
+        setIsSubmitting(false);
+      }
       onOpenChange(value);
     },
-    [onOpenChange, resetState]
+    [onOpenChange, initialData]
   );
 
   const handleFileChange = useCallback(
@@ -93,7 +84,10 @@ export function BannerDialog({
         }
         await onSubmit(form, imageId);
         handleOpenChange(false);
-      } catch {
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Erro ao salvar banner"
+        );
         setIsSubmitting(false);
       }
     },
@@ -113,11 +107,11 @@ export function BannerDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Image */}
           <div className="space-y-2">
             <Label>Imagem</Label>
-            <div
-              className="relative aspect-[3/1] rounded-md border bg-muted cursor-pointer overflow-hidden"
+            <button
+              type="button"
+              className="relative aspect-[3/1] w-full rounded-md border bg-muted cursor-pointer overflow-hidden"
               onClick={() => fileInputRef.current?.click()}
             >
               {displayImage ? (
@@ -139,8 +133,9 @@ export function BannerDialog({
                   <Upload className="h-6 w-6 text-white" />
                 </div>
               )}
-            </div>
+            </button>
             <input
+              name="banner-image"
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png"
@@ -149,9 +144,8 @@ export function BannerDialog({
             />
           </div>
 
-          {/* Title */}
           <div className="space-y-2">
-            <Label htmlFor="banner-title">Titulo</Label>
+            <Label htmlFor="banner-title">Título</Label>
             <Input
               id="banner-title"
               value={form.title}
@@ -163,7 +157,6 @@ export function BannerDialog({
             />
           </div>
 
-          {/* Link URL */}
           <div className="space-y-2">
             <Label htmlFor="banner-link">Link (opcional)</Label>
             <Input
@@ -176,7 +169,6 @@ export function BannerDialog({
             />
           </div>
 
-          {/* Order */}
           <div className="space-y-2">
             <Label htmlFor="banner-order">Ordem</Label>
             <Input
@@ -193,7 +185,6 @@ export function BannerDialog({
             />
           </div>
 
-          {/* Active */}
           {editingId && (
             <div className="flex items-center justify-between">
               <Label htmlFor="banner-active">Ativo</Label>

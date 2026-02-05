@@ -1,12 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, lazy, Suspense } from "react";
 import { useAtomValue } from "jotai";
 import { StoreHeader } from "@/components/store/store-header";
 import { StoreFooter } from "@/components/store/store-footer";
 import { CartDrawer } from "@/components/store/cart-drawer";
 import { SessionCartDrawer } from "@/components/store/session-cart-drawer";
+import { DineInHeader } from "@/components/store/dine-in-header";
+import { SessionClosedOverlay } from "@/components/store/session-closed-overlay";
+import { StatusNotification } from "@/components/store/status-notification";
+import { useStatusNotifications } from "@/hooks/use-status-notifications";
 import { orderContextAtom } from "@/lib/atoms/order-context";
+
+const BillDrawer = lazy(() =>
+  import("@/components/store/bill-drawer").then((m) => ({ default: m.BillDrawer }))
+);
 
 export default function StoreLayout({
   children,
@@ -14,17 +22,56 @@ export default function StoreLayout({
   children: React.ReactNode;
 }) {
   const [cartOpen, setCartOpen] = useState(false);
+  const [billOpen, setBillOpen] = useState(false);
   const orderContext = useAtomValue(orderContextAtom);
+  const { notification, showWaiterStatus, showOrderStatus, hideNotification } =
+    useStatusNotifications();
+
+  const handleCallWaiter = useCallback(() => {
+    showWaiterStatus();
+  }, [showWaiterStatus]);
+
+  const handleOrderSent = useCallback(() => {
+    showOrderStatus();
+  }, [showOrderStatus]);
+
+  const isDineIn = orderContext.type === "dine_in";
 
   return (
     <div className="flex min-h-screen flex-col">
-      <StoreHeader onOpenCart={() => setCartOpen(true)} />
-      <main className="flex-1">{children}</main>
-      <StoreFooter />
-      {orderContext.type === "delivery" ? (
-        <CartDrawer open={cartOpen} onOpenChange={setCartOpen} />
+      {isDineIn ? (
+        <DineInHeader
+          onOpenCart={() => setCartOpen(true)}
+          onOpenBill={() => setBillOpen(true)}
+          onCallWaiter={handleCallWaiter}
+        />
       ) : (
-        <SessionCartDrawer open={cartOpen} onOpenChange={setCartOpen} />
+        <StoreHeader onOpenCart={() => setCartOpen(true)} />
+      )}
+      <main className={isDineIn ? "flex-1 pt-14" : "flex-1"}>{children}</main>
+      {!isDineIn && <StoreFooter />}
+
+      {isDineIn ? (
+        <>
+          <SessionCartDrawer
+            open={cartOpen}
+            onOpenChange={setCartOpen}
+            onOrderSent={handleOrderSent}
+          />
+          {billOpen && (
+            <Suspense fallback={null}>
+              <BillDrawer open={billOpen} onOpenChange={setBillOpen} />
+            </Suspense>
+          )}
+          <SessionClosedOverlay />
+          <StatusNotification
+            type={notification.type}
+            show={notification.show}
+            onComplete={hideNotification}
+          />
+        </>
+      ) : (
+        <CartDrawer open={cartOpen} onOpenChange={setCartOpen} />
       )}
     </div>
   );

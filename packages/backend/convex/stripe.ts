@@ -3,6 +3,7 @@ import { action, internalAction, internalMutation, internalQuery, query } from "
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { getAuthenticatedUser } from "./lib/auth";
+import { validateStripePriceId } from "./lib/helpers";
 import Stripe from "stripe";
 
 function getStripe() {
@@ -237,7 +238,7 @@ export const createCheckoutSession = action({
     const stripe = getStripe();
     const priceId = args.priceId ?? process.env.STRIPE_PRICE_ID;
     if (!priceId) throw new Error("STRIPE_PRICE_ID not configured");
-    if (!priceId.startsWith("price_")) {
+    if (!validateStripePriceId(priceId)) {
       throw new Error("Invalid price ID format");
     }
 

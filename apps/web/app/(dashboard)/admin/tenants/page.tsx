@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer, useMemo, Dispatch, SetStateAction } from "react";
+import { useReducer, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
@@ -29,9 +29,10 @@ import { formatCurrency } from "@/lib/format";
 import { AdminGuard } from "@/components/admin-guard";
 import { StatCard } from "@/components/stat-card";
 import { useUploadFile } from "@/hooks/use-upload-file";
-import type { RestaurantForm, RestaurantWithStats } from "./_components/types";
+import type { RestaurantForm, RestaurantWithStats, RestaurantFormUpdater } from "./_components/types";
 import { initialFormData } from "./_components/types";
 import { RestaurantFormDialog } from "./_components/restaurant-form-dialog";
+import { DeleteRestaurantDialog } from "./_components/delete-restaurant-dialog";
 import { DesktopRestaurantTable } from "./_components/desktop-restaurant-table";
 import { TenantStatsMobile } from "./_components/tenant-stats-mobile";
 import { MobileRestaurantList } from "./_components/mobile-restaurant-list";
@@ -46,6 +47,8 @@ interface PageState {
   editFormData: RestaurantForm;
   isCreateSubmitting: boolean;
   isEditSubmitting: boolean;
+  deleteRestaurantId: Id<"restaurants"> | null;
+  isDeleting: boolean;
 }
 
 type PageAction =
@@ -57,10 +60,13 @@ type PageAction =
   | { type: "EDIT_SUCCESS" }
   | { type: "SET_SEARCH_QUERY"; payload: string }
   | { type: "SET_STATUS_FILTER"; payload: string }
-  | { type: "SET_FORM_DATA"; payload: RestaurantForm }
-  | { type: "SET_EDIT_FORM_DATA"; payload: RestaurantForm }
+  | { type: "UPDATE_FORM_DATA"; payload: RestaurantFormUpdater }
+  | { type: "UPDATE_EDIT_FORM_DATA"; payload: RestaurantFormUpdater }
   | { type: "SET_CREATE_SUBMITTING"; payload: boolean }
-  | { type: "SET_EDIT_SUBMITTING"; payload: boolean };
+  | { type: "SET_EDIT_SUBMITTING"; payload: boolean }
+  | { type: "SET_DELETE_RESTAURANT_ID"; payload: Id<"restaurants"> | null }
+  | { type: "SET_DELETING"; payload: boolean }
+  | { type: "DELETE_SUCCESS" };
 
 const initialState: PageState = {
   isCreateModalOpen: false,
@@ -72,6 +78,8 @@ const initialState: PageState = {
   editFormData: initialFormData,
   isCreateSubmitting: false,
   isEditSubmitting: false,
+  deleteRestaurantId: null,
+  isDeleting: false,
 };
 
 function pageReducer(state: PageState, action: PageAction): PageState {
@@ -110,14 +118,28 @@ function pageReducer(state: PageState, action: PageAction): PageState {
       return { ...state, searchQuery: action.payload };
     case "SET_STATUS_FILTER":
       return { ...state, statusFilter: action.payload };
-    case "SET_FORM_DATA":
-      return { ...state, formData: action.payload };
-    case "SET_EDIT_FORM_DATA":
-      return { ...state, editFormData: action.payload };
+    case "UPDATE_FORM_DATA": {
+      const newData = typeof action.payload === "function"
+        ? action.payload(state.formData)
+        : action.payload;
+      return { ...state, formData: newData };
+    }
+    case "UPDATE_EDIT_FORM_DATA": {
+      const newData = typeof action.payload === "function"
+        ? action.payload(state.editFormData)
+        : action.payload;
+      return { ...state, editFormData: newData };
+    }
     case "SET_CREATE_SUBMITTING":
       return { ...state, isCreateSubmitting: action.payload };
     case "SET_EDIT_SUBMITTING":
       return { ...state, isEditSubmitting: action.payload };
+    case "SET_DELETE_RESTAURANT_ID":
+      return { ...state, deleteRestaurantId: action.payload };
+    case "SET_DELETING":
+      return { ...state, isDeleting: action.payload };
+    case "DELETE_SUCCESS":
+      return { ...state, deleteRestaurantId: null, isDeleting: false };
     default:
       return state;
   }
@@ -154,12 +176,15 @@ function TenantOverviewContent() {
     editFormData,
     isCreateSubmitting,
     isEditSubmitting,
+    deleteRestaurantId,
+    isDeleting,
   } = state;
 
   const stats = useQuery(api.restaurants.getOverviewStats);
   const restaurants = useQuery(api.restaurants.listAllWithStats);
   const createRestaurant = useMutation(api.restaurants.create);
   const updateRestaurant = useMutation(api.restaurants.update);
+  const deleteRestaurantMutation = useMutation(api.restaurants.deleteRestaurant);
   const { uploadFile } = useUploadFile();
 
   const filteredRestaurants = useMemo(() => {
@@ -267,15 +292,33 @@ function TenantOverviewContent() {
     dispatch({ type: "CLOSE_EDIT_MODAL" });
   };
 
-  const setFormData: Dispatch<SetStateAction<RestaurantForm>> = (action) => {
-    const newData = typeof action === "function" ? action(formData) : action;
-    dispatch({ type: "SET_FORM_DATA", payload: newData });
+  const handleDeleteRestaurant = async () => {
+    if (!deleteRestaurantId) return;
+
+    dispatch({ type: "SET_DELETING", payload: true });
+    try {
+      await deleteRestaurantMutation({ id: deleteRestaurantId });
+      toast.success("Restaurante deletado com sucesso");
+      dispatch({ type: "DELETE_SUCCESS" });
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Falha ao deletar restaurante"
+      );
+      dispatch({ type: "SET_DELETING", payload: false });
+    }
   };
 
-  const setEditFormData: Dispatch<SetStateAction<RestaurantForm>> = (action) => {
-    const newData = typeof action === "function" ? action(editFormData) : action;
-    dispatch({ type: "SET_EDIT_FORM_DATA", payload: newData });
+  const handleOpenDeleteModal = (restaurant: RestaurantWithStats) => {
+    dispatch({ type: "SET_DELETE_RESTAURANT_ID", payload: restaurant._id });
   };
+
+  const setFormData = useCallback((action: RestaurantFormUpdater) => {
+    dispatch({ type: "UPDATE_FORM_DATA", payload: action });
+  }, []);
+
+  const setEditFormData = useCallback((action: RestaurantFormUpdater) => {
+    dispatch({ type: "UPDATE_EDIT_FORM_DATA", payload: action });
+  }, []);
 
   const onlinePercentage = computeOnlinePercentage(stats);
 
@@ -396,22 +439,24 @@ function TenantOverviewContent() {
       {/* MOBILE LIST */}
       <div className="md:hidden">
         <MobileRestaurantList
-          restaurants={restaurants as RestaurantWithStats[] | undefined}
-          filteredRestaurants={filteredRestaurants as RestaurantWithStats[] | undefined}
+          restaurants={restaurants}
+          filteredRestaurants={filteredRestaurants}
           searchQuery={searchQuery}
           statusFilter={statusFilter}
           onEdit={handleOpenEditModal}
+          onDelete={handleOpenDeleteModal}
         />
       </div>
 
       {/* DESKTOP TABLE */}
       <div className="hidden md:block">
         <DesktopRestaurantTable
-          restaurants={restaurants as RestaurantWithStats[] | undefined}
-          filteredRestaurants={filteredRestaurants as RestaurantWithStats[] | undefined}
+          restaurants={restaurants}
+          filteredRestaurants={filteredRestaurants}
           searchQuery={searchQuery}
           statusFilter={statusFilter}
           onEdit={handleOpenEditModal}
+          onDelete={handleOpenDeleteModal}
         />
       </div>
 
@@ -446,6 +491,18 @@ function TenantOverviewContent() {
         onCancel={handleCancelEdit}
         isSubmitting={isEditSubmitting}
         isEdit
+      />
+
+      <DeleteRestaurantDialog
+        open={deleteRestaurantId !== null}
+        onOpenChange={(open) =>
+          !open && dispatch({ type: "SET_DELETE_RESTAURANT_ID", payload: null })
+        }
+        onConfirm={handleDeleteRestaurant}
+        restaurantName={
+          restaurants?.find((r) => r._id === deleteRestaurantId)?.name ?? ""
+        }
+        isDeleting={isDeleting}
       />
     </div>
   );

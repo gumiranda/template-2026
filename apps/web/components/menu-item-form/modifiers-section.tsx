@@ -7,6 +7,7 @@ import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Switch } from "@workspace/ui/components/switch";
+import { useMenuItemFormContext } from "./context";
 
 export interface ModifierOption {
   name: string;
@@ -19,15 +20,10 @@ export interface ModifierGroup {
   options: ModifierOption[];
 }
 
-interface ModifiersSectionProps {
-  groups: ModifierGroup[];
-  onGroupsChange: (groups: ModifierGroup[]) => void;
-}
+export function ModifiersSection() {
+  const { modifierGroups: groups, setModifierGroups: onGroupsChange } =
+    useMenuItemFormContext();
 
-export function ModifiersSection({
-  groups,
-  onGroupsChange,
-}: ModifiersSectionProps) {
   const addGroup = useCallback(() => {
     onGroupsChange([
       ...groups,

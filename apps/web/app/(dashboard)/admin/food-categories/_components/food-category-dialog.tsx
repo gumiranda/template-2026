@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
@@ -51,8 +51,6 @@ export function FoodCategoryDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ─── Restaurant linking ────────────────────────────────────────────────────
-
   const restaurants = useQuery(api.restaurants.listAllWithStats);
   const linkedRestaurants = useQuery(
     api.foodCategories.getLinkedRestaurants,
@@ -73,7 +71,7 @@ export function FoodCategoryDialog({
   );
   const [pendingLinks, setPendingLinks] = useState<Set<string>>(new Set());
 
-  const uniqueRestaurants = useMemo(() => {
+  const filteredRestaurants = useMemo(() => {
     if (!restaurants) return [];
     const seen = new Set<string>();
     return restaurants.filter((r) => {
@@ -88,7 +86,6 @@ export function FoodCategoryDialog({
     return new Set(linkedRestaurants.map((r) => r._id as string));
   }, [linkedRestaurants]);
 
-  // Edit mode: toggle inline
   const handleToggleEdit = useCallback(
     async (restaurantId: string, isLinked: boolean) => {
       if (!editingId) return;
@@ -123,7 +120,6 @@ export function FoodCategoryDialog({
     [editingId]
   );
 
-  // Create mode: toggle local selection
   const handleToggleCreate = useCallback(
     (restaurantId: string) => {
       setCreateModeSelection((prev) => {
@@ -139,24 +135,20 @@ export function FoodCategoryDialog({
     []
   );
 
-  // ─── Form lifecycle ────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    if (open) {
-      setForm(initialData);
-      setPreviewUrl(null);
-      setSelectedFile(null);
-      setIsSubmitting(false);
-      setCreateModeSelection(new Set());
-      setPendingLinks(new Set());
-    }
-  }, [open, initialData]);
-
   const handleOpenChange = useCallback(
     (value: boolean) => {
+      if (value) {
+        // Reset state when dialog opens
+        setForm(initialData);
+        setPreviewUrl(null);
+        setSelectedFile(null);
+        setIsSubmitting(false);
+        setCreateModeSelection(new Set());
+        setPendingLinks(new Set());
+      }
       onOpenChange(value);
     },
-    [onOpenChange]
+    [onOpenChange, initialData]
   );
 
   const handleFileChange = useCallback(
@@ -195,7 +187,10 @@ export function FoodCategoryDialog({
         }
 
         handleOpenChange(false);
-      } catch {
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Erro ao salvar categoria"
+        );
         setIsSubmitting(false);
       }
     },
@@ -216,11 +211,11 @@ export function FoodCategoryDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Image */}
           <div className="space-y-2">
             <Label>Imagem</Label>
-            <div
-              className="relative aspect-[2/1] rounded-md border bg-muted cursor-pointer overflow-hidden"
+            <button
+              type="button"
+              className="relative aspect-[2/1] w-full rounded-md border bg-muted cursor-pointer overflow-hidden"
               onClick={() => fileInputRef.current?.click()}
             >
               {displayImage ? (
@@ -242,8 +237,9 @@ export function FoodCategoryDialog({
                   <Upload className="h-6 w-6 text-white" />
                 </div>
               )}
-            </div>
+            </button>
             <input
+              name="category-image"
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png"
@@ -252,7 +248,6 @@ export function FoodCategoryDialog({
             />
           </div>
 
-          {/* Name */}
           <div className="space-y-2">
             <Label htmlFor="category-name">Nome</Label>
             <Input
@@ -266,7 +261,6 @@ export function FoodCategoryDialog({
             />
           </div>
 
-          {/* Order */}
           <div className="space-y-2">
             <Label htmlFor="category-order">Ordem</Label>
             <Input
@@ -283,7 +277,6 @@ export function FoodCategoryDialog({
             />
           </div>
 
-          {/* Active */}
           {editingId && (
             <div className="flex items-center justify-between">
               <Label htmlFor="category-active">Ativa</Label>
@@ -297,20 +290,19 @@ export function FoodCategoryDialog({
             </div>
           )}
 
-          {/* Restaurants */}
           <div className="space-y-2">
             <Label>Restaurantes vinculados</Label>
             {restaurants === undefined ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               </div>
-            ) : uniqueRestaurants.length === 0 ? (
+            ) : filteredRestaurants.length === 0 ? (
               <p className="text-sm text-muted-foreground py-2">
                 Nenhum restaurante cadastrado.
               </p>
             ) : (
               <div className="max-h-[200px] overflow-y-auto rounded-md border p-3 space-y-3">
-                {uniqueRestaurants.map((restaurant) => {
+                {filteredRestaurants.map((restaurant) => {
                   const isLinked = editingId
                     ? linkedIds.has(restaurant._id)
                     : createModeSelection.has(restaurant._id);

@@ -17,7 +17,13 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "@workspace/ui/components/avatar";
-import { Loader2, Building2, Pencil, ExternalLink } from "lucide-react";
+import { Loader2, Building2, Pencil, ExternalLink, Trash2, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
 import { getRestaurantStatus } from "@/lib/constants";
 import { formatCurrency } from "@/lib/format";
 import type { RestaurantWithStats } from "./types";
@@ -28,6 +34,7 @@ interface DesktopRestaurantTableProps {
   searchQuery: string;
   statusFilter: string;
   onEdit: (restaurant: RestaurantWithStats) => void;
+  onDelete: (restaurant: RestaurantWithStats) => void;
 }
 
 export function DesktopRestaurantTable({
@@ -36,6 +43,7 @@ export function DesktopRestaurantTable({
   searchQuery,
   statusFilter,
   onEdit,
+  onDelete,
 }: DesktopRestaurantTableProps) {
   return (
     <Card>
@@ -112,6 +120,22 @@ export function DesktopRestaurantTable({
                             Manage
                           </Link>
                         </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => onDelete(restaurant)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </TableCell>
                   </TableRow>

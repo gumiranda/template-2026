@@ -5,7 +5,9 @@
     "dev": "convex dev --env-file .env.local",
     "dev:env-dev": "convex dev --env-file .env.dev",
     "dev:env-prod": "convex dev --env-file .env.prod",
-    "setup": "convex dev --until-success --env-file .env.local"
+    "setup": "convex dev --until-success --env-file .env.local",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf node_modules/.cache *.tsbuildinfo"
   },
   "exports": {
     "./convex": "./convex/*.ts",

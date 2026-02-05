@@ -78,3 +78,11 @@ export type RestaurantStatusType = (typeof RestaurantStatus)[keyof typeof Restau
 export function isValidRestaurantStatus(value: string): value is RestaurantStatusType {
   return Object.values(RestaurantStatus).includes(value as RestaurantStatusType);
 }
+
+export const SessionStatus = {
+  OPEN: "open",
+  REQUESTING_CLOSURE: "requesting_closure",
+  CLOSED: "closed",
+} as const;
+
+export type SessionStatusType = (typeof SessionStatus)[keyof typeof SessionStatus];

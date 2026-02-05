@@ -11,32 +11,23 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
-import { MapPin, LayoutGrid, MoreVertical, Pencil, ExternalLink } from "lucide-react";
+import { MapPin, LayoutGrid, MoreVertical, Pencil, ExternalLink, Trash2 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
+import { getStatusBadgeConfig } from "@/lib/constants";
 import type { RestaurantWithStats } from "./types";
-
-const DEFAULT_STATUS_BADGE = { label: "ONLINE", className: "bg-green-500 text-white" } as const;
-
-const STATUS_BADGE_CONFIG: Record<string, { label: string; className: string }> = {
-  active: DEFAULT_STATUS_BADGE,
-  maintenance: { label: "MANUTENCAO", className: "bg-yellow-500 text-white" },
-  inactive: { label: "INATIVO", className: "bg-red-500 text-white" },
-};
-
-function getStatusBadge(status: string | undefined): { label: string; className: string } {
-  return STATUS_BADGE_CONFIG[status ?? "active"] ?? DEFAULT_STATUS_BADGE;
-}
 
 interface MobileRestaurantCardProps {
   restaurant: RestaurantWithStats;
   onEdit: (restaurant: RestaurantWithStats) => void;
+  onDelete: (restaurant: RestaurantWithStats) => void;
 }
 
 export function MobileRestaurantCard({
   restaurant,
   onEdit,
+  onDelete,
 }: MobileRestaurantCardProps) {
-  const statusBadge = getStatusBadge(restaurant.status);
+  const statusBadge = getStatusBadgeConfig(restaurant.status);
 
   return (
     <Card className="overflow-hidden">
@@ -90,6 +81,13 @@ export function MobileRestaurantCard({
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Gerenciar
                 </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onDelete(restaurant)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Deletar
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

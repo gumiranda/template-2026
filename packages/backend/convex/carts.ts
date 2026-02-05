@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { requireRestaurantStaffAccess } from "./lib/auth";
 import { batchFetchMenuItems, validateQuantity } from "./lib/helpers";
+import { validateMenuItemForCart } from "./lib/cartHelpers";
 
 export const getCart = query({
   args: { tableId: v.id("tables") },
@@ -60,16 +61,7 @@ export const addToCart = mutation({
 
     validateQuantity(args.quantity);
 
-    const menuItem = await ctx.db.get(args.menuItemId);
-    if (!menuItem) {
-      throw new Error("Menu item not found");
-    }
-    if (menuItem.restaurantId !== args.restaurantId) {
-      throw new Error("Menu item does not belong to this restaurant");
-    }
-    if (!menuItem.isActive) {
-      throw new Error("Menu item is not available");
-    }
+    const menuItem = await validateMenuItemForCart(ctx, args.menuItemId, args.restaurantId);
 
     const existingCart = await ctx.db
       .query("carts")
