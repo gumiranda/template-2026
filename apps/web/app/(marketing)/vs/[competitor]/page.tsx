@@ -106,7 +106,7 @@ export default async function ComparisonPage({ params }: PageProps) {
         baseUrl={baseUrl}
         items={[
           { name: "Início", href: "/" },
-          { name: "Comparações", href: "/vs/ifood" },
+          { name: "Comparações", href: "/vs" },
           { name: `vs ${competitor.name}`, href: `/vs/${slug}` },
         ]}
       />

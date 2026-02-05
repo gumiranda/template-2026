@@ -11,6 +11,9 @@ const isPublicRoute = createRouteMatcher([
   "/categories(.*)",
   "/success(.*)",
   "/solucoes(.*)",
+  "/for(.*)",
+  "/vs(.*)",
+  "/r(.*)",
 ]);
 
 const securityHeaders = {

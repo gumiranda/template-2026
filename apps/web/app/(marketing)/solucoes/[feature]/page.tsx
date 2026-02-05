@@ -132,7 +132,7 @@ export default async function SolutionPage({ params }: PageProps) {
         baseUrl={baseUrl}
         items={[
           { name: "Início", href: "/" },
-          { name: "Soluções", href: "/solucoes/cardapio-digital-qr-code" },
+          { name: "Soluções", href: "/solucoes" },
           { name: solution.name, href: `/solucoes/${slug}` },
         ]}
       />

@@ -8,11 +8,59 @@ import { RestaurantList } from "@/components/store/restaurant-list";
 import { ProductList } from "@/components/store/product-list";
 import { PromoBanner } from "@/components/store/promo-banner";
 
-export function StoreHomeContent() {
-  const categories = useQuery(api.foodCategories.listFoodCategories);
-  const recommended = useQuery(api.customerRestaurants.getRecommendedRestaurants);
-  const discountedProducts = useQuery(api.customerMenu.getRecommendedProducts);
-  const banners = useQuery(api.promoBanners.listActiveBanners);
+type Categories = typeof api.foodCategories.listFoodCategories extends {
+  _returnType: infer R;
+}
+  ? Awaited<R>
+  : never;
+
+type Restaurants = typeof api.customerRestaurants.getRecommendedRestaurants extends {
+  _returnType: infer R;
+}
+  ? Awaited<R>
+  : never;
+
+type Products = typeof api.customerMenu.getRecommendedProducts extends {
+  _returnType: infer R;
+}
+  ? Awaited<R>
+  : never;
+
+type Banners = typeof api.promoBanners.listActiveBanners extends {
+  _returnType: infer R;
+}
+  ? Awaited<R>
+  : never;
+
+interface StoreHomeContentProps {
+  initialCategories?: Categories | null;
+  initialRecommended?: Restaurants | null;
+  initialDiscountedProducts?: Products | null;
+  initialBanners?: Banners | null;
+}
+
+export function StoreHomeContent({
+  initialCategories,
+  initialRecommended,
+  initialDiscountedProducts,
+  initialBanners,
+}: StoreHomeContentProps) {
+  const categories =
+    useQuery(api.foodCategories.listFoodCategories) ??
+    initialCategories ??
+    undefined;
+  const recommended =
+    useQuery(api.customerRestaurants.getRecommendedRestaurants) ??
+    initialRecommended ??
+    undefined;
+  const discountedProducts =
+    useQuery(api.customerMenu.getRecommendedProducts) ??
+    initialDiscountedProducts ??
+    undefined;
+  const banners =
+    useQuery(api.promoBanners.listActiveBanners) ??
+    initialBanners ??
+    undefined;
 
   return (
     <div className="space-y-8">

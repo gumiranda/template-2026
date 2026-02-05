@@ -119,7 +119,7 @@ export default async function PersonaPage({ params }: PageProps) {
         baseUrl={baseUrl}
         items={[
           { name: "Início", href: "/" },
-          { name: "Para quem", href: "/for/pizzarias" },
+          { name: "Para Quem", href: "/for" },
           { name: persona.name, href: `/for/${slug}` },
         ]}
       />
