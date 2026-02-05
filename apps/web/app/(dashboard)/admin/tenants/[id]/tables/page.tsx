@@ -3,7 +3,6 @@
 import { use, useReducer, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import Link from "next/link";
-import QRCode from "qrcode";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
 import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
@@ -209,6 +208,7 @@ function TableManagementContent({
   const handleDownloadQR = useCallback(
     async (table: NonNullable<typeof tables>[number]) => {
       try {
+        const QRCode = await import("qrcode");
         const dataUrl = await QRCode.toDataURL(table.qrCode, {
           width: 400,
           errorCorrectionLevel: "H",
@@ -241,7 +241,10 @@ function TableManagementContent({
     const bgColor = isDark ? "#1a1a1a" : "#ffffff";
     const textColor = isDark ? "#ffffff" : "#000000";
 
-    const { jsPDF } = await import("jspdf");
+    const [{ jsPDF }, QRCode] = await Promise.all([
+      import("jspdf"),
+      import("qrcode"),
+    ]);
 
     const qrImages = await Promise.all(
       tablesToPrint.map((table) =>

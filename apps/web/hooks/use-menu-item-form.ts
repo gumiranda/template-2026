@@ -44,37 +44,8 @@ export function useMenuItemForm(restaurantId: Id<"restaurants">) {
         imageId = await uploadFile(params.imageFile);
       }
 
-      let menuItemId: Id<"menuItems">;
-
-      if (params.itemId) {
-        await updateItem({
-          itemId: params.itemId,
-          name: params.name.trim(),
-          description: params.description?.trim() || undefined,
-          price: params.price,
-          categoryId: params.categoryId,
-          tags: params.tags,
-          isActive: params.isActive,
-          ...(imageId ? { imageId } : {}),
-          ...(params.removeImage ? { removeImage: true } : {}),
-        });
-        menuItemId = params.itemId;
-      } else {
-        menuItemId = await createItem({
-          restaurantId: params.restaurantId,
-          categoryId: params.categoryId,
-          name: params.name.trim(),
-          description: params.description?.trim() || undefined,
-          price: params.price,
-          tags: params.tags,
-          ...(imageId ? { imageId } : {}),
-        });
-      }
-
-      if (params.modifierGroups.length > 0) {
-        await saveModifierGroups({
-          menuItemId,
-          groups: params.modifierGroups.map((g, gi) => ({
+      const modifierGroupsPayload = params.modifierGroups.length > 0
+        ? params.modifierGroups.map((g, gi) => ({
             name: g.name,
             required: g.required,
             order: gi,
@@ -83,8 +54,53 @@ export function useMenuItemForm(restaurantId: Id<"restaurants">) {
               price: o.price,
               order: oi,
             })),
-          })),
+          }))
+        : null;
+
+      if (params.itemId) {
+        // Update: item already exists, so we can run update + modifiers in parallel
+        const operations: Promise<unknown>[] = [
+          updateItem({
+            itemId: params.itemId,
+            name: params.name.trim(),
+            description: params.description?.trim() || undefined,
+            price: params.price,
+            categoryId: params.categoryId,
+            tags: params.tags,
+            isActive: params.isActive,
+            ...(imageId ? { imageId } : {}),
+            ...(params.removeImage ? { removeImage: true } : {}),
+          }),
+        ];
+
+        if (modifierGroupsPayload) {
+          operations.push(
+            saveModifierGroups({
+              menuItemId: params.itemId,
+              groups: modifierGroupsPayload,
+            })
+          );
+        }
+
+        await Promise.all(operations);
+      } else {
+        // Create: need menuItemId first, then save modifiers
+        const menuItemId = await createItem({
+          restaurantId: params.restaurantId,
+          categoryId: params.categoryId,
+          name: params.name.trim(),
+          description: params.description?.trim() || undefined,
+          price: params.price,
+          tags: params.tags,
+          ...(imageId ? { imageId } : {}),
         });
+
+        if (modifierGroupsPayload) {
+          await saveModifierGroups({
+            menuItemId,
+            groups: modifierGroupsPayload,
+          });
+        }
       }
 
       toast.success(params.itemId ? "Item updated" : "Item created");
