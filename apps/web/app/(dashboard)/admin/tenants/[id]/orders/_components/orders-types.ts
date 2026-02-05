@@ -61,11 +61,18 @@ export type StatusFilter = OrderStatusType | "all";
 
 // ─── Order grouping types ────────────────────────────────────────────────────
 
+export interface OrderItemModifier {
+  groupName: string;
+  optionName: string;
+  price: number;
+}
+
 export interface OrderItem {
   name: string;
   quantity: number;
   price: number;
   totalPrice: number;
+  modifiers?: OrderItemModifier[];
 }
 
 export interface OrderRow {

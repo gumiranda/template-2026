@@ -140,14 +140,23 @@ export function TableGroupCard({
 
                 <div className="text-sm space-y-1">
                   {order.items.slice(0, MAX_VISIBLE_ITEMS).map((item, i) => (
-                    <div
-                      key={i}
-                      className="flex justify-between text-muted-foreground"
-                    >
-                      <span>
-                        {item.quantity}x {item.name}
-                      </span>
-                      <span>{formatCurrency(item.totalPrice)}</span>
+                    <div key={i} className="text-muted-foreground">
+                      <div className="flex justify-between">
+                        <span>
+                          {item.quantity}x {item.name}
+                        </span>
+                        <span>{formatCurrency(item.totalPrice)}</span>
+                      </div>
+                      {item.modifiers && item.modifiers.length > 0 && (
+                        <div className="text-xs text-muted-foreground/70 ml-4">
+                          {item.modifiers.map((mod, j) => (
+                            <span key={j}>
+                              {mod.optionName}
+                              {j < item.modifiers!.length - 1 && ", "}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   ))}
                   {order.items.length > MAX_VISIBLE_ITEMS && (
