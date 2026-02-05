@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer, useMemo, Dispatch, SetStateAction } from "react";
+import { useReducer, useMemo, useCallback, Dispatch, SetStateAction } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
@@ -267,17 +267,17 @@ function TenantOverviewContent() {
     dispatch({ type: "CLOSE_EDIT_MODAL" });
   };
 
-  const setFormData: Dispatch<SetStateAction<RestaurantForm>> = (action) => {
+  const setFormData = useCallback<Dispatch<SetStateAction<RestaurantForm>>>((action) => {
     const newData = typeof action === "function" ? action(formData) : action;
     dispatch({ type: "SET_FORM_DATA", payload: newData });
-  };
+  }, [formData]);
 
-  const setEditFormData: Dispatch<SetStateAction<RestaurantForm>> = (action) => {
+  const setEditFormData = useCallback<Dispatch<SetStateAction<RestaurantForm>>>((action) => {
     const newData = typeof action === "function" ? action(editFormData) : action;
     dispatch({ type: "SET_EDIT_FORM_DATA", payload: newData });
-  };
+  }, [editFormData]);
 
-  const onlinePercentage = computeOnlinePercentage(stats);
+  const onlinePercentage = useMemo(() => computeOnlinePercentage(stats), [stats]);
 
   return (
     <div className="space-y-6 pb-24 md:pb-0">
@@ -396,8 +396,8 @@ function TenantOverviewContent() {
       {/* MOBILE LIST */}
       <div className="md:hidden">
         <MobileRestaurantList
-          restaurants={restaurants as RestaurantWithStats[] | undefined}
-          filteredRestaurants={filteredRestaurants as RestaurantWithStats[] | undefined}
+          restaurants={restaurants}
+          filteredRestaurants={filteredRestaurants}
           searchQuery={searchQuery}
           statusFilter={statusFilter}
           onEdit={handleOpenEditModal}
@@ -407,8 +407,8 @@ function TenantOverviewContent() {
       {/* DESKTOP TABLE */}
       <div className="hidden md:block">
         <DesktopRestaurantTable
-          restaurants={restaurants as RestaurantWithStats[] | undefined}
-          filteredRestaurants={filteredRestaurants as RestaurantWithStats[] | undefined}
+          restaurants={restaurants}
+          filteredRestaurants={filteredRestaurants}
           searchQuery={searchQuery}
           statusFilter={statusFilter}
           onEdit={handleOpenEditModal}

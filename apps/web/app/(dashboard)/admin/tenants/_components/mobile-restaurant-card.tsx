@@ -13,19 +13,8 @@ import {
 } from "@workspace/ui/components/dropdown-menu";
 import { MapPin, LayoutGrid, MoreVertical, Pencil, ExternalLink } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
+import { getStatusBadgeConfig } from "@/lib/constants";
 import type { RestaurantWithStats } from "./types";
-
-const DEFAULT_STATUS_BADGE = { label: "ONLINE", className: "bg-green-500 text-white" } as const;
-
-const STATUS_BADGE_CONFIG: Record<string, { label: string; className: string }> = {
-  active: DEFAULT_STATUS_BADGE,
-  maintenance: { label: "MANUTENCAO", className: "bg-yellow-500 text-white" },
-  inactive: { label: "INATIVO", className: "bg-red-500 text-white" },
-};
-
-function getStatusBadge(status: string | undefined): { label: string; className: string } {
-  return STATUS_BADGE_CONFIG[status ?? "active"] ?? DEFAULT_STATUS_BADGE;
-}
 
 interface MobileRestaurantCardProps {
   restaurant: RestaurantWithStats;
@@ -36,7 +25,7 @@ export function MobileRestaurantCard({
   restaurant,
   onEdit,
 }: MobileRestaurantCardProps) {
-  const statusBadge = getStatusBadge(restaurant.status);
+  const statusBadge = getStatusBadgeConfig(restaurant.status);
 
   return (
     <Card className="overflow-hidden">
