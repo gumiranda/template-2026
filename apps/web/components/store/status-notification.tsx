@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ChefHat, Timer, User, Check, Receipt, RefreshCw } from "lucide-react";
 import { Progress } from "@workspace/ui/components/progress";
 import { cn } from "@workspace/ui/lib/utils";
@@ -85,6 +85,7 @@ export function StatusNotification({ type, show, onComplete }: StatusNotificatio
   const [progress, setProgress] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const onCompleteRef = useRef(onComplete);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
@@ -133,9 +134,10 @@ export function StatusNotification({ type, show, onComplete }: StatusNotificatio
     <AnimatePresence>
       {show && (
         <motion.div
-          initial={{ opacity: 0, y: 50 }}
+          initial={shouldReduceMotion ? false : { opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 50 }}
+          exit={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, y: 50 }}
+          transition={shouldReduceMotion ? { duration: 0 } : undefined}
           className="fixed left-4 top-20 z-50 w-[calc(100%-32px)] sm:left-1/2 sm:w-full sm:max-w-sm sm:-translate-x-1/2"
           role="status"
           aria-live="polite"

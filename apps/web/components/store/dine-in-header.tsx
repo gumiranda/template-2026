@@ -9,7 +9,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { useAtomValue } from "jotai";
 import { orderContextAtom } from "@/lib/atoms/order-context";
 import { useSessionCart } from "@/hooks/use-session-cart";
@@ -35,6 +35,7 @@ export function DineInHeader({
 
   const [showPulse, setShowPulse] = useState(false);
   const prevCartCount = useRef(0);
+  const shouldReduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (cartItemCount > prevCartCount.current) {
@@ -85,9 +86,10 @@ export function DineInHeader({
                   {cartItemCount > 0 && (
                     <motion.div
                       key="cart-badge"
-                      initial={{ scale: 0.8, opacity: 0 }}
+                      initial={shouldReduceMotion ? false : { scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.8, opacity: 0 }}
+                      exit={shouldReduceMotion ? { opacity: 0 } : { scale: 0.8, opacity: 0 }}
+                      transition={shouldReduceMotion ? { duration: 0 } : undefined}
                       className="absolute -right-2 -top-2"
                     >
                       <Badge className="h-5 min-w-5 justify-center px-1 text-xs">
@@ -97,7 +99,7 @@ export function DineInHeader({
                   )}
                 </AnimatePresence>
                 <AnimatePresence>
-                  {showPulse && (
+                  {showPulse && !shouldReduceMotion && (
                     <motion.div
                       key="pulse"
                       initial={{ scale: 1, opacity: 0.7 }}
@@ -127,9 +129,10 @@ export function DineInHeader({
                   {billItemCount > 0 && (
                     <motion.div
                       key="bill-badge"
-                      initial={{ scale: 0.8, opacity: 0 }}
+                      initial={shouldReduceMotion ? false : { scale: 0.8, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.8, opacity: 0 }}
+                      exit={shouldReduceMotion ? { opacity: 0 } : { scale: 0.8, opacity: 0 }}
+                      transition={shouldReduceMotion ? { duration: 0 } : undefined}
                       className="absolute -right-2 -top-2"
                     >
                       <Badge

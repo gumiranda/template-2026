@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { validateSession, batchFetchMenuItems, SESSION_DURATION_MS, isValidSessionId, validateQuantity } from "./lib/helpers";
 import { validateMenuItemForCart } from "./lib/cartHelpers";
-import { MAX_SESSIONS_PER_TABLE, MAX_CART_ITEM_QUANTITY } from "./lib/constants";
+import { MAX_SESSIONS_PER_TABLE, MAX_SESSIONS_PER_DEVICE_PER_HOUR, MAX_CART_ITEM_QUANTITY } from "./lib/constants";
 import { SessionStatus } from "./lib/types";
 import { assertSessionCanAcceptChanges } from "./lib/sessionHelpers";
 
@@ -52,6 +52,14 @@ export const createSession = mutation({
 
       if (activeDeviceSession && activeDeviceSession.tableId === args.tableId) {
         return { _id: activeDeviceSession._id, sessionId: activeDeviceSession.sessionId };
+      }
+
+      const oneHourAgo = now - 60 * 60 * 1000;
+      const recentDeviceSessions = existingDeviceSessions.filter(
+        (s) => s._creationTime > oneHourAgo
+      );
+      if (recentDeviceSessions.length >= MAX_SESSIONS_PER_DEVICE_PER_HOUR) {
+        throw new Error("RATE_LIMITED");
       }
     }
 

@@ -17,6 +17,7 @@ export const MAX_RELATED_PRODUCTS = 6;
 export const MAX_DISCOUNT_CANDIDATES = 200;
 export const MAX_RECOMMENDED_PRODUCTS = 20;
 export const MAX_SESSIONS_PER_TABLE = 10;
+export const MAX_SESSIONS_PER_DEVICE_PER_HOUR = 3;
 export const MAX_BATCH_TABLES = 50;
 export const MAX_TABLE_CAPACITY = 1000;
 export const MAX_CART_ITEM_QUANTITY = 99;

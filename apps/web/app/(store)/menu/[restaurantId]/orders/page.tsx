@@ -1,7 +1,8 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery } from "convex/react";
 import { useSetAtom } from "jotai";
 import { api } from "@workspace/backend/_generated/api";
@@ -9,7 +10,15 @@ import type { Id } from "@workspace/backend/_generated/dataModel";
 import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
 import { Button } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
-import { ArrowLeft, AlertCircle, ClipboardList } from "lucide-react";
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@workspace/ui/components/breadcrumb";
+import { AlertCircle, ClipboardList, Loader2 } from "lucide-react";
 import { orderContextAtom } from "@/lib/atoms/order-context";
 import { SessionOrderCard } from "./_components/session-order-card";
 
@@ -60,6 +69,8 @@ function SessionOrdersContent({
 }) {
   const setOrderContext = useSetAtom(orderContextAtom);
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   useEffect(() => {
     setSessionId(getStoredSessionId(restaurantId, tableNumber));
@@ -90,6 +101,12 @@ function SessionOrdersContent({
 
   const menuHref = `/menu/${restaurantId}?table=${tableNumber}`;
 
+  const handleGoToMenu = () => {
+    startTransition(() => {
+      router.push(menuHref);
+    });
+  };
+
   if (!sessionId) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
@@ -98,8 +115,9 @@ function SessionOrdersContent({
         <p className="mt-2 text-muted-foreground">
           Voce precisa acessar o cardapio primeiro.
         </p>
-        <Button asChild className="mt-6">
-          <Link href={menuHref}>Ir para o cardapio</Link>
+        <Button onClick={handleGoToMenu} disabled={isPending} className="mt-6">
+          {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Ir para o cardapio
         </Button>
       </div>
     );
@@ -117,18 +135,19 @@ function SessionOrdersContent({
 
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon">
-          <Link href={menuHref}>
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-xl font-bold">Meus Pedidos</h1>
-          <p className="text-sm text-muted-foreground">Mesa {tableNumber}</p>
-        </div>
-      </div>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild>
+              <Link href={menuHref}>Cardapio</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Meus Pedidos - Mesa {tableNumber}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
 
       {/* Orders */}
       {orders.length === 0 ? (
