@@ -1,62 +1,114 @@
-"use client";
+import type { Metadata } from "next";
+import type { Id } from "@workspace/backend/_generated/dataModel";
+import { fetchQuery, api } from "@/lib/convex-server";
+import { ProductDetailContent } from "@/components/store/product-detail-content";
+import { ProductSchema, BreadcrumbSchema } from "@/components/seo/json-ld";
 
-import { use } from "react";
-import { useQuery } from "convex/react";
-import { api } from "@workspace/backend/_generated/api";
-import { Id } from "@workspace/backend/_generated/dataModel";
-import { Skeleton } from "@workspace/ui/components/skeleton";
-import { Separator } from "@workspace/ui/components/separator";
-import { ProductDetails } from "@/components/store/product-details";
-import { ProductList } from "@/components/store/product-list";
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
 
-export default function ProductDetailPage({
-  params,
-}: {
+interface PageProps {
   params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+}
+
+function formatPrice(price: number): string {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(price / 100);
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
   const menuItemId = id as Id<"menuItems">;
-  const product = useQuery(api.customerMenu.getProductDetails, { menuItemId });
 
-  if (product === undefined) {
-    return (
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        <div className="grid gap-6 md:grid-cols-2">
-          <Skeleton className="aspect-square rounded-lg" />
-          <div className="space-y-4">
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-10 w-32" />
-          </div>
-        </div>
-      </div>
-    );
+  try {
+    const product = await fetchQuery(api.customerMenu.getProductDetails, {
+      menuItemId,
+    });
+
+    if (!product) {
+      return {
+        title: "Produto não encontrado",
+      };
+    }
+
+    const price = product.discountedPrice ?? product.price;
+    const title = `${product.name} - ${formatPrice(price)}`;
+    const description =
+      product.description ||
+      `${product.name} do ${product.restaurant.name}. Peça agora!`;
+
+    return {
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        type: "website",
+        images: product.imageUrl
+          ? [{ url: product.imageUrl, width: 600, height: 600, alt: product.name }]
+          : undefined,
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+        images: product.imageUrl || undefined,
+      },
+    };
+  } catch {
+    return {
+      title: "Produto",
+    };
   }
+}
 
-  if (product === null) {
-    return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold">Produto não encontrado</h1>
-        <p className="mt-2 text-muted-foreground">
-          Este produto pode ter sido removido ou não está disponível.
-        </p>
-      </div>
-    );
+export default async function ProductDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  const menuItemId = id as Id<"menuItems">;
+
+  // Fetch product for JSON-LD schema
+  let product: Awaited<
+    ReturnType<typeof fetchQuery<typeof api.customerMenu.getProductDetails>>
+  > | null = null;
+
+  try {
+    product = await fetchQuery(api.customerMenu.getProductDetails, {
+      menuItemId,
+    });
+  } catch {
+    // Schema will be omitted if fetch fails
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
-      <ProductDetails product={product} />
-
-      {product.relatedProducts.length > 0 && (
+    <>
+      {product && (
         <>
-          <Separator />
-          <ProductList
-            products={product.relatedProducts}
-            title="Produtos relacionados"
+          <ProductSchema
+            name={product.name}
+            description={product.description}
+            imageUrl={product.imageUrl}
+            price={product.price}
+            discountedPrice={product.discountedPrice}
+            url={`${baseUrl}/products/${id}`}
+            restaurantName={product.restaurant.name}
+          />
+          <BreadcrumbSchema
+            baseUrl={baseUrl}
+            items={[
+              { name: "Início", href: "/" },
+              {
+                name: product.restaurant.name,
+                href: product.restaurant.slug
+                  ? `/r/${product.restaurant.slug}`
+                  : `/restaurants/${product.restaurantId}`,
+              },
+              { name: product.name, href: `/products/${id}` },
+            ]}
           />
         </>
       )}
-    </div>
+      <ProductDetailContent menuItemId={menuItemId} />
+    </>
   );
 }

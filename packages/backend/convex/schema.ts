@@ -61,6 +61,7 @@ export default defineSchema({
 
   restaurants: defineTable({
     name: v.string(),
+    slug: v.optional(v.string()),
     address: v.string(),
     phone: v.optional(v.string()),
     description: v.optional(v.string()),
@@ -79,6 +80,7 @@ export default defineSchema({
   })
     .index("by_owner", ["ownerId"])
     .index("by_status", ["status"])
+    .index("by_slug", ["slug"])
     .index("by_owner_and_deletedAt", ["ownerId", "deletedAt"])
     .searchIndex("search_by_name", {
       searchField: "name",

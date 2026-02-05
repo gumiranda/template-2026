@@ -130,6 +130,7 @@ export const getProductDetails = query({
       restaurant: {
         _id: restaurant._id,
         name: restaurant.name,
+        slug: restaurant.slug,
         logoUrl,
         deliveryFee: restaurant.deliveryFee ?? 0,
         deliveryTimeMinutes: restaurant.deliveryTimeMinutes ?? 30,

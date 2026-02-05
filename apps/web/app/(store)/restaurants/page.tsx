@@ -1,41 +1,54 @@
-"use client";
+import type { Metadata } from "next";
+import { RestaurantsListContent } from "@/components/store/restaurants-list-content";
+import { BreadcrumbSchema, ItemListSchema } from "@/components/seo/json-ld";
+import { fetchQuery, api } from "@/lib/convex-server";
 
-import { Suspense } from "react";
-import { useQuery } from "convex/react";
-import { useSearchParams } from "next/navigation";
-import { api } from "@workspace/backend/_generated/api";
-import { RestaurantList } from "@/components/store/restaurant-list";
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
 
-function RestaurantsContent() {
-  const searchParams = useSearchParams();
-  const searchQuery = searchParams.get("q") ?? "";
+export const metadata: Metadata = {
+  title: "Restaurantes",
+  description:
+    "Encontre os melhores restaurantes da sua região. Navegue pelo cardápio, veja avaliações e faça seu pedido online.",
+  openGraph: {
+    title: "Restaurantes",
+    description:
+      "Encontre os melhores restaurantes da sua região. Navegue pelo cardápio, veja avaliações e faça seu pedido online.",
+    type: "website",
+  },
+};
 
-  const allRestaurants = useQuery(api.customerRestaurants.listPublicRestaurants);
-  const searchResults = useQuery(
-    api.customerRestaurants.searchPublicRestaurants,
-    searchQuery ? { searchQuery } : "skip"
-  );
+export default async function RestaurantsPage() {
+  // Fetch restaurants for ItemList schema
+  let restaurants: Awaited<
+    ReturnType<typeof fetchQuery<typeof api.customerRestaurants.listPublicRestaurants>>
+  > = [];
 
-  const restaurants = searchQuery ? searchResults : allRestaurants;
+  try {
+    restaurants = await fetchQuery(api.customerRestaurants.listPublicRestaurants);
+  } catch {
+    // Schema will be minimal if fetch fails
+  }
 
   return (
-    <RestaurantList
-      restaurants={restaurants}
-      title={
-        searchQuery
-          ? `Resultados para "${searchQuery}"`
-          : "Todos os restaurantes"
-      }
-    />
-  );
-}
-
-export default function RestaurantsPage() {
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <Suspense fallback={<RestaurantList restaurants={undefined} />}>
-        <RestaurantsContent />
-      </Suspense>
-    </div>
+    <>
+      <BreadcrumbSchema
+        baseUrl={baseUrl}
+        items={[
+          { name: "Início", href: "/" },
+          { name: "Restaurantes", href: "/restaurants" },
+        ]}
+      />
+      {restaurants.length > 0 && (
+        <ItemListSchema
+          items={restaurants.map((r, index) => ({
+            name: r.name,
+            url: r.slug ? `${baseUrl}/r/${r.slug}` : `${baseUrl}/restaurants/${r._id}`,
+            imageUrl: r.logoUrl,
+            position: index + 1,
+          }))}
+        />
+      )}
+      <RestaurantsListContent />
+    </>
   );
 }

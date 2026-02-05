@@ -15,6 +15,7 @@ interface RestaurantCardProps {
   restaurant: {
     _id: Id<"restaurants">;
     name: string;
+    slug?: string | null;
     address?: string;
     description?: string;
     logoUrl: string | null;
@@ -30,9 +31,14 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
   const { isFavorite, toggle } = useToggleFavorite();
   const favorited = isFavorite(restaurant._id);
 
+  // Use slug-based URL if available, otherwise fall back to ID
+  const restaurantUrl = restaurant.slug
+    ? `/r/${restaurant.slug}`
+    : `/restaurants/${restaurant._id}`;
+
   return (
     <Card className="group overflow-hidden transition-shadow hover:shadow-lg">
-      <Link href={`/restaurants/${restaurant._id}`}>
+      <Link href={restaurantUrl}>
         <div className="relative aspect-video bg-muted">
           {restaurant.coverImageUrl || restaurant.logoUrl ? (
             <Image
@@ -53,7 +59,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
         <div className="flex items-start justify-between gap-2">
           <div className="flex-1 space-y-1">
             <Link
-              href={`/restaurants/${restaurant._id}`}
+              href={restaurantUrl}
               className="font-semibold hover:underline line-clamp-1"
             >
               {restaurant.name}

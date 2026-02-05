@@ -209,6 +209,7 @@ export async function toPublicRestaurant(
   return {
     _id: restaurant._id,
     name: restaurant.name,
+    slug: restaurant.slug,
     address: restaurant.address,
     description: restaurant.description,
     logoUrl,

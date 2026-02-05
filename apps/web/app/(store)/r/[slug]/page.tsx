@@ -1,29 +1,21 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
-import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
-import type { Id } from "@workspace/backend/_generated/dataModel";
+import { notFound } from "next/navigation";
 import { fetchQuery, api } from "@/lib/convex-server";
-import { RestaurantDetailContent } from "@/components/store/restaurant-detail-content";
+import { RestaurantBySlugContent } from "@/components/store/restaurant-by-slug-content";
 import { RestaurantSchema, BreadcrumbSchema } from "@/components/seo/json-ld";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: Promise<{ slug: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { id } = await params;
-
-  if (!isValidRestaurantId(id)) {
-    return {
-      title: "Restaurante não encontrado",
-    };
-  }
+  const { slug } = await params;
 
   try {
-    const restaurant = await fetchQuery(api.customerRestaurants.getPublicRestaurant, {
-      restaurantId: id as Id<"restaurants">,
+    const restaurant = await fetchQuery(api.customerRestaurants.getRestaurantBySlug, {
+      slug,
     });
 
     if (!restaurant) {
@@ -31,11 +23,6 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
         title: "Restaurante não encontrado",
       };
     }
-
-    // If restaurant has a slug, indicate this is not the canonical URL
-    const canonicalUrl = restaurant.slug
-      ? `/r/${restaurant.slug}`
-      : `/restaurants/${id}`;
 
     const title = restaurant.name;
     const description =
@@ -46,15 +33,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       title,
       description,
       alternates: {
-        canonical: canonicalUrl,
+        canonical: `/r/${slug}`,
       },
-      robots: restaurant.slug
-        ? { index: false, follow: true } // Don't index old URL if slug exists
-        : { index: true, follow: true },
       openGraph: {
         title,
         description,
         type: "website",
+        url: `${baseUrl}/r/${slug}`,
         images: restaurant.coverImageUrl
           ? [{ url: restaurant.coverImageUrl, width: 1200, height: 630, alt: restaurant.name }]
           : restaurant.logoUrl
@@ -75,40 +60,26 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
-export default async function RestaurantDetailPage({ params }: PageProps) {
-  const { id } = await params;
+export default async function RestaurantBySlugPage({ params }: PageProps) {
+  const { slug } = await params;
 
-  if (!isValidRestaurantId(id)) {
-    return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold">Restaurante não encontrado</h1>
-        <p className="mt-2 text-muted-foreground">O ID fornecido não é válido.</p>
-      </div>
-    );
-  }
-
-  const restaurantId = id as Id<"restaurants">;
-
-  // Fetch restaurant to check for slug and redirect
+  // Fetch restaurant for JSON-LD schema
   let restaurant: Awaited<
-    ReturnType<typeof fetchQuery<typeof api.customerRestaurants.getPublicRestaurant>>
+    ReturnType<typeof fetchQuery<typeof api.customerRestaurants.getRestaurantBySlug>>
   > | null = null;
 
   try {
-    restaurant = await fetchQuery(api.customerRestaurants.getPublicRestaurant, {
-      restaurantId,
+    restaurant = await fetchQuery(api.customerRestaurants.getRestaurantBySlug, {
+      slug,
     });
   } catch {
-    // Schema will be omitted if fetch fails
+    // Let the client component handle the error
   }
 
-  // 301 redirect to slug-based URL if slug exists
-  if (restaurant?.slug) {
-    redirect(`/r/${restaurant.slug}`);
+  // If restaurant not found at server level, show 404
+  if (restaurant === null) {
+    notFound();
   }
-
-  // Canonical URL (for restaurants without slugs yet)
-  const canonicalUrl = `/restaurants/${id}`;
 
   return (
     <>
@@ -121,19 +92,19 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
             phone={restaurant.phone}
             imageUrl={restaurant.coverImageUrl || restaurant.logoUrl}
             rating={restaurant.rating}
-            url={`${baseUrl}${canonicalUrl}`}
+            url={`${baseUrl}/r/${slug}`}
           />
           <BreadcrumbSchema
             baseUrl={baseUrl}
             items={[
               { name: "Início", href: "/" },
               { name: "Restaurantes", href: "/restaurants" },
-              { name: restaurant.name, href: canonicalUrl },
+              { name: restaurant.name, href: `/r/${slug}` },
             ]}
           />
         </>
       )}
-      <RestaurantDetailContent restaurantId={restaurantId} />
+      <RestaurantBySlugContent slug={slug} />
     </>
   );
 }

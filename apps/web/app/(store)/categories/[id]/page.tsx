@@ -1,87 +1,107 @@
-"use client";
+import type { Metadata } from "next";
+import type { Id } from "@workspace/backend/_generated/dataModel";
+import { fetchQuery, api } from "@/lib/convex-server";
+import { CategoryDetailContent } from "@/components/store/category-detail-content";
+import { CollectionPageSchema, BreadcrumbSchema } from "@/components/seo/json-ld";
 
-import { use } from "react";
-import { useQuery } from "convex/react";
-import { api } from "@workspace/backend/_generated/api";
-import { Id } from "@workspace/backend/_generated/dataModel";
-import { Skeleton } from "@workspace/ui/components/skeleton";
-import { RestaurantList } from "@/components/store/restaurant-list";
-import { ProductCard } from "@/components/store/product-card";
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
 
-export default function CategoryPage({
-  params,
-}: {
+interface PageProps {
   params: Promise<{ id: string }>;
-}) {
-  const { id } = use(params);
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
   const foodCategoryId = id as Id<"foodCategories">;
 
-  const category = useQuery(api.foodCategories.getFoodCategoryWithProducts, {
-    foodCategoryId,
-  });
-  const products = useQuery(api.customerMenu.getProductsByFoodCategory, {
-    foodCategoryId,
-  });
-
-  if (category === undefined) {
-    return (
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Skeleton key={i} className="aspect-square rounded-lg" />
-          ))}
-        </div>
-      </div>
+  try {
+    const category = await fetchQuery(
+      api.foodCategories.getFoodCategoryWithProducts,
+      { foodCategoryId }
     );
+
+    if (!category) {
+      return {
+        title: "Categoria não encontrada",
+      };
+    }
+
+    const title = `${category.name} - Restaurantes e produtos`;
+    const restaurantCount = category.restaurants.length;
+    const description =
+      restaurantCount > 0
+        ? `Encontre os melhores restaurantes de ${category.name}. ${restaurantCount} restaurante${restaurantCount > 1 ? "s" : ""} disponíve${restaurantCount > 1 ? "is" : "l"}.`
+        : `Explore restaurantes e produtos de ${category.name}.`;
+
+    return {
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        type: "website",
+        images: category.imageUrl
+          ? [{ url: category.imageUrl, width: 400, height: 400, alt: category.name }]
+          : undefined,
+      },
+      twitter: {
+        card: "summary",
+        title,
+        description,
+        images: category.imageUrl || undefined,
+      },
+    };
+  } catch {
+    return {
+      title: "Categoria",
+    };
+  }
+}
+
+export default async function CategoryPage({ params }: PageProps) {
+  const { id } = await params;
+  const foodCategoryId = id as Id<"foodCategories">;
+
+  // Fetch category for JSON-LD schema
+  let category: Awaited<
+    ReturnType<typeof fetchQuery<typeof api.foodCategories.getFoodCategoryWithProducts>>
+  > | null = null;
+
+  try {
+    category = await fetchQuery(api.foodCategories.getFoodCategoryWithProducts, {
+      foodCategoryId,
+    });
+  } catch {
+    // Schema will be omitted if fetch fails
   }
 
-  if (category === null) {
-    return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold">Categoria não encontrada</h1>
-      </div>
-    );
-  }
+  const restaurantCount = category?.restaurants.length ?? 0;
+  const description =
+    restaurantCount > 0
+      ? `Encontre os melhores restaurantes de ${category?.name}. ${restaurantCount} restaurante${restaurantCount > 1 ? "s" : ""} disponíve${restaurantCount > 1 ? "is" : "l"}.`
+      : `Explore restaurantes e produtos de ${category?.name}.`;
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
-      <div className="flex items-center gap-4">
-        {category.imageUrl && (
-          <img
-            src={category.imageUrl}
-            alt={category.name}
-            className="h-16 w-16 rounded-full object-cover"
+    <>
+      {category && (
+        <>
+          <CollectionPageSchema
+            name={category.name}
+            description={description}
+            url={`${baseUrl}/categories/${id}`}
+            imageUrl={category.imageUrl}
+            itemCount={restaurantCount}
           />
-        )}
-        <h1 className="text-2xl font-bold">{category.name}</h1>
-      </div>
-
-      {category.restaurants.length > 0 && (
-        <RestaurantList
-          restaurants={category.restaurants.map((r) => ({
-            _id: r._id,
-            name: r.name,
-            logoUrl: r.logoUrl,
-            coverImageUrl: null,
-            deliveryFee: r.deliveryFee,
-            deliveryTimeMinutes: r.deliveryTimeMinutes,
-            rating: r.rating,
-          }))}
-          title="Restaurantes"
-        />
+          <BreadcrumbSchema
+            baseUrl={baseUrl}
+            items={[
+              { name: "Início", href: "/" },
+              { name: category.name, href: `/categories/${id}` },
+            ]}
+          />
+        </>
       )}
-
-      {products && products.length > 0 && (
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Produtos</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-            {products.map((product) => (
-              <ProductCard key={product._id} product={product} />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
+      <CategoryDetailContent foodCategoryId={foodCategoryId} />
+    </>
   );
 }

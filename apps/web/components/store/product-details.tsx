@@ -46,6 +46,7 @@ interface ProductDetailsProps {
     restaurant: {
       _id: Id<"restaurants">;
       name: string;
+      slug?: string | null;
       logoUrl: string | null;
       deliveryFee: number;
       deliveryTimeMinutes: number;
@@ -183,7 +184,11 @@ export function ProductDetails({ product }: ProductDetailsProps) {
         </div>
 
         <Link
-          href={`/restaurants/${product.restaurant._id}`}
+          href={
+            product.restaurant.slug
+              ? `/r/${product.restaurant.slug}`
+              : `/restaurants/${product.restaurant._id}`
+          }
           className="flex items-center gap-3 rounded-lg border p-3 hover:bg-muted/50 transition-colors"
         >
           {product.restaurant.logoUrl ? (

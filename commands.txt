@@ -58,3 +58,10 @@ kill -9
 To enable Vercel Remote Caching, run:
   npx turbo login
   npx turbo link
+
+
+ A) Start with Phase 1 (foundations) - add SEO infra to existing routes without changing URLs
+
+  B) Start with Phase 3 (URL restructure) - redesign routes to be SEO-friendly first, then add infra
+
+  C) Focus on Phase 4 (marketing pSEO) - build comparison/persona pages to attract restaurant owners

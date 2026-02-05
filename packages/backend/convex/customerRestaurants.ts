@@ -100,6 +100,75 @@ export const getPublicRestaurant = query({
     return {
       _id: restaurant._id,
       name: restaurant.name,
+      slug: restaurant.slug,
+      address: restaurant.address,
+      phone: restaurant.phone,
+      description: restaurant.description,
+      logoUrl,
+      coverImageUrl,
+      deliveryFee: restaurant.deliveryFee ?? 0,
+      deliveryTimeMinutes: restaurant.deliveryTimeMinutes ?? 30,
+      rating: restaurant.rating ?? 0,
+      categories: categoriesWithItems,
+    };
+  },
+});
+
+export const getRestaurantBySlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    const slug = args.slug.toLowerCase().trim();
+    if (!slug) return null;
+
+    const restaurant = await ctx.db
+      .query("restaurants")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .first();
+
+    if (!isActiveRestaurant(restaurant)) {
+      return null;
+    }
+
+    const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
+    const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
+
+    // Fetch menu categories with items
+    const activeCategories = await ctx.db
+      .query("menuCategories")
+      .withIndex("by_restaurantId_and_isActive", (q) =>
+        q.eq("restaurantId", restaurant._id).eq("isActive", true)
+      )
+      .collect();
+
+    const categoriesWithItems = await Promise.all(
+      activeCategories.map(async (category) => {
+        const activeItems = await ctx.db
+          .query("menuItems")
+          .withIndex("by_categoryId_and_isActive", (q) =>
+            q.eq("categoryId", category._id).eq("isActive", true)
+          )
+          .collect();
+
+        const itemsWithImages = await Promise.all(
+          activeItems.map(async (item) => {
+            const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
+            const discountPercentage = item.discountPercentage ?? 0;
+            const discountedPrice = calculateDiscountedPrice(item.price, discountPercentage);
+            return { ...item, imageUrl, discountedPrice };
+          })
+        );
+
+        return {
+          ...category,
+          items: itemsWithImages,
+        };
+      })
+    );
+
+    return {
+      _id: restaurant._id,
+      name: restaurant.name,
+      slug: restaurant.slug,
       address: restaurant.address,
       phone: restaurant.phone,
       description: restaurant.description,
