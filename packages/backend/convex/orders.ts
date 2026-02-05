@@ -4,10 +4,10 @@ import type { Id } from "./_generated/dataModel";
 import { OrderStatus, OrderType } from "./lib/types";
 import type { OrderStatusType } from "./lib/types";
 import { requireRestaurantStaffAccess } from "./lib/auth";
-import { batchFetchTables, batchFetchMenuItems, validateSession, validateOrderItems, calculateDiscountedPrice, isValidSessionId } from "./lib/helpers";
+import { batchFetchTables, validateSession, isValidSessionId } from "./lib/helpers";
+import { priceOrderItems, insertOrderWithItems } from "./lib/orderHelpers";
 import { orderStatusValidator } from "./schema";
 
-const MAX_NOTES_LENGTH = 500;
 const MAX_SESSION_ORDERS = 50;
 
 const VALID_STATUS_TRANSITIONS: Record<OrderStatusType, OrderStatusType[]> = {
@@ -90,79 +90,22 @@ export const createOrder = mutation({
       throw new Error("Invalid table");
     }
 
-    validateOrderItems(args.items);
+    const priceResult = await priceOrderItems(ctx, args.restaurantId, args.items);
+    const total = priceResult.subtotalPrice - priceResult.totalDiscounts;
 
-    for (const item of args.items) {
-      if (item.notes && item.notes.length > MAX_NOTES_LENGTH) {
-        throw new Error(`Notes must be ${MAX_NOTES_LENGTH} characters or less`);
-      }
-    }
-
-    const menuItemIds = args.items.map((item) => item.menuItemId);
-    const menuMap = await batchFetchMenuItems(ctx, menuItemIds);
-
-    let subtotalPrice = 0;
-    let totalDiscounts = 0;
-
-    const itemsWithServerPrices = args.items.map((item) => {
-      const menuItem = menuMap.get(item.menuItemId.toString());
-      if (!menuItem || menuItem.restaurantId !== args.restaurantId) {
-        throw new Error("Invalid menu item");
-      }
-      if (!menuItem.isActive) {
-        throw new Error(`Menu item "${menuItem.name}" is no longer available`);
-      }
-
-      const originalTotal = menuItem.price * item.quantity;
-      const discountPercentage = menuItem.discountPercentage ?? 0;
-      const discountedPrice = calculateDiscountedPrice(menuItem.price, discountPercentage);
-      const discountedTotal = discountedPrice * item.quantity;
-      const itemDiscount = originalTotal - discountedTotal;
-
-      subtotalPrice += originalTotal;
-      totalDiscounts += itemDiscount;
-
-      return {
-        menuItemId: item.menuItemId,
-        name: menuItem.name,
-        quantity: item.quantity,
-        price: discountedPrice,
-        totalPrice: discountedTotal,
-        notes: item.notes,
-      };
-    });
-
-    const total = subtotalPrice - totalDiscounts;
-    const now = Date.now();
-
-    const orderId = await ctx.db.insert("orders", {
-      restaurantId: args.restaurantId,
-      tableId: args.tableId,
-      sessionId: args.sessionId,
-      orderType: OrderType.DINE_IN,
-      status: OrderStatus.PENDING,
-      total,
-      subtotalPrice,
-      totalDiscounts,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await Promise.all(
-      itemsWithServerPrices.map((item) =>
-        ctx.db.insert("orderItems", {
-          orderId,
-          menuItemId: item.menuItemId,
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          totalPrice: item.totalPrice,
-          notes: item.notes,
-        })
-      )
+    return insertOrderWithItems(
+      ctx,
+      {
+        restaurantId: args.restaurantId,
+        tableId: args.tableId,
+        sessionId: args.sessionId,
+        orderType: OrderType.DINE_IN,
+        subtotalPrice: priceResult.subtotalPrice,
+        totalDiscounts: priceResult.totalDiscounts,
+        total,
+      },
+      priceResult.items
     );
-
-    return orderId;
   },
 });
 

@@ -1,11 +1,11 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthenticatedUser } from "./lib/auth";
-import { OrderStatus, OrderType } from "./lib/types";
-import { calculateDiscountedPrice, validateOrderItems, isActiveRestaurant } from "./lib/helpers";
+import { OrderType } from "./lib/types";
+import { isActiveRestaurant } from "./lib/helpers";
+import { priceOrderItems, insertOrderWithItems } from "./lib/orderHelpers";
 import { resolveImageUrl } from "./files";
-
-import { MAX_USER_ORDERS } from "./lib/constants";
+import { MAX_USER_ORDERS, MAX_ADDRESS_LENGTH } from "./lib/constants";
 
 export const createDeliveryOrder = mutation({
   args: {
@@ -27,81 +27,31 @@ export const createDeliveryOrder = mutation({
       throw new Error("Restaurant not found or inactive");
     }
 
-    validateOrderItems(args.items);
-
     if (!args.deliveryAddress.trim()) {
       throw new Error("Delivery address is required");
     }
-    if (args.deliveryAddress.length > 500) {
-      throw new Error("Delivery address must be 500 characters or less");
+    if (args.deliveryAddress.length > MAX_ADDRESS_LENGTH) {
+      throw new Error(`Delivery address must be ${MAX_ADDRESS_LENGTH} characters or less`);
     }
 
-    // Validate items and calculate prices server-side
-    let subtotalPrice = 0;
-    let totalDiscounts = 0;
-
-    const itemsWithServerPrices = await Promise.all(
-      args.items.map(async (item) => {
-        const menuItem = await ctx.db.get(item.menuItemId);
-        if (!menuItem || menuItem.restaurantId !== args.restaurantId) {
-          throw new Error("Invalid menu item");
-        }
-        if (!menuItem.isActive) {
-          throw new Error(`"${menuItem.name}" is no longer available`);
-        }
-
-        const originalTotal = menuItem.price * item.quantity;
-        const discountPercentage = menuItem.discountPercentage ?? 0;
-        const discountedPrice = calculateDiscountedPrice(menuItem.price, discountPercentage);
-        const discountedTotal = discountedPrice * item.quantity;
-        const itemDiscount = originalTotal - discountedTotal;
-
-        subtotalPrice += originalTotal;
-        totalDiscounts += itemDiscount;
-
-        return {
-          menuItemId: item.menuItemId,
-          name: menuItem.name,
-          quantity: item.quantity,
-          price: discountedPrice,
-          totalPrice: discountedTotal,
-        };
-      })
-    );
-
+    const priceResult = await priceOrderItems(ctx, args.restaurantId, args.items);
     const deliveryFee = restaurant.deliveryFee ?? 0;
-    const total = subtotalPrice - totalDiscounts + deliveryFee;
+    const total = priceResult.subtotalPrice - priceResult.totalDiscounts + deliveryFee;
 
-    const now = Date.now();
-
-    const orderId = await ctx.db.insert("orders", {
-      restaurantId: args.restaurantId,
-      userId: user._id,
-      orderType: OrderType.DELIVERY,
-      status: OrderStatus.PENDING,
-      total,
-      subtotalPrice,
-      totalDiscounts,
-      deliveryFee,
-      deliveryAddress: args.deliveryAddress,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await Promise.all(
-      itemsWithServerPrices.map((item) =>
-        ctx.db.insert("orderItems", {
-          orderId,
-          menuItemId: item.menuItemId,
-          name: item.name,
-          quantity: item.quantity,
-          price: item.price,
-          totalPrice: item.totalPrice,
-        })
-      )
+    return insertOrderWithItems(
+      ctx,
+      {
+        restaurantId: args.restaurantId,
+        userId: user._id,
+        orderType: OrderType.DELIVERY,
+        subtotalPrice: priceResult.subtotalPrice,
+        totalDiscounts: priceResult.totalDiscounts,
+        deliveryFee,
+        deliveryAddress: args.deliveryAddress,
+        total,
+      },
+      priceResult.items
     );
-
-    return orderId;
   },
 });
 

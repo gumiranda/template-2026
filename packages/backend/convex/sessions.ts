@@ -1,9 +1,8 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { validateSession, batchFetchMenuItems, SESSION_DURATION_MS, isValidSessionId, validateQuantity } from "./lib/helpers";
-import { MAX_SESSIONS_PER_TABLE } from "./lib/constants";
-
-const MAX_CART_ITEM_QUANTITY = 99;
+import { validateMenuItemForCart } from "./lib/cartHelpers";
+import { MAX_SESSIONS_PER_TABLE, MAX_CART_ITEM_QUANTITY } from "./lib/constants";
 
 export const createSession = mutation({
   args: {
@@ -88,16 +87,7 @@ export const addToSessionCart = mutation({
 
     const session = await validateSession(ctx, args.sessionId);
 
-    const menuItem = await ctx.db.get(args.menuItemId);
-    if (!menuItem) {
-      throw new Error("Menu item not found");
-    }
-    if (menuItem.restaurantId !== session.restaurantId) {
-      throw new Error("Menu item does not belong to this restaurant");
-    }
-    if (!menuItem.isActive) {
-      throw new Error("Menu item is not available");
-    }
+    const menuItem = await validateMenuItemForCart(ctx, args.menuItemId, session.restaurantId);
 
     const existing = await ctx.db
       .query("sessionCartItems")

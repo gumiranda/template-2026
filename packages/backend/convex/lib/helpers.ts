@@ -2,11 +2,33 @@ import type { QueryCtx, MutationCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
 import { resolveImageUrl, resolveStorageUrl } from "./storage";
 import { RestaurantStatus } from "./types";
-import { MAX_ORDER_ITEMS } from "./constants";
+import { MAX_ORDER_ITEMS, VALID_ICON_IDS, MAX_ICON_LENGTH } from "./constants";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const CONVEX_ID_REGEX = /^[a-z][a-z0-9]{31}$/;
+
+// Stripe ID format: prefix_[alphanumeric 14+ chars]
+const STRIPE_PRICE_ID_REGEX = /^price_[a-zA-Z0-9]{14,}$/;
+const STRIPE_CUSTOMER_ID_REGEX = /^cus_[a-zA-Z0-9]{14,}$/;
+
+export function validateStripePriceId(id: string): boolean {
+  return STRIPE_PRICE_ID_REGEX.test(id);
+}
+
+export function validateStripeCustomerId(id: string): boolean {
+  return STRIPE_CUSTOMER_ID_REGEX.test(id);
+}
+
+export function validateIcon(icon: string | undefined): string | undefined {
+  if (icon === undefined) return undefined;
+  const trimmed = icon.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.length > MAX_ICON_LENGTH || !VALID_ICON_IDS.includes(trimmed as typeof VALID_ICON_IDS[number])) {
+    throw new Error("Invalid icon ID");
+  }
+  return trimmed;
+}
 
 export function isValidSessionId(sessionId: string): boolean {
   return UUID_REGEX.test(sessionId);

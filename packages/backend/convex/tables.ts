@@ -7,7 +7,10 @@ import {
 } from "./lib/auth";
 import { batchFetchMenuItems, groupBy } from "./lib/helpers";
 import { OrderStatus } from "./lib/types";
-import { MAX_RECENT_ORDERS, MAX_BATCH_TABLES } from "./lib/constants";
+import { MAX_RECENT_ORDERS, MAX_BATCH_TABLES, MAX_TABLE_NUMBER_LENGTH, MAX_TABLE_CAPACITY } from "./lib/constants";
+
+// Alphanumeric table numbers only (letters, numbers, hyphens)
+const TABLE_NUMBER_REGEX = /^[A-Za-z0-9\-]+$/;
 
 // NOTE: This query is intentionally public (no auth check) to support the
 // QR code flow where unauthenticated customers scan a table's QR code and
@@ -162,12 +165,15 @@ export const createTable = mutation({
     await requireRestaurantAccess(ctx, args.restaurantId);
 
     const tableNumber = args.tableNumber.trim();
-    if (!tableNumber || tableNumber.length > 50) {
-      throw new Error("Table number must be between 1 and 50 characters");
+    if (!tableNumber || tableNumber.length > MAX_TABLE_NUMBER_LENGTH) {
+      throw new Error(`Table number must be between 1 and ${MAX_TABLE_NUMBER_LENGTH} characters`);
+    }
+    if (!TABLE_NUMBER_REGEX.test(tableNumber)) {
+      throw new Error("Table number must contain only letters, numbers, and hyphens");
     }
 
-    if (!Number.isInteger(args.capacity) || args.capacity < 1) {
-      throw new Error("Capacity must be a positive integer");
+    if (!Number.isInteger(args.capacity) || args.capacity < 1 || args.capacity > MAX_TABLE_CAPACITY) {
+      throw new Error(`Capacity must be a positive integer up to ${MAX_TABLE_CAPACITY}`);
     }
 
     // Validate qrCode is a proper HTTP(S) URL to prevent javascript: injection
@@ -376,8 +382,8 @@ export const updateTable = mutation({
 
     await requireRestaurantAccess(ctx, table.restaurantId);
 
-    if (args.capacity !== undefined && (!Number.isInteger(args.capacity) || args.capacity < 1)) {
-      throw new Error("Capacity must be a positive integer");
+    if (args.capacity !== undefined && (!Number.isInteger(args.capacity) || args.capacity < 1 || args.capacity > MAX_TABLE_CAPACITY)) {
+      throw new Error(`Capacity must be a positive integer up to ${MAX_TABLE_CAPACITY}`);
     }
 
     const updates: Partial<Doc<"tables">> = {};

@@ -18,3 +18,24 @@ export async function resolveImageUrl(
 ): Promise<string | null> {
   return (await resolveStorageUrl(ctx, imageId)) ?? legacyUrl ?? null;
 }
+
+type ItemWithImage = {
+  imageId?: Id<"_storage">;
+  imageUrl?: string | null;
+};
+
+/**
+ * Batch resolves image URLs for an array of items.
+ * Returns items with resolved imageUrl field.
+ */
+export async function resolveItemImages<T extends ItemWithImage>(
+  ctx: QueryCtx,
+  items: T[]
+): Promise<(T & { imageUrl: string | null })[]> {
+  return Promise.all(
+    items.map(async (item) => {
+      const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
+      return { ...item, imageUrl };
+    })
+  );
+}
