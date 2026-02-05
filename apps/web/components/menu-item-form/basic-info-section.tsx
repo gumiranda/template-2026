@@ -11,36 +11,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-import type { Id } from "@workspace/backend/_generated/dataModel";
+import { useMenuItemFormContext } from "./context";
 
-interface Category {
-  _id: Id<"menuCategories">;
-  name: string;
-}
+export function BasicInfoSection() {
+  const {
+    name,
+    setName,
+    price,
+    setPrice,
+    categoryId,
+    setCategoryId,
+    description,
+    setDescription,
+    categories,
+  } = useMenuItemFormContext();
 
-interface BasicInfoSectionProps {
-  name: string;
-  onNameChange: (value: string) => void;
-  price: string;
-  onPriceChange: (value: string) => void;
-  categoryId: string;
-  onCategoryIdChange: (value: string) => void;
-  description: string;
-  onDescriptionChange: (value: string) => void;
-  categories: Category[];
-}
-
-export function BasicInfoSection({
-  name,
-  onNameChange,
-  price,
-  onPriceChange,
-  categoryId,
-  onCategoryIdChange,
-  description,
-  onDescriptionChange,
-  categories,
-}: BasicInfoSectionProps) {
   return (
     <Card>
       <CardContent className="p-4 space-y-4">
@@ -51,7 +36,7 @@ export function BasicInfoSection({
           <Input
             id="item-name"
             value={name}
-            onChange={(e) => onNameChange(e.target.value)}
+            onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Grilled Salmon"
           />
         </div>
@@ -69,7 +54,7 @@ export function BasicInfoSection({
                 step="0.01"
                 min="0"
                 value={price}
-                onChange={(e) => onPriceChange(e.target.value)}
+                onChange={(e) => setPrice(e.target.value)}
                 placeholder="0.00"
                 className="pl-9"
               />
@@ -78,7 +63,7 @@ export function BasicInfoSection({
 
           <div className="space-y-2">
             <Label htmlFor="item-category">Category</Label>
-            <Select value={categoryId} onValueChange={onCategoryIdChange}>
+            <Select value={categoryId} onValueChange={setCategoryId}>
               <SelectTrigger id="item-category">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
@@ -98,7 +83,7 @@ export function BasicInfoSection({
           <Textarea
             id="item-desc"
             value={description}
-            onChange={(e) => onDescriptionChange(e.target.value)}
+            onChange={(e) => setDescription(e.target.value)}
             placeholder="Describe the dish"
             rows={3}
           />

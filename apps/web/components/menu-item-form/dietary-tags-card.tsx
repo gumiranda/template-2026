@@ -14,35 +14,32 @@ import {
 } from "@workspace/ui/components/popover";
 import { cn } from "@workspace/ui/lib/utils";
 import { PREDEFINED_TAGS } from "@/lib/menu-constants";
+import { useMenuItemFormContext } from "./context";
 
-interface DietaryTagsCardProps {
-  tags: string[];
-  onTagsChange: (tags: string[]) => void;
-}
-
-export function DietaryTagsCard({ tags, onTagsChange }: DietaryTagsCardProps) {
+export function DietaryTagsCard() {
+  const { tags, setTags } = useMenuItemFormContext();
   const [customTagInput, setCustomTagInput] = useState("");
   const [popoverOpen, setPopoverOpen] = useState(false);
 
   const toggleTag = useCallback(
     (tag: string) => {
       if (tags.includes(tag)) {
-        onTagsChange(tags.filter((t) => t !== tag));
+        setTags(tags.filter((t) => t !== tag));
       } else {
-        onTagsChange([...tags, tag]);
+        setTags([...tags, tag]);
       }
     },
-    [tags, onTagsChange]
+    [tags, setTags]
   );
 
   const addCustomTag = useCallback(() => {
     const trimmed = customTagInput.trim();
     if (trimmed && !tags.includes(trimmed)) {
-      onTagsChange([...tags, trimmed]);
+      setTags([...tags, trimmed]);
     }
     setCustomTagInput("");
     setPopoverOpen(false);
-  }, [customTagInput, tags, onTagsChange]);
+  }, [customTagInput, tags, setTags]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {

@@ -5,7 +5,7 @@ import { api } from "@workspace/backend/_generated/api";
 import type { Id } from "@workspace/backend/_generated/dataModel";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { Separator } from "@workspace/ui/components/separator";
-import { ProductDetails } from "@/components/store/product-details";
+import { ProductDetails } from "@/components/store/product-details/index";
 import { ProductList } from "@/components/store/product-list";
 
 interface ProductDetailContentProps {

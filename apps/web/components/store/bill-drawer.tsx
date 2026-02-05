@@ -1,16 +1,9 @@
 "use client";
 
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@workspace/ui/components/sheet";
 import { Button } from "@workspace/ui/components/button";
-import { Separator } from "@workspace/ui/components/separator";
-import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { Badge } from "@workspace/ui/components/badge";
 import { Alert, AlertDescription } from "@workspace/ui/components/alert";
+import { Separator } from "@workspace/ui/components/separator";
 import { Receipt, Clock, Loader2, CheckCircle2, X } from "lucide-react";
 import { useAtomValue } from "jotai";
 import { orderContextAtom } from "@/lib/atoms/order-context";
@@ -19,6 +12,7 @@ import { useCloseBill } from "@/hooks/use-close-bill";
 import { formatCurrency, formatTime } from "@/lib/format";
 import { cn } from "@workspace/ui/lib/utils";
 import { getStatusConfig } from "@/app/(dashboard)/admin/tenants/[id]/orders/_components/orders-types";
+import { DrawerSheet } from "@/components/ui/drawer-sheet";
 
 interface BillDrawerProps {
   open: boolean;
@@ -27,130 +21,175 @@ interface BillDrawerProps {
 
 export function BillDrawer({ open, onOpenChange }: BillDrawerProps) {
   const orderContext = useAtomValue(orderContextAtom);
-  const sessionId = orderContext.type === "dine_in" ? orderContext.sessionId : null;
+  const sessionId =
+    orderContext.type === "dine_in" ? orderContext.sessionId : null;
   const { orders, totalBill, itemCount } = useSessionBill(sessionId);
-  const { isRequestingClosure, isClosed, requestCloseBill, cancelRequest } = useCloseBill();
+  const { isRequestingClosure, isClosed, requestCloseBill, cancelRequest } =
+    useCloseBill();
 
-  const tableNumber = orderContext.type === "dine_in" ? orderContext.tableNumber : "";
+  const tableNumber =
+    orderContext.type === "dine_in" ? orderContext.tableNumber : "";
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader aria-label={`Conta da mesa ${tableNumber}`}>
-          <SheetTitle className="flex items-center gap-2">
-            <Receipt className="h-5 w-5" />
-            Conta - Mesa {tableNumber}
-          </SheetTitle>
-        </SheetHeader>
+    <DrawerSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      isEmpty={orders.length === 0}
+      icon={Receipt}
+      title={`Conta - Mesa ${tableNumber}`}
+    >
+      <DrawerSheet.Content>
+        <DrawerSheet.Header aria-label={`Conta da mesa ${tableNumber}`} />
 
-        {orders.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-4 text-muted-foreground">
-            <Receipt className="h-16 w-16" />
-            <p>Nenhum pedido enviado ainda</p>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between py-2">
-              <span className="text-sm text-muted-foreground">
-                {orders.length} {orders.length === 1 ? "pedido" : "pedidos"} ({itemCount}{" "}
-                {itemCount === 1 ? "item" : "itens"})
-              </span>
-            </div>
+        <DrawerSheet.Empty>
+          <p>Nenhum pedido enviado ainda</p>
+        </DrawerSheet.Empty>
 
-            <Separator />
+        <DrawerSheet.InfoBar>
+          <span className="text-sm text-muted-foreground">
+            {orders.length} {orders.length === 1 ? "pedido" : "pedidos"} (
+            {itemCount} {itemCount === 1 ? "item" : "itens"})
+          </span>
+        </DrawerSheet.InfoBar>
 
-            <ScrollArea className="flex-1">
-              <div className="space-y-4 py-4">
-                {orders.map((order) => {
-                  const statusConfig = getStatusConfig(order.status);
-                  return (
-                    <div key={order._id} className="space-y-2 rounded-lg border p-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span>{formatTime(order.createdAt)}</span>
-                        </div>
-                        <Badge variant={statusConfig.variant}>{statusConfig.label}</Badge>
-                      </div>
+        <DrawerSheet.Body>
+          {orders.map((order) => {
+            const statusConfig = getStatusConfig(order.status);
+            return (
+              <div key={order._id} className="space-y-2 rounded-lg border p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>{formatTime(order.createdAt)}</span>
+                  </div>
+                  <Badge variant={statusConfig.variant}>
+                    {statusConfig.label}
+                  </Badge>
+                </div>
 
-                      <Separator />
+                <Separator />
 
-                      <div className="space-y-1">
-                        {order.items.map((item, idx) => (
-                          <div
-                            key={idx}
-                            className="flex items-center justify-between text-sm"
-                          >
-                            <span className={cn(
-                              "flex-1",
-                              order.status === "canceled" && "text-muted-foreground line-through"
-                            )}>
-                              {item.quantity}x {item.name}
-                            </span>
-                            <span className={cn(
-                              "shrink-0",
-                              order.status === "canceled" && "text-muted-foreground line-through"
-                            )}>
-                              {formatCurrency(item.totalPrice)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="flex items-center justify-between pt-1 text-sm font-medium">
-                        <span>Subtotal</span>
-                        <span className={order.status === "canceled" ? "text-muted-foreground line-through" : ""}>
-                          {formatCurrency(order.total)}
-                        </span>
-                      </div>
+                <div className="space-y-1">
+                  {order.items.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between text-sm"
+                    >
+                      <span
+                        className={cn(
+                          "flex-1",
+                          order.status === "canceled" &&
+                            "text-muted-foreground line-through"
+                        )}
+                      >
+                        {item.quantity}x {item.name}
+                      </span>
+                      <span
+                        className={cn(
+                          "shrink-0",
+                          order.status === "canceled" &&
+                            "text-muted-foreground line-through"
+                        )}
+                      >
+                        {formatCurrency(item.totalPrice)}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            </ScrollArea>
+                  ))}
+                </div>
 
-            <Separator />
-
-            <div className="space-y-2 py-4 text-sm">
-              <div className="flex justify-between text-base font-semibold">
-                <span>Total</span>
-                <span>{formatCurrency(totalBill)}</span>
+                <div className="flex items-center justify-between pt-1 text-sm font-medium">
+                  <span>Subtotal</span>
+                  <span
+                    className={
+                      order.status === "canceled"
+                        ? "text-muted-foreground line-through"
+                        : ""
+                    }
+                  >
+                    {formatCurrency(order.total)}
+                  </span>
+                </div>
               </div>
-            </div>
+            );
+          })}
+        </DrawerSheet.Body>
 
-            {isClosed ? (
-              <Alert className="border-green-200 bg-green-50">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">
-                  Conta fechada com sucesso!
-                </AlertDescription>
-              </Alert>
-            ) : isRequestingClosure ? (
-              <div className="space-y-3">
-                <Alert className="border-yellow-200 bg-yellow-50">
-                  <Loader2 className="h-4 w-4 animate-spin text-yellow-600" />
-                  <AlertDescription className="text-yellow-800">
-                    Aguardando garcom fechar a conta...
-                  </AlertDescription>
-                </Alert>
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  size="lg"
-                  onClick={cancelRequest}
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Cancelar Solicitacao
-                </Button>
-              </div>
-            ) : (
-              <Button className="w-full" size="lg" onClick={requestCloseBill}>
-                Fechar Conta
-              </Button>
-            )}
-          </>
-        )}
-      </SheetContent>
-    </Sheet>
+        <DrawerSheet.Summary>
+          <div className="flex justify-between text-base font-semibold">
+            <span>Total</span>
+            <span>{formatCurrency(totalBill)}</span>
+          </div>
+        </DrawerSheet.Summary>
+
+        <BillActionSection
+          isClosed={isClosed}
+          isRequestingClosure={isRequestingClosure}
+          requestCloseBill={requestCloseBill}
+          cancelRequest={cancelRequest}
+          isEmpty={orders.length === 0}
+        />
+      </DrawerSheet.Content>
+    </DrawerSheet>
+  );
+}
+
+interface BillActionSectionProps {
+  isClosed: boolean;
+  isRequestingClosure: boolean;
+  requestCloseBill: () => void;
+  cancelRequest: () => void;
+  isEmpty: boolean;
+}
+
+function BillActionSection({
+  isClosed,
+  isRequestingClosure,
+  requestCloseBill,
+  cancelRequest,
+  isEmpty,
+}: BillActionSectionProps) {
+  if (isEmpty) return null;
+
+  if (isClosed) {
+    return (
+      <div className="px-4">
+        <Alert className="border-green-200 bg-green-50">
+          <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <AlertDescription className="text-green-800">
+            Conta fechada com sucesso!
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  if (isRequestingClosure) {
+    return (
+      <div className="space-y-3 px-4">
+        <Alert className="border-yellow-200 bg-yellow-50">
+          <Loader2 className="h-4 w-4 animate-spin text-yellow-600" />
+          <AlertDescription className="text-yellow-800">
+            Aguardando garcom fechar a conta...
+          </AlertDescription>
+        </Alert>
+        <Button
+          variant="outline"
+          className="w-full"
+          size="lg"
+          onClick={cancelRequest}
+        >
+          <X className="mr-2 h-4 w-4" />
+          Cancelar Solicitacao
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="px-4">
+      <Button className="w-full" size="lg" onClick={requestCloseBill}>
+        Fechar Conta
+      </Button>
+    </div>
   );
 }
