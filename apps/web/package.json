@@ -9,7 +9,10 @@
     "start": "next start",
     "lint": "next lint",
     "lint:fix": "next lint --fix",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx}\"",
+    "clean": "rm -rf .next dist node_modules/.cache *.tsbuildinfo"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.36.0",

@@ -6,6 +6,6 @@
       "@workspace/backend/*": ["./convex/*"]
     }
   },
-  "include": ["."],
+  "include": ["convex/**/*.ts"],
   "exclude": ["node_modules"]
 }

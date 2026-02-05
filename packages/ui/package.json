@@ -4,7 +4,11 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "lint": "eslint . --max-warnings 0"
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\"",
+    "clean": "rm -rf node_modules/.cache *.tsbuildinfo"
   },
   "dependencies": {
     "@dicebear/collection": "^9.2.4",

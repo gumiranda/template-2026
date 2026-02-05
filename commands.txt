@@ -1,7 +1,7 @@
 UTILS:
 
-lsof -i :3001  
-kill -9  
+lsof -i :3001
+kill -9
 
 1. pnpm dlx shadcn@2.9.2 init
 2. pnpm setup
@@ -41,10 +41,10 @@ kill -9
 36. pnpm -F web add zod@^3.25.76 react-hook-form@^7.62.0
 37. pnpm -F web add @hookform/resolvers@^5.2.1
 38. pnpm -F web add @convex-dev/agent
-39. pnpm -F backend add zod@^3.25.76 
-40. pnpm -F backend add @convex-dev/rag     
+39. pnpm -F backend add zod@^3.25.76
+40. pnpm -F backend add @convex-dev/rag
 41. pnpm -F ui add react-dropzone
-42. pnpm -F backend add @convex-dev/agent-playground 
+42. pnpm -F backend add @convex-dev/agent-playground
 43. cd packages/backend && pnpm dlx convex run --component agent apiKeys:issue '{name:"test"}'
 44. pnpm dlx @convex-dev/agent-playground
 45. pnpm -F backend add @aws-sdk/client-secrets-manager
@@ -53,3 +53,8 @@ kill -9
 48. pnpm -F web add bowser
 49. pnpm -F web add stripe
 50. pnpm -F backend add svix
+
+
+To enable Vercel Remote Caching, run:
+  npx turbo login
+  npx turbo link
