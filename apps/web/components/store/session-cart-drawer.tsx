@@ -24,9 +24,10 @@ import Image from "next/image";
 interface SessionCartDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onOrderSent?: () => void;
 }
 
-export function SessionCartDrawer({ open, onOpenChange }: SessionCartDrawerProps) {
+export function SessionCartDrawer({ open, onOpenChange, onOrderSent }: SessionCartDrawerProps) {
   const router = useRouter();
   const orderContext = useAtomValue(orderContextAtom);
   const sessionId = orderContext.type === "dine_in" ? orderContext.sessionId : null;
@@ -55,7 +56,7 @@ export function SessionCartDrawer({ open, onOpenChange }: SessionCartDrawerProps
       });
       await clearCart();
       onOpenChange(false);
-      toast.success("Pedido enviado! O garcom ja foi notificado.");
+      onOrderSent?.();
       router.push(`/menu/${orderContext.restaurantId}/orders?table=${orderContext.tableNumber}`);
     } catch {
       toast.error("Erro ao enviar pedido. Tente novamente.");
