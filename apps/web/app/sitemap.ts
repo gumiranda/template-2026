@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { fetchQuery, api } from "@/lib/convex-server";
 import { getAllCompetitorSlugs } from "@/lib/data/competitors";
 import { getAllPersonaSlugs } from "@/lib/data/personas";
+import { getAllSolutionSlugs } from "@/lib/data/solutions";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
@@ -42,6 +43,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     })
   );
 
+  // Marketing pSEO routes - Solutions
+  const solutionRoutes: MetadataRoute.Sitemap = getAllSolutionSlugs().map(
+    (slug) => ({
+      url: `${baseUrl}/solucoes/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    })
+  );
+
   try {
     // Fetch all active restaurants
     const restaurants = await fetchQuery(api.customerRestaurants.listPublicRestaurants);
@@ -72,11 +83,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...staticRoutes,
       ...comparisonRoutes,
       ...personaRoutes,
+      ...solutionRoutes,
       ...restaurantRoutes,
       ...categoryRoutes,
     ];
   } catch {
     // If Convex queries fail, return static + marketing routes
-    return [...staticRoutes, ...comparisonRoutes, ...personaRoutes];
+    return [...staticRoutes, ...comparisonRoutes, ...personaRoutes, ...solutionRoutes];
   }
 }

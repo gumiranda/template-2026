@@ -39,7 +39,7 @@ export default function MarketingLayout({
       {/* Marketing Footer */}
       <footer className="border-t bg-muted/50">
         <div className="container mx-auto px-4 py-12">
-          <div className="grid gap-8 md:grid-cols-4">
+          <div className="grid gap-8 md:grid-cols-5">
             <div>
               <h3 className="font-bold mb-4">{siteName}</h3>
               <p className="text-sm text-muted-foreground">
@@ -68,6 +68,31 @@ export default function MarketingLayout({
                 <li>
                   <Link href="/for/bares" className="hover:text-foreground">
                     Para Bares
+                  </Link>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="font-semibold mb-4">Soluções</h4>
+              <ul className="space-y-2 text-sm text-muted-foreground">
+                <li>
+                  <Link href="/solucoes/cardapio-digital-qr-code" className="hover:text-foreground">
+                    Cardápio Digital QR Code
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/solucoes/pedidos-na-mesa" className="hover:text-foreground">
+                    Pedidos na Mesa
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/solucoes/comanda-digital" className="hover:text-foreground">
+                    Comanda Digital
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/solucoes/delivery-proprio" className="hover:text-foreground">
+                    Delivery Próprio
                   </Link>
                 </li>
               </ul>

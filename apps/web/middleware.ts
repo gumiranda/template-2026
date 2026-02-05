@@ -10,6 +10,7 @@ const isPublicRoute = createRouteMatcher([
   "/products(.*)",
   "/categories(.*)",
   "/success(.*)",
+  "/solucoes(.*)",
 ]);
 
 const securityHeaders = {

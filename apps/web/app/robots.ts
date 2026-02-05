@@ -16,6 +16,7 @@ export default function robots(): MetadataRoute.Robots {
           "/categories/*",
           "/vs/*",
           "/for/*",
+          "/solucoes/*",
         ],
         disallow: [
           "/menu/*", // QR code dine-in routes (session-specific)
