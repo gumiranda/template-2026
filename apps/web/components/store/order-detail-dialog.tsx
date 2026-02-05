@@ -14,22 +14,12 @@ import { Skeleton } from "@workspace/ui/components/skeleton";
 import { Separator } from "@workspace/ui/components/separator";
 import { MapPin, Phone, Calendar, Package } from "lucide-react";
 import { OrderStatusBadge } from "./order-status-badge";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDateTime } from "@/lib/format";
 
 interface OrderDetailDialogProps {
   orderId: Id<"orders"> | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-function formatDateTime(timestamp: number): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
 }
 
 export function OrderDetailDialog({

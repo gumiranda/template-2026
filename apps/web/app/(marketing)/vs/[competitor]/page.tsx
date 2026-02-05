@@ -53,8 +53,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+const VALID_SLUG_REGEX = /^[a-z0-9-]+$/;
+
 export default async function ComparisonPage({ params }: PageProps) {
   const { competitor: slug } = await params;
+
+  if (!VALID_SLUG_REGEX.test(slug)) {
+    notFound();
+  }
+
   const competitor = getCompetitorBySlug(slug);
 
   if (!competitor) {

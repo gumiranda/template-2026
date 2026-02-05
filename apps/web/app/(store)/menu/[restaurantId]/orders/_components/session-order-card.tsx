@@ -1,21 +1,8 @@
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { OrderStatusBadge } from "@/components/store/order-status-badge";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatShortDateTime, formatShortId } from "@/lib/format";
 
 const MAX_VISIBLE_ITEMS = 3;
-
-function formatShortId(id: string): string {
-  return id.slice(-6).toUpperCase();
-}
-
-function formatDate(timestamp: number): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
-}
 
 interface OrderItemData {
   name: string;
@@ -70,7 +57,7 @@ export function SessionOrderCard({ order }: SessionOrderCardProps) {
             {formatCurrency(order.total)}
           </span>
           <span className="text-xs text-muted-foreground">
-            {formatDate(order.createdAt)}
+            {formatShortDateTime(order.createdAt)}
           </span>
         </div>
       </CardContent>

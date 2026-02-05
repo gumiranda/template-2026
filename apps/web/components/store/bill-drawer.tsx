@@ -16,7 +16,7 @@ import { useAtomValue } from "jotai";
 import { orderContextAtom } from "@/lib/atoms/order-context";
 import { useSessionBill } from "@/hooks/use-session-bill";
 import { useCloseBill } from "@/hooks/use-close-bill";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatTime } from "@/lib/format";
 import { cn } from "@workspace/ui/lib/utils";
 import { getStatusConfig } from "@/app/(dashboard)/admin/tenants/[id]/orders/_components/orders-types";
 
@@ -25,18 +25,11 @@ interface BillDrawerProps {
   onOpenChange: (open: boolean) => void;
 }
 
-function formatTime(timestamp: number): string {
-  return new Date(timestamp).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export function BillDrawer({ open, onOpenChange }: BillDrawerProps) {
   const orderContext = useAtomValue(orderContextAtom);
   const sessionId = orderContext.type === "dine_in" ? orderContext.sessionId : null;
   const { orders, totalBill, itemCount } = useSessionBill(sessionId);
-  const { status, isRequestingClosure, isClosed, requestCloseBill, cancelRequest } = useCloseBill();
+  const { isRequestingClosure, isClosed, requestCloseBill, cancelRequest } = useCloseBill();
 
   const tableNumber = orderContext.type === "dine_in" ? orderContext.tableNumber : "";
 

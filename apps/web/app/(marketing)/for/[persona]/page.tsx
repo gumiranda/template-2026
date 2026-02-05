@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Check, ArrowRight, Quote } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import { Card, CardContent } from "@workspace/ui/components/card";
 import { Badge } from "@workspace/ui/components/badge";
 import { getPersonaBySlug, getAllPersonaSlugs } from "@/lib/data/personas";
 import { BreadcrumbSchema, JsonLd } from "@/components/seo/json-ld";
@@ -51,8 +51,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
+const VALID_SLUG_REGEX = /^[a-z0-9-]+$/;
+
 export default async function PersonaPage({ params }: PageProps) {
   const { persona: slug } = await params;
+
+  if (!VALID_SLUG_REGEX.test(slug)) {
+    notFound();
+  }
+
   const persona = getPersonaBySlug(slug);
 
   if (!persona) {

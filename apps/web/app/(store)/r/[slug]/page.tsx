@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchQuery, api } from "@/lib/convex-server";
-import { RestaurantBySlugContent } from "@/components/store/restaurant-by-slug-content";
+import { RestaurantContent } from "@/components/store/restaurant-content";
 import { RestaurantSchema, BreadcrumbSchema } from "@/components/seo/json-ld";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
@@ -104,7 +104,7 @@ export default async function RestaurantBySlugPage({ params }: PageProps) {
           />
         </>
       )}
-      <RestaurantBySlugContent slug={slug} />
+      <RestaurantContent slug={slug} />
     </>
   );
 }

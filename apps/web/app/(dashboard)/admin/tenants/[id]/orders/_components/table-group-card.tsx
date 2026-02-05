@@ -9,25 +9,12 @@ import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import { ChevronDown, ChevronUp, UtensilsCrossed, Truck, CheckCircle2, Receipt, Loader2 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatShortDateTime, formatShortId } from "@/lib/format";
 import { getStatusConfig, type OrderStatusType, type TableGroup } from "./orders-types";
 import { OrderStatusSelect } from "./order-status-select";
 import { toast } from "sonner";
 
 const MAX_VISIBLE_ITEMS = 3;
-
-function formatShortId(id: string): string {
-  return id.slice(-6).toUpperCase();
-}
-
-function formatDate(timestamp: number): string {
-  return new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
-}
 
 interface TableGroupCardProps {
   group: TableGroup;
@@ -134,7 +121,7 @@ export function TableGroupCard({
                     </Badge>
                   </div>
                   <span className="text-xs text-muted-foreground">
-                    {formatDate(order.createdAt)}
+                    {formatShortDateTime(order.createdAt)}
                   </span>
                 </div>
 

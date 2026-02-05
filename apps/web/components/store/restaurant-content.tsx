@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
+import type { Id } from "@workspace/backend/_generated/dataModel";
 import { Star, Heart } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Separator } from "@workspace/ui/components/separator";
@@ -14,14 +15,24 @@ import { MenuCategoryTabs } from "@/components/store/menu-category-tabs";
 import { useToggleFavorite } from "@/hooks/use-toggle-favorite";
 import { useUser } from "@clerk/nextjs";
 
-interface RestaurantBySlugContentProps {
-  slug: string;
-}
+type RestaurantContentProps =
+  | { restaurantId: Id<"restaurants">; slug?: never }
+  | { slug: string; restaurantId?: never };
 
-export function RestaurantBySlugContent({ slug }: RestaurantBySlugContentProps) {
-  const restaurant = useQuery(api.customerRestaurants.getRestaurantBySlug, {
-    slug,
-  });
+export function RestaurantContent(props: RestaurantContentProps) {
+  const restaurantById = useQuery(
+    api.customerRestaurants.getPublicRestaurant,
+    "restaurantId" in props && props.restaurantId
+      ? { restaurantId: props.restaurantId }
+      : "skip"
+  );
+  const restaurantBySlug = useQuery(
+    api.customerRestaurants.getRestaurantBySlug,
+    "slug" in props && props.slug ? { slug: props.slug } : "skip"
+  );
+
+  const restaurant = props.restaurantId ? restaurantById : restaurantBySlug;
+
   const { isSignedIn } = useUser();
   const { isFavorite, toggle } = useToggleFavorite();
 

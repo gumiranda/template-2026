@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
 import { fetchQuery, api } from "@/lib/convex-server";
-import { RestaurantDetailContent } from "@/components/store/restaurant-detail-content";
+import { RestaurantContent } from "@/components/store/restaurant-content";
 import { RestaurantSchema, BreadcrumbSchema } from "@/components/seo/json-ld";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
@@ -130,7 +130,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
           />
         </>
       )}
-      <RestaurantDetailContent restaurantId={id} />
+      <RestaurantContent restaurantId={id} />
     </>
   );
 }

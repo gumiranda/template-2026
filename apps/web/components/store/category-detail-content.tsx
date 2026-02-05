@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import type { Id } from "@workspace/backend/_generated/dataModel";
@@ -46,9 +47,11 @@ export function CategoryDetailContent({
     <div className="container mx-auto px-4 py-8 space-y-8">
       <div className="flex items-center gap-4">
         {category.imageUrl && (
-          <img
+          <Image
             src={category.imageUrl}
             alt={category.name}
+            width={64}
+            height={64}
             className="h-16 w-16 rounded-full object-cover"
           />
         )}
