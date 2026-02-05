@@ -44,9 +44,9 @@ export default function SessionOrdersPage({
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-bold">Link invalido</h1>
+        <h1 className="text-2xl font-bold">Link inválido</h1>
         <p className="mt-2 text-muted-foreground">
-          Este link nao e valido. Volte ao menu e tente novamente.
+          Este link não é válido. Volte ao menu e tente novamente.
         </p>
       </div>
     );
@@ -111,13 +111,13 @@ function SessionOrdersContent({
     return (
       <div className="container mx-auto px-4 py-16 text-center">
         <ClipboardList className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <h1 className="text-xl font-bold">Nenhuma sessao encontrada</h1>
+        <h1 className="text-xl font-bold">Nenhuma sessão encontrada</h1>
         <p className="mt-2 text-muted-foreground">
-          Voce precisa acessar o cardapio primeiro.
+          Você precisa acessar o cardápio primeiro.
         </p>
         <Button onClick={handleGoToMenu} disabled={isPending} className="mt-6">
           {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Ir para o cardapio
+          Ir para o cardápio
         </Button>
       </div>
     );
@@ -139,7 +139,7 @@ function SessionOrdersContent({
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href={menuHref}>Cardapio</Link>
+              <Link href={menuHref}>Cardápio</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -155,10 +155,10 @@ function SessionOrdersContent({
           <ClipboardList className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium">Nenhum pedido ainda</h3>
           <p className="text-muted-foreground">
-            Adicione itens do cardapio e envie seu pedido.
+            Adicione itens do cardápio e envie seu pedido.
           </p>
           <Button asChild className="mt-6">
-            <Link href={menuHref}>Voltar ao cardapio</Link>
+            <Link href={menuHref}>Voltar ao cardápio</Link>
           </Button>
         </div>
       ) : (
@@ -168,7 +168,7 @@ function SessionOrdersContent({
           ))}
 
           <Button asChild variant="outline" className="w-full">
-            <Link href={menuHref}>Voltar ao cardapio</Link>
+            <Link href={menuHref}>Voltar ao cardápio</Link>
           </Button>
         </div>
       )}

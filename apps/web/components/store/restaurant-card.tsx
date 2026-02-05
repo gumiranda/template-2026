@@ -67,7 +67,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
             {restaurant.rating > 0 && (
               <div className="flex items-center gap-1 text-sm">
                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                <span>{restaurant.rating.toFixed(1)}</span>
+                <span className="tabular-nums">{restaurant.rating.toFixed(1)}</span>
               </div>
             )}
             <DeliveryInfo
@@ -84,6 +84,7 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
                 e.preventDefault();
                 toggle(restaurant._id);
               }}
+              aria-label={favorited ? "Remover dos favoritos" : "Adicionar aos favoritos"}
             >
               <Heart
                 className={cn(

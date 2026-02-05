@@ -159,6 +159,8 @@ export function RestaurantFormDialog({
             <Label htmlFor={`${idPrefix}phone`}>Phone</Label>
             <Input
               id={`${idPrefix}phone`}
+              type="tel"
+              autoComplete="tel"
               placeholder="+1 (555) 123-4567"
               value={formData.phone}
               onChange={(e) =>

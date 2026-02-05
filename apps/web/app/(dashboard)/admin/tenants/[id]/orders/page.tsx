@@ -87,9 +87,9 @@ export default function OrdersPage({
           <div className="space-y-6">
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-medium">ID de restaurante invalido</h3>
+              <h3 className="text-lg font-medium">ID de restaurante inválido</h3>
               <p className="text-muted-foreground">
-                O formato do ID fornecido nao e valido.
+                O formato do ID fornecido não é válido.
               </p>
             </div>
           </div>
@@ -252,7 +252,7 @@ function OrdersContent({
               <h3 className="text-lg font-medium">Nenhum pedido encontrado</h3>
               <p className="text-muted-foreground">
                 {orders.length === 0
-                  ? "Este restaurante ainda nao recebeu pedidos."
+                  ? "Este restaurante ainda não recebeu pedidos."
                   : "Nenhum pedido corresponde aos filtros aplicados."}
               </p>
             </div>

@@ -27,13 +27,13 @@ export function useCloseBill() {
 
   const requestCloseBill = useCallback(async () => {
     if (!sessionId) {
-      toast.error("Sessao nao encontrada");
+      toast.error("Sessão não encontrada");
       return;
     }
 
     try {
       await requestCloseBillMutation({ sessionId });
-      toast.success("Solicitacao de fechamento enviada");
+      toast.success("Solicitação de fechamento enviada");
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : "Erro ao solicitar fechamento"
@@ -44,16 +44,16 @@ export function useCloseBill() {
 
   const cancelRequest = useCallback(async () => {
     if (!sessionId) {
-      toast.error("Sessao nao encontrada");
+      toast.error("Sessão não encontrada");
       return;
     }
 
     try {
       await cancelCloseBillRequestMutation({ sessionId });
-      toast.success("Solicitacao cancelada");
+      toast.success("Solicitação cancelada");
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : "Erro ao cancelar solicitacao"
+        error instanceof Error ? error.message : "Erro ao cancelar solicitação"
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

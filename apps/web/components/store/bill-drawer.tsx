@@ -169,7 +169,7 @@ function BillActionSection({
         <Alert className="border-yellow-200 bg-yellow-50">
           <Loader2 className="h-4 w-4 animate-spin text-yellow-600" />
           <AlertDescription className="text-yellow-800">
-            Aguardando garcom fechar a conta...
+            Aguardando garçom fechar a conta...
           </AlertDescription>
         </Alert>
         <Button
@@ -179,7 +179,7 @@ function BillActionSection({
           onClick={cancelRequest}
         >
           <X className="mr-2 h-4 w-4" />
-          Cancelar Solicitacao
+          Cancelar Solicitação
         </Button>
       </div>
     );

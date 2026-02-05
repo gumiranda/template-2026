@@ -14,6 +14,7 @@ export function ProductDetailsQuantity() {
         size="icon"
         className="h-8 w-8"
         onClick={() => setQuantity(Math.max(1, quantity - 1))}
+        aria-label="Diminuir quantidade"
       >
         <Minus className="h-4 w-4" />
       </Button>
@@ -23,6 +24,7 @@ export function ProductDetailsQuantity() {
         size="icon"
         className="h-8 w-8"
         onClick={() => setQuantity(quantity + 1)}
+        aria-label="Aumentar quantidade"
       >
         <Plus className="h-4 w-4" />
       </Button>

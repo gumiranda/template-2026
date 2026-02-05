@@ -116,8 +116,9 @@ export function BannerDialog({
           {/* Image */}
           <div className="space-y-2">
             <Label>Imagem</Label>
-            <div
-              className="relative aspect-[3/1] rounded-md border bg-muted cursor-pointer overflow-hidden"
+            <button
+              type="button"
+              className="relative aspect-[3/1] w-full rounded-md border bg-muted cursor-pointer overflow-hidden"
               onClick={() => fileInputRef.current?.click()}
             >
               {displayImage ? (
@@ -139,8 +140,9 @@ export function BannerDialog({
                   <Upload className="h-6 w-6 text-white" />
                 </div>
               )}
-            </div>
+            </button>
             <input
+              name="banner-image"
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png"

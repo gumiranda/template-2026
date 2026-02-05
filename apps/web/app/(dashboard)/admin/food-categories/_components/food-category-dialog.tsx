@@ -219,8 +219,9 @@ export function FoodCategoryDialog({
           {/* Image */}
           <div className="space-y-2">
             <Label>Imagem</Label>
-            <div
-              className="relative aspect-[2/1] rounded-md border bg-muted cursor-pointer overflow-hidden"
+            <button
+              type="button"
+              className="relative aspect-[2/1] w-full rounded-md border bg-muted cursor-pointer overflow-hidden"
               onClick={() => fileInputRef.current?.click()}
             >
               {displayImage ? (
@@ -242,8 +243,9 @@ export function FoodCategoryDialog({
                   <Upload className="h-6 w-6 text-white" />
                 </div>
               )}
-            </div>
+            </button>
             <input
+              name="category-image"
               ref={fileInputRef}
               type="file"
               accept="image/jpeg,image/png"

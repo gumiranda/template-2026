@@ -73,7 +73,7 @@ export function RestaurantContent(props: RestaurantContentProps) {
               {restaurant.rating > 0 && (
                 <div className="flex items-center gap-1">
                   <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                  <span className="text-sm font-medium">
+                  <span className="text-sm font-medium tabular-nums">
                     {restaurant.rating.toFixed(1)}
                   </span>
                 </div>
@@ -89,6 +89,7 @@ export function RestaurantContent(props: RestaurantContentProps) {
               variant="outline"
               size="icon"
               onClick={() => toggle(restaurant._id)}
+              aria-label={favorited ? "Remover dos favoritos" : "Adicionar aos favoritos"}
             >
               <Heart
                 className={cn(

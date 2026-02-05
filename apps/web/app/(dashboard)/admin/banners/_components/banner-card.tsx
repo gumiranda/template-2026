@@ -56,10 +56,10 @@ export function BannerCard({ banner, onEdit, onDelete }: BannerCardProps) {
             )}
           </div>
           <div className="flex gap-1 shrink-0">
-            <Button variant="ghost" size="icon" onClick={onEdit}>
+            <Button variant="ghost" size="icon" onClick={onEdit} aria-label="Editar banner">
               <Pencil className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={onDelete}>
+            <Button variant="ghost" size="icon" onClick={onDelete} aria-label="Excluir banner">
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           </div>

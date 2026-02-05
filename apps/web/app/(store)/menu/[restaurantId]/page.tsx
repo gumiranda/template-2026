@@ -63,8 +63,8 @@ export default function DineInMenuPage({
   if (!isValidRestaurantId(restaurantId) || !tableNumber) {
     return (
       <SessionErrorScreen
-        title="Link invalido"
-        description="Este QR code nao e valido. Tente escanear novamente."
+        title="Link inválido"
+        description="Este QR code não é válido. Tente escanear novamente."
         variant="info"
       />
     );
@@ -164,9 +164,9 @@ function DineInContent({
   if (restaurant === null) {
     return (
       <div className="container mx-auto px-4 py-16 text-center">
-        <h1 className="text-2xl font-bold">Restaurante nao encontrado</h1>
+        <h1 className="text-2xl font-bold">Restaurante não encontrado</h1>
         <p className="mt-2 text-muted-foreground">
-          Este restaurante pode ter sido removido ou nao esta disponivel.
+          Este restaurante pode ter sido removido ou não está disponível.
         </p>
       </div>
     );
@@ -175,8 +175,8 @@ function DineInContent({
   if (table === null) {
     return (
       <SessionErrorScreen
-        title="Mesa nao encontrada"
-        description={`A mesa ${tableNumber} nao existe ou esta inativa.`}
+        title="Mesa não encontrada"
+        description={`A mesa ${tableNumber} não existe ou está inativa.`}
         variant="info"
       />
     );
@@ -186,8 +186,8 @@ function DineInContent({
     return (
       <SessionErrorScreen
         title="Mesa Ocupada"
-        description="Esta mesa ja possui um cliente ativo."
-        secondaryDescription="Aguarde o garcom fechar a conta anterior."
+        description="Esta mesa já possui um cliente ativo."
+        secondaryDescription="Aguarde o garçom fechar a conta anterior."
         variant="warning"
       />
     );
@@ -196,7 +196,7 @@ function DineInContent({
   if (alreadyAtAnotherTable) {
     return (
       <SessionErrorScreen
-        title="Voce ja esta em outra mesa"
+        title="Você já está em outra mesa"
         description="Feche sua conta na mesa atual antes de acessar outra."
         variant="warning"
       />
@@ -206,8 +206,8 @@ function DineInContent({
   if (sessionError) {
     return (
       <SessionErrorScreen
-        title="Erro ao iniciar sessao"
-        description="Nao foi possivel conectar a mesa. Tente novamente mais tarde."
+        title="Erro ao iniciar sessão"
+        description="Não foi possível conectar à mesa. Tente novamente mais tarde."
         variant="error"
         actionLabel="Tentar novamente"
         onAction={() => window.location.reload()}
@@ -266,7 +266,7 @@ function DineInContent({
               }}
             />
           )}
-          emptyMessage="Nenhum item no cardapio ainda."
+          emptyMessage="Nenhum item no cardápio ainda."
         />
       </div>
     </div>

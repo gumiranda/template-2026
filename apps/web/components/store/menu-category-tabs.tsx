@@ -35,7 +35,7 @@ export function MenuCategoryTabs({
   categories,
   renderItem,
   gridClassName,
-  emptyMessage = "Nenhum item no cardapio ainda.",
+  emptyMessage = "Nenhum item no cardápio ainda.",
 }: MenuCategoryTabsProps) {
   if (categories.length === 0) {
     return (
