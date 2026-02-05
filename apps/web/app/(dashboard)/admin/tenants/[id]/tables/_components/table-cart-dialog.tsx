@@ -18,7 +18,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { Separator } from "@workspace/ui/components/separator";
-import { Skeleton } from "@workspace/ui/components/skeleton";
 import {
   ShoppingCart,
   Trash2,
@@ -133,7 +132,7 @@ export function TableCartDialog({
         setRemovingItemId(menuItemId);
         try {
           await addToCart({ tableId, restaurantId, menuItemId, quantity: -currentQty });
-        } catch (error) {
+        } catch {
           toast.error("Falha ao remover item");
         } finally {
           setRemovingItemId(null);
@@ -142,7 +141,7 @@ export function TableCartDialog({
         setAddingItemId(menuItemId);
         try {
           await addToCart({ tableId, restaurantId, menuItemId, quantity: delta });
-        } catch (error) {
+        } catch {
           toast.error("Falha ao atualizar quantidade");
         } finally {
           setAddingItemId(null);

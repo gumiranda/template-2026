@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import Image from "next/image";
 import { ImageIcon, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Badge } from "@workspace/ui/components/badge";
@@ -52,10 +53,12 @@ export function DishPhotoCard({
         {imagePreview ? (
           <div className="space-y-3">
             <div className="relative aspect-square w-full overflow-hidden rounded-lg border bg-muted">
-              <img
+              <Image
                 src={imagePreview}
                 alt="Dish preview"
-                className="h-full w-full object-cover"
+                fill
+                className="object-cover"
+                unoptimized
               />
             </div>
             <div className="flex gap-2">
