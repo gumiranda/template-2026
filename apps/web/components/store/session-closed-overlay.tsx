@@ -10,19 +10,28 @@ import {
 import { Button } from "@workspace/ui/components/button";
 import { CheckCircle2, RefreshCw } from "lucide-react";
 import { useCloseBill } from "@/hooks/use-close-bill";
+import { useAtomValue } from "jotai";
+import { orderContextAtom } from "@/lib/atoms/order-context";
 import { useCallback } from "react";
+
+const SESSION_STORAGE_PREFIX = "dine-in-session-";
 
 export function SessionClosedOverlay() {
   const { isClosed } = useCloseBill();
+  const orderContext = useAtomValue(orderContextAtom);
 
   const handleStartNewSession = useCallback(() => {
-    // Clear session from sessionStorage
-    if (typeof window !== "undefined") {
-      sessionStorage.removeItem("dine_in_session");
+    if (typeof window === "undefined") return;
+
+    // Clear the correct session key from sessionStorage
+    if (orderContext.type === "dine_in") {
+      const key = `${SESSION_STORAGE_PREFIX}${orderContext.restaurantId}-${orderContext.tableNumber}`;
+      sessionStorage.removeItem(key);
     }
-    // Reload the page to start fresh
+
+    // Reload the page to start fresh with a new session
     window.location.reload();
-  }, []);
+  }, [orderContext]);
 
   return (
     <Dialog open={isClosed}>

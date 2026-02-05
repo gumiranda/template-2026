@@ -28,45 +28,67 @@ export const createSession = mutation({
       throw new Error("Invalid table for this restaurant");
     }
 
+    const now = Date.now();
+
+    // Check for existing session with this sessionId
     const existing = await ctx.db
       .query("sessions")
       .withIndex("by_session_id", (q) => q.eq("sessionId", args.sessionId))
       .first();
 
-    // If session exists and is not closed, return it
+    // If session exists and is not closed, return it (same customer refreshing page)
     if (existing && existing.status !== SessionStatus.CLOSED) {
-      return existing._id;
-    }
-    // If session exists but is closed, we need to create a new one with a new sessionId
-    // This case should not happen because the frontend generates new UUIDs
-    if (existing) {
-      throw new Error("Session is closed. Please scan the QR code again.");
+      return { _id: existing._id, sessionId: existing.sessionId };
     }
 
-    // Rate limiting: max 10 active sessions per table to prevent abuse
-    const now = Date.now();
+    // If session exists but is closed, frontend should generate a new UUID
+    if (existing) {
+      throw new Error("SESSION_CLOSED");
+    }
+
+    // Check if there's any active (non-closed) session for this table
     const activeTableSessions = await ctx.db
       .query("sessions")
       .withIndex("by_table", (q) => q.eq("tableId", args.tableId))
       .collect();
+
+    const hasActiveSession = activeTableSessions.some(
+      (s) => s.status !== SessionStatus.CLOSED && s.expiresAt > now
+    );
+
+    // Block new customers if table is occupied
+    if (hasActiveSession) {
+      throw new Error("TABLE_OCCUPIED");
+    }
+
+    // Rate limiting: max active sessions per table to prevent abuse
     const activeCount = activeTableSessions.filter((s) => s.expiresAt > now).length;
     if (activeCount >= MAX_SESSIONS_PER_TABLE) {
       throw new Error("Too many active sessions for this table. Please try again later.");
     }
 
-    return await ctx.db.insert("sessions", {
+    // Create new session
+    const newSessionId = await ctx.db.insert("sessions", {
       sessionId: args.sessionId,
       restaurantId: args.restaurantId,
       tableId: args.tableId,
-      expiresAt: Date.now() + SESSION_DURATION_MS,
+      expiresAt: now + SESSION_DURATION_MS,
     });
+
+    return { _id: newSessionId, sessionId: args.sessionId };
   },
 });
 
 export const getSessionCart = query({
   args: { sessionId: v.string() },
   handler: async (ctx, args) => {
-    await validateSession(ctx, args.sessionId);
+    // Allow closed sessions - return empty cart gracefully
+    const session = await validateSession(ctx, args.sessionId, { allowClosed: true });
+
+    // If session is closed, return empty cart (frontend shows overlay)
+    if (session.status === SessionStatus.CLOSED) {
+      return [];
+    }
 
     const items = await ctx.db
       .query("sessionCartItems")
@@ -133,9 +155,9 @@ export const addToSessionCart = mutation({
 export const clearSessionCart = mutation({
   args: { sessionId: v.string() },
   handler: async (ctx, args) => {
-    // checkExpiry: false — allow clearing carts from expired sessions
-    // to support cleanup after order completion (session may expire during checkout)
-    await validateSession(ctx, args.sessionId, { checkExpiry: false });
+    // checkExpiry: false, allowClosed: true — allow clearing carts from expired/closed sessions
+    // to support cleanup after order completion
+    await validateSession(ctx, args.sessionId, { checkExpiry: false, allowClosed: true });
 
     const items = await ctx.db
       .query("sessionCartItems")

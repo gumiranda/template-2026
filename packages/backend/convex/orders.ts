@@ -1,7 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
-import { OrderStatus, OrderType } from "./lib/types";
+import { OrderStatus, OrderType, SessionStatus } from "./lib/types";
 import type { OrderStatusType } from "./lib/types";
 import { requireRestaurantStaffAccess } from "./lib/auth";
 import { batchFetchTables, validateSession, isValidSessionId } from "./lib/helpers";
@@ -31,14 +31,43 @@ export const getOrdersByRestaurant = query({
       .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.restaurantId))
       .collect();
 
-    const tableIds = orders
+    // Get all unique session IDs from orders
+    const sessionIds = [...new Set(
+      orders
+        .map((o) => o.sessionId)
+        .filter((id): id is string => id !== undefined)
+    )];
+
+    // Fetch sessions to check their status
+    const sessions = await Promise.all(
+      sessionIds.map((sessionId) =>
+        ctx.db
+          .query("sessions")
+          .withIndex("by_session_id", (q) => q.eq("sessionId", sessionId))
+          .first()
+      )
+    );
+
+    // Build a set of closed session IDs
+    const closedSessionIds = new Set(
+      sessions
+        .filter((s) => s?.status === SessionStatus.CLOSED)
+        .map((s) => s!.sessionId)
+    );
+
+    // Filter out orders from closed sessions (keep delivery orders without sessionId)
+    const activeOrders = orders.filter(
+      (order) => !order.sessionId || !closedSessionIds.has(order.sessionId)
+    );
+
+    const tableIds = activeOrders
       .map((o) => o.tableId)
       .filter((id): id is Id<"tables"> => id !== undefined);
 
     const tableMap = await batchFetchTables(ctx, tableIds);
 
     const orderItemsArrays = await Promise.all(
-      orders.map((order) =>
+      activeOrders.map((order) =>
         ctx.db
           .query("orderItems")
           .withIndex("by_order", (q) => q.eq("orderId", order._id))
@@ -47,12 +76,12 @@ export const getOrdersByRestaurant = query({
     );
 
     const itemsMap = new Map<string, (typeof orderItemsArrays)[0]>();
-    orders.forEach((order, i) => {
+    activeOrders.forEach((order, i) => {
       const items = orderItemsArrays[i];
       if (items) itemsMap.set(order._id.toString(), items);
     });
 
-    return orders.map((order) => ({
+    return activeOrders.map((order) => ({
       ...order,
       table: order.tableId
         ? tableMap.get(order.tableId.toString()) ?? null
@@ -148,8 +177,8 @@ export const getSessionOrders = query({
       throw new Error("Invalid session ID format");
     }
 
-    // Allow viewing orders even with expired session
-    await validateSession(ctx, args.sessionId, { checkExpiry: false });
+    // Allow viewing orders even with expired or closed session
+    await validateSession(ctx, args.sessionId, { checkExpiry: false, allowClosed: true });
 
     const orders = await ctx.db
       .query("orders")

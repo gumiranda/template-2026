@@ -74,6 +74,7 @@ function DineInContent({
     () => getStoredSessionId(restaurantId, tableNumber) ?? uuidv4()
   );
   const [sessionReady, setSessionReady] = useState(false);
+  const [tableOccupied, setTableOccupied] = useState(false);
   const sessionCreateAttempted = useRef(false);
 
   const restaurant = useQuery(api.customerRestaurants.getPublicRestaurant, {
@@ -97,19 +98,39 @@ function DineInContent({
       restaurantId,
       tableId: table._id,
     })
-      .then(() => {
-        storeSessionId(restaurantId, tableNumber, sessionId);
+      .then((result) => {
+        // Use the sessionId returned by backend (may be from existing active session)
+        const activeSessionId = result.sessionId;
+        storeSessionId(restaurantId, tableNumber, activeSessionId);
+        setSessionId(activeSessionId);
         setSessionReady(true);
         setOrderContext({
           type: "dine_in",
-          sessionId,
+          sessionId: activeSessionId,
           tableId: table._id,
           tableNumber,
           restaurantId,
         });
       })
-      .catch(() => {
-        // Session may have expired — create a new one
+      .catch((error) => {
+        const errorMessage = error instanceof Error ? error.message : "";
+
+        // Table is occupied by another customer
+        if (errorMessage.includes("TABLE_OCCUPIED")) {
+          setTableOccupied(true);
+          return;
+        }
+
+        // Session was closed — create a new one
+        if (errorMessage.includes("SESSION_CLOSED")) {
+          const newId = uuidv4();
+          storeSessionId(restaurantId, tableNumber, newId);
+          sessionCreateAttempted.current = false;
+          setSessionId(newId);
+          return;
+        }
+
+        // Other errors — retry with new session
         const newId = uuidv4();
         storeSessionId(restaurantId, tableNumber, newId);
         sessionCreateAttempted.current = false;
@@ -159,6 +180,31 @@ function DineInContent({
         <p className="mt-2 text-muted-foreground">
           A mesa {tableNumber} nao existe ou esta inativa.
         </p>
+      </div>
+    );
+  }
+
+  if (tableOccupied) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <AlertCircle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
+        <h1 className="text-2xl font-bold">Mesa Ocupada</h1>
+        <p className="mt-2 text-muted-foreground">
+          Esta mesa ja possui um cliente ativo.
+        </p>
+        <p className="mt-1 text-muted-foreground">
+          Aguarde o garcom fechar a conta anterior.
+        </p>
+      </div>
+    );
+  }
+
+  if (!sessionReady) {
+    return (
+      <div className="container mx-auto px-4 py-8 space-y-6">
+        <Skeleton className="h-48 w-full rounded-lg" />
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-48" />
       </div>
     );
   }

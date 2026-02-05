@@ -172,12 +172,13 @@ export function TableCartDialog({
     setIsCreatingOrder(true);
     try {
       const staffSessionId = uuidv4();
-      await createSession({ sessionId: staffSessionId, restaurantId, tableId });
+      const sessionResult = await createSession({ sessionId: staffSessionId, restaurantId, tableId });
       const items = cart.items.map((item) => ({
         menuItemId: item.menuItemId,
         quantity: item.quantity,
       }));
-      await createOrder({ sessionId: staffSessionId, tableId, restaurantId, items });
+      // Use the sessionId returned by backend (may be from existing active session)
+      await createOrder({ sessionId: sessionResult.sessionId, tableId, restaurantId, items });
       await clearCart({ tableId });
       toast.success("Pedido criado com sucesso!");
       onOpenChange(false);
