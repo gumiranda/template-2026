@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { RestaurantsListContent } from "@/components/store/restaurants-list-content";
 import { BreadcrumbSchema, ItemListSchema } from "@/components/seo/json-ld";
-import { fetchQuery, api } from "@/lib/convex-server";
+import { fetchQuery, fetchForSchema, api } from "@/lib/convex-server";
 
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
 
@@ -19,15 +19,10 @@ export const metadata: Metadata = {
 
 export default async function RestaurantsPage() {
   // Fetch restaurants for ItemList schema
-  let restaurants: Awaited<
-    ReturnType<typeof fetchQuery<typeof api.customerRestaurants.listPublicRestaurants>>
-  > = [];
-
-  try {
-    restaurants = await fetchQuery(api.customerRestaurants.listPublicRestaurants);
-  } catch {
-    // Schema will be minimal if fetch fails
-  }
+  const restaurants =
+    (await fetchForSchema(() =>
+      fetchQuery(api.customerRestaurants.listPublicRestaurants)
+    )) ?? [];
 
   return (
     <>

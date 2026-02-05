@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
-import { fetchQuery, api } from "@/lib/convex-server";
+import { fetchQuery, fetchForSchema, api } from "@/lib/convex-server";
 import { RestaurantContent } from "@/components/store/restaurant-content";
 import { RestaurantSchema, BreadcrumbSchema } from "@/components/seo/json-ld";
 
@@ -87,17 +87,9 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
   }
 
   // Fetch restaurant to check for slug and redirect
-  let restaurant: Awaited<
-    ReturnType<typeof fetchQuery<typeof api.customerRestaurants.getPublicRestaurant>>
-  > | null = null;
-
-  try {
-    restaurant = await fetchQuery(api.customerRestaurants.getPublicRestaurant, {
-      restaurantId: id,
-    });
-  } catch {
-    // Schema will be omitted if fetch fails
-  }
+  const restaurant = await fetchForSchema(() =>
+    fetchQuery(api.customerRestaurants.getPublicRestaurant, { restaurantId: id })
+  );
 
   // 301 redirect to slug-based URL if slug exists
   if (restaurant?.slug) {

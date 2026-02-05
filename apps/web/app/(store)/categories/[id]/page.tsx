@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { isValidFoodCategoryId } from "@workspace/backend/lib/helpers";
-import { fetchQuery, api } from "@/lib/convex-server";
+import { fetchQuery, fetchForSchema, api } from "@/lib/convex-server";
 import { CategoryDetailContent } from "@/components/store/category-detail-content";
 import { CollectionPageSchema, BreadcrumbSchema } from "@/components/seo/json-ld";
 
@@ -76,17 +76,9 @@ export default async function CategoryPage({ params }: PageProps) {
   }
 
   // Fetch category for JSON-LD schema
-  let category: Awaited<
-    ReturnType<typeof fetchQuery<typeof api.foodCategories.getFoodCategoryWithProducts>>
-  > | null = null;
-
-  try {
-    category = await fetchQuery(api.foodCategories.getFoodCategoryWithProducts, {
-      foodCategoryId: id,
-    });
-  } catch {
-    // Schema will be omitted if fetch fails
-  }
+  const category = await fetchForSchema(() =>
+    fetchQuery(api.foodCategories.getFoodCategoryWithProducts, { foodCategoryId: id })
+  );
 
   const restaurantCount = category?.restaurants.length ?? 0;
   const description =

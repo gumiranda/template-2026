@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { fetchQuery, api } from "@/lib/convex-server";
+import { fetchQuery, fetchForSchema, api } from "@/lib/convex-server";
 import { RestaurantContent } from "@/components/store/restaurant-content";
 import { RestaurantSchema, BreadcrumbSchema } from "@/components/seo/json-ld";
 
@@ -64,17 +64,9 @@ export default async function RestaurantBySlugPage({ params }: PageProps) {
   const { slug } = await params;
 
   // Fetch restaurant for JSON-LD schema
-  let restaurant: Awaited<
-    ReturnType<typeof fetchQuery<typeof api.customerRestaurants.getRestaurantBySlug>>
-  > | null = null;
-
-  try {
-    restaurant = await fetchQuery(api.customerRestaurants.getRestaurantBySlug, {
-      slug,
-    });
-  } catch {
-    // Let the client component handle the error
-  }
+  const restaurant = await fetchForSchema(() =>
+    fetchQuery(api.customerRestaurants.getRestaurantBySlug, { slug })
+  );
 
   // If restaurant not found at server level, show 404
   if (restaurant === null) {

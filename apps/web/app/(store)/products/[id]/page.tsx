@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { isValidMenuItemId } from "@workspace/backend/lib/helpers";
-import { fetchQuery, api } from "@/lib/convex-server";
+import { fetchQuery, fetchForSchema, api } from "@/lib/convex-server";
+import { formatCurrency } from "@/lib/format";
 import { ProductDetailContent } from "@/components/store/product-detail-content";
 import { ProductSchema, BreadcrumbSchema } from "@/components/seo/json-ld";
 
@@ -8,13 +9,6 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://example.com";
 
 interface PageProps {
   params: Promise<{ id: string }>;
-}
-
-function formatPrice(price: number): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(price / 100);
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -38,7 +32,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     }
 
     const price = product.discountedPrice ?? product.price;
-    const title = `${product.name} - ${formatPrice(price)}`;
+    const title = `${product.name} - ${formatCurrency(price)}`;
     const description =
       product.description ||
       `${product.name} do ${product.restaurant.name}. Peça agora!`;
@@ -81,17 +75,9 @@ export default async function ProductDetailPage({ params }: PageProps) {
   }
 
   // Fetch product for JSON-LD schema
-  let product: Awaited<
-    ReturnType<typeof fetchQuery<typeof api.customerMenu.getProductDetails>>
-  > | null = null;
-
-  try {
-    product = await fetchQuery(api.customerMenu.getProductDetails, {
-      menuItemId: id,
-    });
-  } catch {
-    // Schema will be omitted if fetch fails
-  }
+  const product = await fetchForSchema(() =>
+    fetchQuery(api.customerMenu.getProductDetails, { menuItemId: id })
+  );
 
   return (
     <>

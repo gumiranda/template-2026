@@ -75,7 +75,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...restaurantRoutes,
       ...categoryRoutes,
     ];
-  } catch (error) {
+  } catch {
     // If Convex queries fail, return static + marketing routes
     return [...staticRoutes, ...comparisonRoutes, ...personaRoutes];
   }
