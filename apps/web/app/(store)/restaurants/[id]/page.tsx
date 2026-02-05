@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
-import type { Id } from "@workspace/backend/_generated/dataModel";
 import { fetchQuery, api } from "@/lib/convex-server";
 import { RestaurantDetailContent } from "@/components/store/restaurant-detail-content";
 import { RestaurantSchema, BreadcrumbSchema } from "@/components/seo/json-ld";
@@ -23,7 +22,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   try {
     const restaurant = await fetchQuery(api.customerRestaurants.getPublicRestaurant, {
-      restaurantId: id as Id<"restaurants">,
+      restaurantId: id,
     });
 
     if (!restaurant) {
@@ -87,8 +86,6 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
     );
   }
 
-  const restaurantId = id as Id<"restaurants">;
-
   // Fetch restaurant to check for slug and redirect
   let restaurant: Awaited<
     ReturnType<typeof fetchQuery<typeof api.customerRestaurants.getPublicRestaurant>>
@@ -96,7 +93,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
 
   try {
     restaurant = await fetchQuery(api.customerRestaurants.getPublicRestaurant, {
-      restaurantId,
+      restaurantId: id,
     });
   } catch {
     // Schema will be omitted if fetch fails
@@ -133,7 +130,7 @@ export default async function RestaurantDetailPage({ params }: PageProps) {
           />
         </>
       )}
-      <RestaurantDetailContent restaurantId={restaurantId} />
+      <RestaurantDetailContent restaurantId={id} />
     </>
   );
 }

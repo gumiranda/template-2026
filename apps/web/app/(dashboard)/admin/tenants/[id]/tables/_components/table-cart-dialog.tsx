@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useDeferredValue } from "react";
 import Image from "next/image";
 import { useQuery, useMutation } from "convex/react";
 import { v4 as uuidv4 } from "uuid";
@@ -65,10 +65,13 @@ export function TableCartDialog({
   const [isClearingCart, setIsClearingCart] = useState(false);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
 
-  // Filter menu items
+  // Defer search to avoid blocking input
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+
+  // Filter menu items using deferred search
   const filteredMenu = useMemo(() => {
     if (!menu) return [];
-    const query = searchQuery.toLowerCase().trim();
+    const query = deferredSearchQuery.toLowerCase().trim();
     if (!query) {
       return menu.map((cat) => ({
         ...cat,
@@ -86,7 +89,7 @@ export function TableCartDialog({
         ),
       }))
       .filter((category) => category.items.length > 0);
-  }, [menu, searchQuery]);
+  }, [menu, deferredSearchQuery]);
 
   // Calculate cart summary
   const cartSummary = useMemo(() => {

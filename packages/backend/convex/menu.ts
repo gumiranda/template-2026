@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { requireAdminRestaurantAccess, requireRestaurantStaffAccess } from "./lib/auth";
 import { groupBy, fetchModifierGroupsWithOptions, filterUndefined, validateIcon } from "./lib/helpers";
-import { MAX_DESCRIPTION_LENGTH, MAX_SEARCH_RESULTS, MAX_ITEM_NAME_LENGTH, MAX_CATEGORY_NAME_LENGTH } from "./lib/constants";
+import { MAX_DESCRIPTION_LENGTH, MAX_SEARCH_RESULTS, MAX_ITEM_NAME_LENGTH, MAX_CATEGORY_NAME_LENGTH, MAX_ITEM_PRICE } from "./lib/constants";
 import { resolveImageUrl } from "./files";
 
 // NOTE: This query returns all items (active and inactive) for the admin panel.
@@ -132,8 +132,8 @@ export const createItem = mutation({
       throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
     }
 
-    if (!Number.isFinite(args.price) || args.price <= 0) {
-      throw new Error("Price must be a positive number");
+    if (!Number.isFinite(args.price) || args.price <= 0 || args.price > MAX_ITEM_PRICE) {
+      throw new Error(`Price must be between 1 and ${MAX_ITEM_PRICE} cents`);
     }
 
     if (
@@ -210,8 +210,8 @@ export const updateItem = mutation({
       throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
     }
 
-    if (args.price !== undefined && (!Number.isFinite(args.price) || args.price <= 0)) {
-      throw new Error("Price must be a positive number");
+    if (args.price !== undefined && (!Number.isFinite(args.price) || args.price <= 0 || args.price > MAX_ITEM_PRICE)) {
+      throw new Error(`Price must be between 1 and ${MAX_ITEM_PRICE} cents`);
     }
 
     if (

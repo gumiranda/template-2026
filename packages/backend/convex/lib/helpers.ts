@@ -42,6 +42,14 @@ export function isValidRestaurantId(id: string): id is Id<"restaurants"> {
   return CONVEX_ID_REGEX.test(id);
 }
 
+export function isValidMenuItemId(id: string): id is Id<"menuItems"> {
+  return CONVEX_ID_REGEX.test(id);
+}
+
+export function isValidFoodCategoryId(id: string): id is Id<"foodCategories"> {
+  return CONVEX_ID_REGEX.test(id);
+}
+
 type ValidateSessionOptions = {
   checkExpiry?: boolean;
   allowClosed?: boolean;

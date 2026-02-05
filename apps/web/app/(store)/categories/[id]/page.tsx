@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import type { Id } from "@workspace/backend/_generated/dataModel";
+import { isValidFoodCategoryId } from "@workspace/backend/lib/helpers";
 import { fetchQuery, api } from "@/lib/convex-server";
 import { CategoryDetailContent } from "@/components/store/category-detail-content";
 import { CollectionPageSchema, BreadcrumbSchema } from "@/components/seo/json-ld";
@@ -12,12 +12,17 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const foodCategoryId = id as Id<"foodCategories">;
+
+  if (!isValidFoodCategoryId(id)) {
+    return {
+      title: "Categoria não encontrada",
+    };
+  }
 
   try {
     const category = await fetchQuery(
       api.foodCategories.getFoodCategoryWithProducts,
-      { foodCategoryId }
+      { foodCategoryId: id }
     );
 
     if (!category) {
@@ -60,7 +65,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function CategoryPage({ params }: PageProps) {
   const { id } = await params;
-  const foodCategoryId = id as Id<"foodCategories">;
+
+  if (!isValidFoodCategoryId(id)) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <h1 className="text-2xl font-bold">Categoria não encontrada</h1>
+        <p className="mt-2 text-muted-foreground">O ID fornecido não é válido.</p>
+      </div>
+    );
+  }
 
   // Fetch category for JSON-LD schema
   let category: Awaited<
@@ -69,7 +82,7 @@ export default async function CategoryPage({ params }: PageProps) {
 
   try {
     category = await fetchQuery(api.foodCategories.getFoodCategoryWithProducts, {
-      foodCategoryId,
+      foodCategoryId: id,
     });
   } catch {
     // Schema will be omitted if fetch fails
@@ -101,7 +114,7 @@ export default async function CategoryPage({ params }: PageProps) {
           />
         </>
       )}
-      <CategoryDetailContent foodCategoryId={foodCategoryId} />
+      <CategoryDetailContent foodCategoryId={id} />
     </>
   );
 }

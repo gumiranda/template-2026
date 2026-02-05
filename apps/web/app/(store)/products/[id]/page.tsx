@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import type { Id } from "@workspace/backend/_generated/dataModel";
+import { isValidMenuItemId } from "@workspace/backend/lib/helpers";
 import { fetchQuery, api } from "@/lib/convex-server";
 import { ProductDetailContent } from "@/components/store/product-detail-content";
 import { ProductSchema, BreadcrumbSchema } from "@/components/seo/json-ld";
@@ -19,11 +19,16 @@ function formatPrice(price: number): string {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const menuItemId = id as Id<"menuItems">;
+
+  if (!isValidMenuItemId(id)) {
+    return {
+      title: "Produto não encontrado",
+    };
+  }
 
   try {
     const product = await fetchQuery(api.customerMenu.getProductDetails, {
-      menuItemId,
+      menuItemId: id,
     });
 
     if (!product) {
@@ -65,7 +70,15 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function ProductDetailPage({ params }: PageProps) {
   const { id } = await params;
-  const menuItemId = id as Id<"menuItems">;
+
+  if (!isValidMenuItemId(id)) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <h1 className="text-2xl font-bold">Produto não encontrado</h1>
+        <p className="mt-2 text-muted-foreground">O ID fornecido não é válido.</p>
+      </div>
+    );
+  }
 
   // Fetch product for JSON-LD schema
   let product: Awaited<
@@ -74,7 +87,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   try {
     product = await fetchQuery(api.customerMenu.getProductDetails, {
-      menuItemId,
+      menuItemId: id,
     });
   } catch {
     // Schema will be omitted if fetch fails
@@ -108,7 +121,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
           />
         </>
       )}
-      <ProductDetailContent menuItemId={menuItemId} />
+      <ProductDetailContent menuItemId={id} />
     </>
   );
 }

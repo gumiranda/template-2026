@@ -50,8 +50,11 @@ export async function priceOrderItems(
 
   const pricedItems = items.map((item) => {
     const menuItem = menuMap.get(item.menuItemId.toString());
-    if (!menuItem || menuItem.restaurantId !== restaurantId) {
-      throw new Error("Invalid menu item");
+    if (!menuItem) {
+      throw new Error(`Menu item ${item.menuItemId} not found`);
+    }
+    if (menuItem.restaurantId !== restaurantId) {
+      throw new Error(`Menu item "${menuItem.name}" is not available at this restaurant`);
     }
     if (!menuItem.isActive) {
       throw new Error(`Menu item "${menuItem.name}" is no longer available`);

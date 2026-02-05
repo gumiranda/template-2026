@@ -83,11 +83,11 @@ export const settleBill = mutation({
       .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
       .collect();
 
-    const finalStatuses = [OrderStatus.COMPLETED, OrderStatus.CANCELED];
+    const finalStatuses: string[] = [OrderStatus.COMPLETED, OrderStatus.CANCELED];
     const ordersToUpdate = orders.filter(
       (order) =>
         order.restaurantId === args.restaurantId &&
-        !finalStatuses.includes(order.status as typeof OrderStatus.COMPLETED | typeof OrderStatus.CANCELED)
+        !finalStatuses.includes(order.status)
     );
 
     await Promise.all(
@@ -162,28 +162,48 @@ export const getBillRequests = query({
       )
       .collect();
 
-    const results = await Promise.all(
-      sessions.map(async (session) => {
-        const table = await ctx.db.get(session.tableId);
-        const orders = await ctx.db
-          .query("orders")
-          .withIndex("by_session", (q) => q.eq("sessionId", session.sessionId))
-          .collect();
+    if (sessions.length === 0) {
+      return [];
+    }
 
-        const total = orders
-          .filter((o) => o.status !== OrderStatus.CANCELED)
-          .reduce((sum, o) => sum + o.total, 0);
-
-        return {
-          sessionId: session.sessionId,
-          tableId: session.tableId,
-          tableNumber: table?.tableNumber ?? "?",
-          total,
-          orderCount: orders.length,
-          requestedAt: session._creationTime,
-        };
-      })
+    // Batch fetch tables
+    const tableIds = [...new Set(sessions.map((s) => s.tableId))];
+    const tables = await Promise.all(tableIds.map((id) => ctx.db.get(id)));
+    const tableMap = new Map(
+      tableIds
+        .map((id, i) => [id.toString(), tables[i]] as const)
+        .filter(([, table]) => table !== null)
     );
+
+    // Batch fetch orders for all sessions
+    const ordersPromises = sessions.map((session) =>
+      ctx.db
+        .query("orders")
+        .withIndex("by_session", (q) => q.eq("sessionId", session.sessionId))
+        .collect()
+    );
+    const ordersPerSession = await Promise.all(ordersPromises);
+
+    const results = sessions.map((session, index) => {
+      const table = tableMap.get(session.tableId.toString());
+      if (!table) {
+        throw new Error(`Table ${session.tableId} not found for session ${session.sessionId}`);
+      }
+
+      const orders = ordersPerSession[index] ?? [];
+      const total = orders
+        .filter((o) => o.status !== OrderStatus.CANCELED)
+        .reduce((sum, o) => sum + o.total, 0);
+
+      return {
+        sessionId: session.sessionId,
+        tableId: session.tableId,
+        tableNumber: table.tableNumber,
+        total,
+        orderCount: orders.length,
+        requestedAt: session._creationTime,
+      };
+    });
 
     return results.sort((a, b) => a.requestedAt - b.requestedAt);
   },

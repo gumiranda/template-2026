@@ -12,12 +12,13 @@ import { Separator } from "@workspace/ui/components/separator";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 import { Button } from "@workspace/ui/components/button";
-import { Plus, AlertCircle, ClipboardList } from "lucide-react";
+import { Plus, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
 import { v4 as uuidv4 } from "uuid";
 import { orderContextAtom } from "@/lib/atoms/order-context";
 import { useSessionCart } from "@/hooks/use-session-cart";
 import { formatCurrency } from "@/lib/format";
+import { SessionErrorScreen } from "@/components/store/session-error-screen";
 
 const SESSION_STORAGE_PREFIX = "dine-in-session-";
 const DEVICE_ID_KEY = "dine-in-device-id";
@@ -63,13 +64,11 @@ export default function DineInMenuPage({
 
   if (!isValidRestaurantId(restaurantId) || !tableNumber) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-bold">Link invalido</h1>
-        <p className="mt-2 text-muted-foreground">
-          Este QR code nao e valido. Tente escanear novamente.
-        </p>
-      </div>
+      <SessionErrorScreen
+        title="Link invalido"
+        description="Este QR code nao e valido. Tente escanear novamente."
+        variant="info"
+      />
     );
   }
 
@@ -197,52 +196,44 @@ function DineInContent({
 
   if (table === null) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <AlertCircle className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-bold">Mesa nao encontrada</h1>
-        <p className="mt-2 text-muted-foreground">
-          A mesa {tableNumber} nao existe ou esta inativa.
-        </p>
-      </div>
+      <SessionErrorScreen
+        title="Mesa nao encontrada"
+        description={`A mesa ${tableNumber} nao existe ou esta inativa.`}
+        variant="info"
+      />
     );
   }
 
   if (tableOccupied) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <AlertCircle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
-        <h1 className="text-2xl font-bold">Mesa Ocupada</h1>
-        <p className="mt-2 text-muted-foreground">
-          Esta mesa ja possui um cliente ativo.
-        </p>
-        <p className="mt-1 text-muted-foreground">
-          Aguarde o garcom fechar a conta anterior.
-        </p>
-      </div>
+      <SessionErrorScreen
+        title="Mesa Ocupada"
+        description="Esta mesa ja possui um cliente ativo."
+        secondaryDescription="Aguarde o garcom fechar a conta anterior."
+        variant="warning"
+      />
     );
   }
 
   if (alreadyAtAnotherTable) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <AlertCircle className="mx-auto h-12 w-12 text-yellow-500 mb-4" />
-        <h1 className="text-2xl font-bold">Voce ja esta em outra mesa</h1>
-        <p className="mt-2 text-muted-foreground">
-          Feche sua conta na mesa atual antes de acessar outra.
-        </p>
-      </div>
+      <SessionErrorScreen
+        title="Voce ja esta em outra mesa"
+        description="Feche sua conta na mesa atual antes de acessar outra."
+        variant="warning"
+      />
     );
   }
 
   if (sessionError) {
     return (
-      <div className="container mx-auto px-4 py-16 text-center">
-        <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4" />
-        <h1 className="text-2xl font-bold">Erro ao iniciar sessao</h1>
-        <p className="mt-2 text-muted-foreground">
-          Nao foi possivel conectar a mesa. Tente novamente mais tarde.
-        </p>
-      </div>
+      <SessionErrorScreen
+        title="Erro ao iniciar sessao"
+        description="Nao foi possivel conectar a mesa. Tente novamente mais tarde."
+        variant="error"
+        actionLabel="Tentar novamente"
+        onAction={() => window.location.reload()}
+      />
     );
   }
 

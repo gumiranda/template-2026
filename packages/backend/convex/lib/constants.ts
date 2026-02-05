@@ -21,6 +21,7 @@ export const MAX_SESSIONS_PER_DEVICE_PER_HOUR = 3;
 export const MAX_BATCH_TABLES = 50;
 export const MAX_TABLE_CAPACITY = 1000;
 export const MAX_CART_ITEM_QUANTITY = 99;
+export const MAX_ITEM_PRICE = 9999999; // R$ 99,999.99 in cents
 
 // ============================================
 // String length limits
