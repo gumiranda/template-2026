@@ -1,10 +1,64 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
+import { query, QueryCtx } from "./_generated/server";
+import { Doc, Id } from "./_generated/dataModel";
 import { RestaurantStatus } from "./lib/types";
 import { resolveImageUrl, resolveStorageUrl } from "./files";
 import { toPublicRestaurant, isActiveRestaurant, calculateDiscountedPrice } from "./lib/helpers";
 
 import { MAX_PUBLIC_RESTAURANTS, MAX_SEARCH_RESULTS } from "./lib/constants";
+
+async function fetchCategoriesWithItems(ctx: QueryCtx, restaurantId: Id<"restaurants">) {
+  const activeCategories = await ctx.db
+    .query("menuCategories")
+    .withIndex("by_restaurantId_and_isActive", (q) =>
+      q.eq("restaurantId", restaurantId).eq("isActive", true)
+    )
+    .collect();
+
+  return Promise.all(
+    activeCategories.map(async (category) => {
+      const activeItems = await ctx.db
+        .query("menuItems")
+        .withIndex("by_categoryId_and_isActive", (q) =>
+          q.eq("categoryId", category._id).eq("isActive", true)
+        )
+        .collect();
+
+      const itemsWithImages = await Promise.all(
+        activeItems.map(async (item) => {
+          const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
+          const discountPercentage = item.discountPercentage ?? 0;
+          const discountedPrice = calculateDiscountedPrice(item.price, discountPercentage);
+          return { ...item, imageUrl, discountedPrice };
+        })
+      );
+
+      return { ...category, items: itemsWithImages };
+    })
+  );
+}
+
+function toFullPublicRestaurant(
+  restaurant: Doc<"restaurants">,
+  logoUrl: string | null,
+  coverImageUrl: string | null,
+  categories: Awaited<ReturnType<typeof fetchCategoriesWithItems>>
+) {
+  return {
+    _id: restaurant._id,
+    name: restaurant.name,
+    slug: restaurant.slug,
+    address: restaurant.address,
+    phone: restaurant.phone,
+    description: restaurant.description,
+    logoUrl,
+    coverImageUrl,
+    deliveryFee: restaurant.deliveryFee ?? 0,
+    deliveryTimeMinutes: restaurant.deliveryTimeMinutes ?? 30,
+    rating: restaurant.rating ?? 0,
+    categories,
+  };
+}
 
 const MAX_RECOMMENDED = 10;
 const MAX_SEARCH_QUERY_LENGTH = 200;
@@ -61,56 +115,13 @@ export const getPublicRestaurant = query({
       return null;
     }
 
-    const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
-    const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
+    const [logoUrl, coverImageUrl, categories] = await Promise.all([
+      resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl),
+      resolveStorageUrl(ctx, restaurant.coverImageId),
+      fetchCategoriesWithItems(ctx, restaurant._id),
+    ]);
 
-    // Fetch menu categories with items
-    const activeCategories = await ctx.db
-      .query("menuCategories")
-      .withIndex("by_restaurantId_and_isActive", (q) =>
-        q.eq("restaurantId", args.restaurantId).eq("isActive", true)
-      )
-      .collect();
-
-    const categoriesWithItems = await Promise.all(
-      activeCategories.map(async (category) => {
-        const activeItems = await ctx.db
-          .query("menuItems")
-          .withIndex("by_categoryId_and_isActive", (q) =>
-            q.eq("categoryId", category._id).eq("isActive", true)
-          )
-          .collect();
-
-        const itemsWithImages = await Promise.all(
-          activeItems.map(async (item) => {
-            const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
-            const discountPercentage = item.discountPercentage ?? 0;
-            const discountedPrice = calculateDiscountedPrice(item.price, discountPercentage);
-            return { ...item, imageUrl, discountedPrice };
-          })
-        );
-
-        return {
-          ...category,
-          items: itemsWithImages,
-        };
-      })
-    );
-
-    return {
-      _id: restaurant._id,
-      name: restaurant.name,
-      slug: restaurant.slug,
-      address: restaurant.address,
-      phone: restaurant.phone,
-      description: restaurant.description,
-      logoUrl,
-      coverImageUrl,
-      deliveryFee: restaurant.deliveryFee ?? 0,
-      deliveryTimeMinutes: restaurant.deliveryTimeMinutes ?? 30,
-      rating: restaurant.rating ?? 0,
-      categories: categoriesWithItems,
-    };
+    return toFullPublicRestaurant(restaurant, logoUrl, coverImageUrl, categories);
   },
 });
 
@@ -129,56 +140,13 @@ export const getRestaurantBySlug = query({
       return null;
     }
 
-    const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
-    const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
+    const [logoUrl, coverImageUrl, categories] = await Promise.all([
+      resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl),
+      resolveStorageUrl(ctx, restaurant.coverImageId),
+      fetchCategoriesWithItems(ctx, restaurant._id),
+    ]);
 
-    // Fetch menu categories with items
-    const activeCategories = await ctx.db
-      .query("menuCategories")
-      .withIndex("by_restaurantId_and_isActive", (q) =>
-        q.eq("restaurantId", restaurant._id).eq("isActive", true)
-      )
-      .collect();
-
-    const categoriesWithItems = await Promise.all(
-      activeCategories.map(async (category) => {
-        const activeItems = await ctx.db
-          .query("menuItems")
-          .withIndex("by_categoryId_and_isActive", (q) =>
-            q.eq("categoryId", category._id).eq("isActive", true)
-          )
-          .collect();
-
-        const itemsWithImages = await Promise.all(
-          activeItems.map(async (item) => {
-            const imageUrl = await resolveImageUrl(ctx, item.imageId, item.imageUrl);
-            const discountPercentage = item.discountPercentage ?? 0;
-            const discountedPrice = calculateDiscountedPrice(item.price, discountPercentage);
-            return { ...item, imageUrl, discountedPrice };
-          })
-        );
-
-        return {
-          ...category,
-          items: itemsWithImages,
-        };
-      })
-    );
-
-    return {
-      _id: restaurant._id,
-      name: restaurant.name,
-      slug: restaurant.slug,
-      address: restaurant.address,
-      phone: restaurant.phone,
-      description: restaurant.description,
-      logoUrl,
-      coverImageUrl,
-      deliveryFee: restaurant.deliveryFee ?? 0,
-      deliveryTimeMinutes: restaurant.deliveryTimeMinutes ?? 30,
-      rating: restaurant.rating ?? 0,
-      categories: categoriesWithItems,
-    };
+    return toFullPublicRestaurant(restaurant, logoUrl, coverImageUrl, categories);
   },
 });
 

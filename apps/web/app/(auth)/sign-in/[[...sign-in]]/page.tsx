@@ -1,5 +1,5 @@
-import { SignInView } from "@/modules/auth/ui/views/sign-in-view";
+import { ClerkAuthView } from "@/components/auth/clerk-auth-view";
 
 export default function SignInPage() {
-  return <SignInView />;
+  return <ClerkAuthView mode="sign-in" />;
 }
