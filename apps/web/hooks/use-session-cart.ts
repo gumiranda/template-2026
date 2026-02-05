@@ -5,6 +5,12 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import type { Id } from "@workspace/backend/_generated/dataModel";
 
+export interface SessionCartModifier {
+  groupName: string;
+  optionName: string;
+  price: number;
+}
+
 export function useSessionCart(sessionId: string | null) {
   const cart = useQuery(
     api.sessions.getSessionCart,
@@ -14,9 +20,13 @@ export function useSessionCart(sessionId: string | null) {
   const clearCartMutation = useMutation(api.sessions.clearSessionCart);
 
   const addToCart = useCallback(
-    async (menuItemId: Id<"menuItems">, quantity: number) => {
+    async (
+      menuItemId: Id<"menuItems">,
+      quantity: number,
+      modifiers?: SessionCartModifier[]
+    ) => {
       if (!sessionId) return;
-      await addToCartMutation({ sessionId, menuItemId, quantity });
+      await addToCartMutation({ sessionId, menuItemId, quantity, modifiers });
     },
     [sessionId, addToCartMutation]
   );

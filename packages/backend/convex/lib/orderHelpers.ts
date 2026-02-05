@@ -4,10 +4,17 @@ import { batchFetchMenuItems, calculateDiscountedPrice, validateOrderItems } fro
 import { OrderStatus } from "./types";
 import { MAX_NOTES_LENGTH } from "./constants";
 
+export type OrderItemModifier = {
+  groupName: string;
+  optionName: string;
+  price: number;
+};
+
 export type OrderItemInput = {
   menuItemId: Id<"menuItems">;
   quantity: number;
   notes?: string;
+  modifiers?: OrderItemModifier[];
 };
 
 export type PricedOrderItem = {
@@ -17,6 +24,7 @@ export type PricedOrderItem = {
   price: number;
   totalPrice: number;
   notes?: string;
+  modifiers?: OrderItemModifier[];
 };
 
 export type PriceResult = {
@@ -60,10 +68,14 @@ export async function priceOrderItems(
       throw new Error(`Menu item "${menuItem.name}" is no longer available`);
     }
 
-    const originalTotal = menuItem.price * item.quantity;
+    // Calculate modifiers total
+    const modifiersTotal = (item.modifiers ?? []).reduce((sum, m) => sum + m.price, 0);
+
+    const originalTotal = (menuItem.price + modifiersTotal) * item.quantity;
     const discountPercentage = menuItem.discountPercentage ?? 0;
-    const discountedPrice = calculateDiscountedPrice(menuItem.price, discountPercentage);
-    const discountedTotal = discountedPrice * item.quantity;
+    const discountedBasePrice = calculateDiscountedPrice(menuItem.price, discountPercentage);
+    const discountedUnitPrice = discountedBasePrice + modifiersTotal;
+    const discountedTotal = discountedUnitPrice * item.quantity;
     const itemDiscount = originalTotal - discountedTotal;
 
     subtotalPrice += originalTotal;
@@ -73,9 +85,10 @@ export async function priceOrderItems(
       menuItemId: item.menuItemId,
       name: menuItem.name,
       quantity: item.quantity,
-      price: discountedPrice,
+      price: discountedUnitPrice,
       totalPrice: discountedTotal,
       notes: item.notes,
+      modifiers: item.modifiers,
     };
   });
 
@@ -138,6 +151,7 @@ export async function insertOrderWithItems(
         price: item.price,
         totalPrice: item.totalPrice,
         notes: item.notes,
+        modifiers: item.modifiers,
       })
     )
   );

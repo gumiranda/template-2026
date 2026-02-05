@@ -132,11 +132,34 @@ export const getSessionCart = query({
   },
 });
 
+const modifierValidator = v.object({
+  groupName: v.string(),
+  optionName: v.string(),
+  price: v.number(),
+});
+
+type Modifier = { groupName: string; optionName: string; price: number };
+
+function modifiersMatch(
+  a: Modifier[] | undefined,
+  b: Modifier[] | undefined
+): boolean {
+  const aList = a ?? [];
+  const bList = b ?? [];
+  if (aList.length !== bList.length) return false;
+  return aList.every(
+    (mod, i) =>
+      mod.groupName === bList[i]?.groupName &&
+      mod.optionName === bList[i]?.optionName
+  );
+}
+
 export const addToSessionCart = mutation({
   args: {
     sessionId: v.string(),
     menuItemId: v.id("menuItems"),
     quantity: v.number(),
+    modifiers: v.optional(v.array(modifierValidator)),
   },
   handler: async (ctx, args) => {
     validateQuantity(args.quantity);
@@ -146,12 +169,18 @@ export const addToSessionCart = mutation({
 
     const menuItem = await validateMenuItemForCart(ctx, args.menuItemId, session.restaurantId);
 
-    const existing = await ctx.db
+    // Buscar todos os itens existentes para este menuItem
+    const existingItems = await ctx.db
       .query("sessionCartItems")
       .withIndex("by_sessionId_and_menuItemId", (q) =>
         q.eq("sessionId", args.sessionId).eq("menuItemId", args.menuItemId)
       )
-      .first();
+      .collect();
+
+    // Encontrar item com os mesmos modifiers
+    const existing = existingItems.find((item) =>
+      modifiersMatch(item.modifiers, args.modifiers)
+    );
 
     if (existing) {
       const newQuantity = existing.quantity + args.quantity;
@@ -164,12 +193,16 @@ export const addToSessionCart = mutation({
       return existing._id;
     }
 
+    // Calcular preço com modifiers
+    const modifiersTotal = (args.modifiers ?? []).reduce((sum, m) => sum + m.price, 0);
+
     return await ctx.db.insert("sessionCartItems", {
       sessionId: args.sessionId,
       menuItemId: args.menuItemId,
       quantity: args.quantity,
-      price: menuItem.price,
+      price: menuItem.price + modifiersTotal,
       addedAt: Date.now(),
+      modifiers: args.modifiers,
     });
   },
 });

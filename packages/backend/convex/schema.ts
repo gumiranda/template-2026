@@ -197,6 +197,15 @@ export default defineSchema({
     quantity: v.number(),
     price: v.number(),
     addedAt: v.number(),
+    modifiers: v.optional(
+      v.array(
+        v.object({
+          groupName: v.string(),
+          optionName: v.string(),
+          price: v.number(),
+        })
+      )
+    ),
   })
     .index("by_session", ["sessionId"])
     .index("by_menu_item", ["menuItemId"])
@@ -233,6 +242,15 @@ export default defineSchema({
     price: v.number(),
     totalPrice: v.number(),
     notes: v.optional(v.string()),
+    modifiers: v.optional(
+      v.array(
+        v.object({
+          groupName: v.string(),
+          optionName: v.string(),
+          price: v.number(),
+        })
+      )
+    ),
   })
     .index("by_order", ["orderId"])
     .index("by_menu_item", ["menuItemId"]),

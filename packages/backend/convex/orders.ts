@@ -98,6 +98,15 @@ export const createOrder = mutation({
         menuItemId: v.id("menuItems"),
         quantity: v.number(),
         notes: v.optional(v.string()),
+        modifiers: v.optional(
+          v.array(
+            v.object({
+              groupName: v.string(),
+              optionName: v.string(),
+              price: v.number(),
+            })
+          )
+        ),
       })
     ),
   },

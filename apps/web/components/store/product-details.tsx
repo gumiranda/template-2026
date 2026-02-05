@@ -118,8 +118,11 @@ export function ProductDetails({ product }: ProductDetailsProps) {
   const handleAddToCart = async () => {
     if (isDineIn) {
       // Dine-in: use session cart (server-side)
-      // Note: modifiers are not supported by session cart
-      await sessionCart.addToCart(product._id, quantity);
+      await sessionCart.addToCart(
+        product._id,
+        quantity,
+        selectedModifiers.length > 0 ? selectedModifiers : undefined
+      );
       toast.success("Adicionado ao pedido", {
         description: `${quantity}x ${product.name}`,
       });
