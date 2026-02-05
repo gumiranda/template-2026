@@ -9,8 +9,6 @@ import { api } from "@workspace/backend/_generated/api";
 import type { Id } from "@workspace/backend/_generated/dataModel";
 import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
 import { Separator } from "@workspace/ui/components/separator";
-import { Skeleton } from "@workspace/ui/components/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
 import { Button } from "@workspace/ui/components/button";
 import { Plus, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +17,9 @@ import { orderContextAtom } from "@/lib/atoms/order-context";
 import { useSessionCart } from "@/hooks/use-session-cart";
 import { formatCurrency } from "@/lib/format";
 import { SessionErrorScreen } from "@/components/store/session-error-screen";
+import { RestaurantCoverImage } from "@/components/store/restaurant-cover-image";
+import { RestaurantLoadingSkeleton } from "@/components/store/restaurant-loading-skeleton";
+import { MenuCategoryTabs, type MenuTabItem } from "@/components/store/menu-category-tabs";
 
 const SESSION_STORAGE_PREFIX = "dine-in-session-";
 const DEVICE_ID_KEY = "dine-in-device-id";
@@ -174,13 +175,7 @@ function DineInContent({
   );
 
   if (restaurant === undefined || table === undefined) {
-    return (
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        <Skeleton className="h-48 w-full rounded-lg" />
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-48" />
-      </div>
-    );
+    return <RestaurantLoadingSkeleton />;
   }
 
   if (restaurant === null) {
@@ -238,39 +233,16 @@ function DineInContent({
   }
 
   if (!sessionReady) {
-    return (
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        <Skeleton className="h-48 w-full rounded-lg" />
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-48" />
-      </div>
-    );
+    return <RestaurantLoadingSkeleton />;
   }
 
   return (
     <div>
-      {/* Cover Image */}
-      <div className="relative h-48 bg-muted md:h-64">
-        {restaurant.coverImageUrl ? (
-          <Image
-            src={restaurant.coverImageUrl}
-            alt={restaurant.name}
-            fill
-            sizes="100vw"
-            className="object-cover"
-            priority
-          />
-        ) : restaurant.logoUrl ? (
-          <Image
-            src={restaurant.logoUrl}
-            alt={restaurant.name}
-            fill
-            sizes="100vw"
-            className="object-cover"
-            priority
-          />
-        ) : null}
-      </div>
+      <RestaurantCoverImage
+        name={restaurant.name}
+        coverImageUrl={restaurant.coverImageUrl}
+        logoUrl={restaurant.logoUrl}
+      />
 
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Restaurant + Table Info */}
@@ -295,49 +267,25 @@ function DineInContent({
         <Separator />
 
         {/* Menu Categories */}
-        {restaurant.categories.length > 0 ? (
-          <Tabs defaultValue={restaurant.categories[0]?._id}>
-            <TabsList className="w-full justify-start overflow-x-auto">
-              {restaurant.categories.map((category) => (
-                <TabsTrigger key={category._id} value={category._id}>
-                  {category.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            {restaurant.categories.map((category) => (
-              <TabsContent key={category._id} value={category._id}>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {category.items.map((item) => (
-                    <DineInProductCard
-                      key={item._id}
-                      item={item}
-                      onAdd={handleAddToCart}
-                    />
-                  ))}
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
-        ) : (
-          <p className="text-center text-muted-foreground py-8">
-            Nenhum item no cardapio ainda.
-          </p>
-        )}
+        <MenuCategoryTabs
+          categories={restaurant.categories}
+          gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+          renderItem={(item) => (
+            <DineInProductCard
+              key={item._id}
+              item={item}
+              onAdd={handleAddToCart}
+            />
+          )}
+          emptyMessage="Nenhum item no cardapio ainda."
+        />
       </div>
     </div>
   );
 }
 
 interface DineInProductCardProps {
-  item: {
-    _id: Id<"menuItems">;
-    name: string;
-    description?: string;
-    price: number;
-    discountPercentage?: number;
-    discountedPrice: number;
-    imageUrl: string | null;
-  };
+  item: MenuTabItem;
   onAdd: (menuItemId: Id<"menuItems">, name: string) => void;
 }
 

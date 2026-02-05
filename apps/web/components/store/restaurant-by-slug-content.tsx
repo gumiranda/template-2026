@@ -1,23 +1,18 @@
 "use client";
 
-import Image from "next/image";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import { Star, Heart } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
 import { Separator } from "@workspace/ui/components/separator";
-import { Skeleton } from "@workspace/ui/components/skeleton";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@workspace/ui/components/tabs";
+import { cn } from "@workspace/ui/lib/utils";
 import { DeliveryInfo } from "@/components/store/delivery-info";
 import { ProductCard } from "@/components/store/product-card";
+import { RestaurantCoverImage } from "@/components/store/restaurant-cover-image";
+import { RestaurantLoadingSkeleton } from "@/components/store/restaurant-loading-skeleton";
+import { MenuCategoryTabs } from "@/components/store/menu-category-tabs";
 import { useToggleFavorite } from "@/hooks/use-toggle-favorite";
 import { useUser } from "@clerk/nextjs";
-import { cn } from "@workspace/ui/lib/utils";
 
 interface RestaurantBySlugContentProps {
   slug: string;
@@ -31,13 +26,7 @@ export function RestaurantBySlugContent({ slug }: RestaurantBySlugContentProps) 
   const { isFavorite, toggle } = useToggleFavorite();
 
   if (restaurant === undefined) {
-    return (
-      <div className="container mx-auto px-4 py-8 space-y-6">
-        <Skeleton className="h-48 w-full rounded-lg" />
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-48" />
-      </div>
-    );
+    return <RestaurantLoadingSkeleton />;
   }
 
   if (restaurant === null) {
@@ -55,28 +44,11 @@ export function RestaurantBySlugContent({ slug }: RestaurantBySlugContentProps) 
 
   return (
     <div>
-      {/* Cover Image */}
-      <div className="relative h-48 bg-muted md:h-64">
-        {restaurant.coverImageUrl ? (
-          <Image
-            src={restaurant.coverImageUrl}
-            alt={restaurant.name}
-            fill
-            sizes="100vw"
-            className="object-cover"
-            priority
-          />
-        ) : restaurant.logoUrl ? (
-          <Image
-            src={restaurant.logoUrl}
-            alt={restaurant.name}
-            fill
-            sizes="100vw"
-            className="object-cover"
-            priority
-          />
-        ) : null}
-      </div>
+      <RestaurantCoverImage
+        name={restaurant.name}
+        coverImageUrl={restaurant.coverImageUrl}
+        logoUrl={restaurant.logoUrl}
+      />
 
       <div className="container mx-auto px-4 py-6 space-y-6">
         {/* Restaurant Info */}
@@ -120,41 +92,24 @@ export function RestaurantBySlugContent({ slug }: RestaurantBySlugContentProps) 
         <Separator />
 
         {/* Menu Categories */}
-        {restaurant.categories.length > 0 ? (
-          <Tabs defaultValue={restaurant.categories[0]?._id}>
-            <TabsList className="w-full justify-start overflow-x-auto">
-              {restaurant.categories.map((category) => (
-                <TabsTrigger key={category._id} value={category._id}>
-                  {category.name}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            {restaurant.categories.map((category) => (
-              <TabsContent key={category._id} value={category._id}>
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-                  {category.items.map((item) => (
-                    <ProductCard
-                      key={item._id}
-                      product={{
-                        _id: item._id,
-                        name: item.name,
-                        description: item.description,
-                        price: item.price,
-                        discountPercentage: item.discountPercentage ?? 0,
-                        discountedPrice: item.discountedPrice,
-                        imageUrl: item.imageUrl,
-                      }}
-                    />
-                  ))}
-                </div>
-              </TabsContent>
-            ))}
-          </Tabs>
-        ) : (
-          <p className="text-center text-muted-foreground py-8">
-            Nenhum item no cardápio ainda.
-          </p>
-        )}
+        <MenuCategoryTabs
+          categories={restaurant.categories}
+          renderItem={(item) => (
+            <ProductCard
+              key={item._id}
+              product={{
+                _id: item._id,
+                name: item.name,
+                description: item.description,
+                price: item.price,
+                discountPercentage: item.discountPercentage ?? 0,
+                discountedPrice: item.discountedPrice,
+                imageUrl: item.imageUrl,
+              }}
+            />
+          )}
+          emptyMessage="Nenhum item no cardápio ainda."
+        />
       </div>
     </div>
   );
