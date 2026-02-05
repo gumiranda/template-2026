@@ -1,13 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import type { Id } from "@workspace/backend/_generated/dataModel";
 import { OrderCard } from "@/components/store/order-card";
-import { OrderDetailDialog } from "@/components/store/order-detail-dialog";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { ClipboardList } from "lucide-react";
+
+const OrderDetailDialog = lazy(() =>
+  import("@/components/store/order-detail-dialog").then((m) => ({ default: m.OrderDetailDialog }))
+);
 
 export default function MyOrdersPage() {
   const orders = useQuery(api.customerOrders.getMyOrders);
@@ -41,11 +44,15 @@ export default function MyOrdersPage() {
         </div>
       )}
 
-      <OrderDetailDialog
-        orderId={selectedOrderId}
-        open={selectedOrderId !== null}
-        onOpenChange={(open) => !open && setSelectedOrderId(null)}
-      />
+      {selectedOrderId !== null && (
+        <Suspense fallback={null}>
+          <OrderDetailDialog
+            orderId={selectedOrderId}
+            open={true}
+            onOpenChange={(open) => !open && setSelectedOrderId(null)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChefHat, Timer, User, Check, Receipt, RefreshCw } from "lucide-react";
 import { Progress } from "@workspace/ui/components/progress";
@@ -84,6 +84,11 @@ const COMPLETED_DISPLAY_MS = 1500;
 export function StatusNotification({ type, show, onComplete }: StatusNotificationProps) {
   const [progress, setProgress] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
+  const onCompleteRef = useRef(onComplete);
+
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   const config = NOTIFICATION_CONFIG[type];
   const Icon = config.icon;
@@ -110,7 +115,7 @@ export function StatusNotification({ type, show, onComplete }: StatusNotificatio
         rafId = requestAnimationFrame(updateProgress);
       } else {
         setIsCompleted(true);
-        completeTimeoutId = setTimeout(onComplete, COMPLETED_DISPLAY_MS);
+        completeTimeoutId = setTimeout(() => onCompleteRef.current(), COMPLETED_DISPLAY_MS);
       }
     };
 
@@ -120,7 +125,7 @@ export function StatusNotification({ type, show, onComplete }: StatusNotificatio
       cancelAnimationFrame(rafId);
       clearTimeout(completeTimeoutId);
     };
-  }, [show, config.duration, onComplete]);
+  }, [show, config.duration]);
 
   const remainingSeconds = Math.ceil(config.duration - (config.duration * progress) / 100);
 
@@ -132,6 +137,8 @@ export function StatusNotification({ type, show, onComplete }: StatusNotificatio
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 50 }}
           className="fixed left-4 top-20 z-50 w-[calc(100%-32px)] sm:left-1/2 sm:w-full sm:max-w-sm sm:-translate-x-1/2"
+          role="status"
+          aria-live="polite"
         >
           <div className="rounded-xl border border-border bg-card p-3 shadow-lg sm:p-4">
             <div className="flex items-center gap-2 sm:gap-4">

@@ -25,6 +25,7 @@ import type * as lib_cartHelpers from "../lib/cartHelpers.js";
 import type * as lib_constants from "../lib/constants.js";
 import type * as lib_helpers from "../lib/helpers.js";
 import type * as lib_orderHelpers from "../lib/orderHelpers.js";
+import type * as lib_sessionHelpers from "../lib/sessionHelpers.js";
 import type * as lib_storage from "../lib/storage.js";
 import type * as lib_types from "../lib/types.js";
 import type * as menu from "../menu.js";
@@ -71,6 +72,7 @@ declare const fullApi: ApiFromModules<{
   "lib/constants": typeof lib_constants;
   "lib/helpers": typeof lib_helpers;
   "lib/orderHelpers": typeof lib_orderHelpers;
+  "lib/sessionHelpers": typeof lib_sessionHelpers;
   "lib/storage": typeof lib_storage;
   "lib/types": typeof lib_types;
   menu: typeof menu;

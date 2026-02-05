@@ -3,6 +3,7 @@ import { query, mutation } from "./_generated/server";
 import { validateSession, isValidSessionId } from "./lib/helpers";
 import { requireRestaurantStaffAccess } from "./lib/auth";
 import { SessionStatus, OrderStatus } from "./lib/types";
+import { assertSessionNotClosed } from "./lib/sessionHelpers";
 
 // ─── Client Mutations ─────────────────────────────────────────────────────────
 
@@ -12,10 +13,7 @@ export const requestCloseBill = mutation({
   },
   handler: async (ctx, args) => {
     const session = await validateSession(ctx, args.sessionId);
-
-    if (session.status === SessionStatus.CLOSED) {
-      throw new Error("Session is already closed");
-    }
+    assertSessionNotClosed(session, "request bill closure");
 
     if (session.status === SessionStatus.REQUESTING_CLOSURE) {
       return { success: true, alreadyRequesting: true };
@@ -35,10 +33,7 @@ export const cancelCloseBillRequest = mutation({
   },
   handler: async (ctx, args) => {
     const session = await validateSession(ctx, args.sessionId);
-
-    if (session.status === SessionStatus.CLOSED) {
-      throw new Error("Session is already closed");
-    }
+    assertSessionNotClosed(session, "cancel bill request");
 
     if (session.status !== SessionStatus.REQUESTING_CLOSURE) {
       return { success: true, wasNotRequesting: true };
@@ -60,10 +55,8 @@ export const settleBill = mutation({
     restaurantId: v.id("restaurants"),
   },
   handler: async (ctx, args) => {
-    // Validate staff access
     const user = await requireRestaurantStaffAccess(ctx, args.restaurantId);
 
-    // Validate session (allow closed to prevent race conditions, but check after)
     if (!isValidSessionId(args.sessionId)) {
       throw new Error("Invalid session ID format");
     }
@@ -85,7 +78,6 @@ export const settleBill = mutation({
       return { success: true, alreadyClosed: true };
     }
 
-    // Mark all non-finalized orders as completed
     const orders = await ctx.db
       .query("orders")
       .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
@@ -93,7 +85,9 @@ export const settleBill = mutation({
 
     const finalStatuses = [OrderStatus.COMPLETED, OrderStatus.CANCELED];
     const ordersToUpdate = orders.filter(
-      (order) => !finalStatuses.includes(order.status as typeof OrderStatus.COMPLETED | typeof OrderStatus.CANCELED)
+      (order) =>
+        order.restaurantId === args.restaurantId &&
+        !finalStatuses.includes(order.status as typeof OrderStatus.COMPLETED | typeof OrderStatus.CANCELED)
     );
 
     await Promise.all(
@@ -105,7 +99,6 @@ export const settleBill = mutation({
       )
     );
 
-    // Clear session cart items
     const cartItems = await ctx.db
       .query("sessionCartItems")
       .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
@@ -113,7 +106,6 @@ export const settleBill = mutation({
 
     await Promise.all(cartItems.map((item) => ctx.db.delete(item._id)));
 
-    // Mark session as closed
     await ctx.db.patch(session._id, {
       status: SessionStatus.CLOSED,
       closedAt: Date.now(),
@@ -161,6 +153,8 @@ export const getBillRequests = query({
     restaurantId: v.id("restaurants"),
   },
   handler: async (ctx, args) => {
+    await requireRestaurantStaffAccess(ctx, args.restaurantId);
+
     const sessions = await ctx.db
       .query("sessions")
       .withIndex("by_restaurantId_and_status", (q) =>
@@ -168,7 +162,6 @@ export const getBillRequests = query({
       )
       .collect();
 
-    // Get table info and orders for each session
     const results = await Promise.all(
       sessions.map(async (session) => {
         const table = await ctx.db.get(session.tableId);
@@ -201,12 +194,17 @@ export const getTableSessions = query({
     tableId: v.id("tables"),
   },
   handler: async (ctx, args) => {
+    const table = await ctx.db.get(args.tableId);
+    if (!table) {
+      throw new Error("Table not found");
+    }
+    await requireRestaurantStaffAccess(ctx, table.restaurantId);
+
     const sessions = await ctx.db
       .query("sessions")
       .withIndex("by_table", (q) => q.eq("tableId", args.tableId))
       .collect();
 
-    // Filter out closed sessions and return active ones
     return sessions
       .filter((s) => s.status !== SessionStatus.CLOSED)
       .map((session) => ({

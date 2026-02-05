@@ -55,7 +55,7 @@ export function DineInHeader({
 
         <div className="flex items-center gap-1">
           {onCallWaiter && (
-            <Tooltip>
+            <Tooltip delayDuration={300}>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
@@ -71,13 +71,14 @@ export function DineInHeader({
             </Tooltip>
           )}
 
-          <Tooltip>
+          <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
                 className="relative"
                 onClick={onOpenCart}
+                aria-label="Abrir carrinho de pedidos"
               >
                 <ShoppingCart className="h-5 w-5 text-primary" />
                 <AnimatePresence>
@@ -112,13 +113,14 @@ export function DineInHeader({
             <TooltipContent>Carrinho de Pedidos</TooltipContent>
           </Tooltip>
 
-          <Tooltip>
+          <Tooltip delayDuration={300}>
             <TooltipTrigger asChild>
               <Button
                 variant="ghost"
                 size="sm"
                 className="relative"
                 onClick={onOpenBill}
+                aria-label="Abrir conta total"
               >
                 <Receipt className="h-5 w-5 text-muted-foreground" />
                 <AnimatePresence>

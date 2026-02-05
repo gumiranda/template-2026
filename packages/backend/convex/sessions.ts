@@ -4,6 +4,7 @@ import { validateSession, batchFetchMenuItems, SESSION_DURATION_MS, isValidSessi
 import { validateMenuItemForCart } from "./lib/cartHelpers";
 import { MAX_SESSIONS_PER_TABLE, MAX_CART_ITEM_QUANTITY } from "./lib/constants";
 import { SessionStatus } from "./lib/types";
+import { assertSessionCanAcceptChanges } from "./lib/sessionHelpers";
 
 export const createSession = mutation({
   args: {
@@ -13,17 +14,14 @@ export const createSession = mutation({
     deviceId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // Validate session ID format (must be UUID v4)
     if (!isValidSessionId(args.sessionId)) {
       throw new Error("Invalid session ID format: must be a valid UUID v4");
     }
 
-    // Validate deviceId format if provided (must be UUID v4)
     if (args.deviceId && !isValidSessionId(args.deviceId)) {
       throw new Error("Invalid device ID format: must be a valid UUID v4");
     }
 
-    // Validate restaurant and table exist
     const restaurant = await ctx.db.get(args.restaurantId);
     if (!restaurant) {
       throw new Error("Restaurant not found");
@@ -36,7 +34,6 @@ export const createSession = mutation({
 
     const now = Date.now();
 
-    // Check if this device already has an active session at a different table
     if (args.deviceId) {
       const existingDeviceSessions = await ctx.db
         .query("sessions")
@@ -49,34 +46,28 @@ export const createSession = mutation({
         (s) => s.status !== SessionStatus.CLOSED && s.expiresAt > now
       );
 
-      // If device has active session on DIFFERENT table, block
       if (activeDeviceSession && activeDeviceSession.tableId !== args.tableId) {
         throw new Error("ALREADY_AT_ANOTHER_TABLE");
       }
 
-      // If device has active session on SAME table, return it
       if (activeDeviceSession && activeDeviceSession.tableId === args.tableId) {
         return { _id: activeDeviceSession._id, sessionId: activeDeviceSession.sessionId };
       }
     }
 
-    // Check for existing session with this sessionId
     const existing = await ctx.db
       .query("sessions")
       .withIndex("by_session_id", (q) => q.eq("sessionId", args.sessionId))
       .first();
 
-    // If session exists and is not closed, return it (same customer refreshing page)
     if (existing && existing.status !== SessionStatus.CLOSED) {
       return { _id: existing._id, sessionId: existing.sessionId };
     }
 
-    // If session exists but is closed, frontend should generate a new UUID
     if (existing) {
       throw new Error("SESSION_CLOSED");
     }
 
-    // Check if there's any active (non-closed) session for this table
     const activeTableSessions = await ctx.db
       .query("sessions")
       .withIndex("by_table", (q) => q.eq("tableId", args.tableId))
@@ -86,18 +77,15 @@ export const createSession = mutation({
       (s) => s.status !== SessionStatus.CLOSED && s.expiresAt > now
     );
 
-    // Block new customers if table is occupied
     if (hasActiveSession) {
       throw new Error("TABLE_OCCUPIED");
     }
 
-    // Rate limiting: max active sessions per table to prevent abuse
     const activeCount = activeTableSessions.filter((s) => s.expiresAt > now).length;
     if (activeCount >= MAX_SESSIONS_PER_TABLE) {
       throw new Error("Too many active sessions for this table. Please try again later.");
     }
 
-    // Create new session
     const newSessionId = await ctx.db.insert("sessions", {
       sessionId: args.sessionId,
       restaurantId: args.restaurantId,
@@ -113,10 +101,8 @@ export const createSession = mutation({
 export const getSessionCart = query({
   args: { sessionId: v.string() },
   handler: async (ctx, args) => {
-    // Allow closed sessions - return empty cart gracefully
     const session = await validateSession(ctx, args.sessionId, { allowClosed: true });
 
-    // If session is closed, return empty cart (frontend shows overlay)
     if (session.status === SessionStatus.CLOSED) {
       return [];
     }
@@ -148,10 +134,7 @@ export const addToSessionCart = mutation({
     validateQuantity(args.quantity);
 
     const session = await validateSession(ctx, args.sessionId);
-
-    if (session.status === SessionStatus.REQUESTING_CLOSURE) {
-      throw new Error("Cannot add items while bill closure is pending");
-    }
+    assertSessionCanAcceptChanges(session, "add items");
 
     const menuItem = await validateMenuItemForCart(ctx, args.menuItemId, session.restaurantId);
 
@@ -186,8 +169,6 @@ export const addToSessionCart = mutation({
 export const clearSessionCart = mutation({
   args: { sessionId: v.string() },
   handler: async (ctx, args) => {
-    // checkExpiry: false, allowClosed: true — allow clearing carts from expired/closed sessions
-    // to support cleanup after order completion
     await validateSession(ctx, args.sessionId, { checkExpiry: false, allowClosed: true });
 
     const items = await ctx.db

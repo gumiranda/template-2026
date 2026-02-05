@@ -21,6 +21,9 @@ import { formatCurrency } from "@/lib/format";
 
 const SESSION_STORAGE_PREFIX = "dine-in-session-";
 const DEVICE_ID_KEY = "dine-in-device-id";
+const MAX_TABLE_NUMBER_LENGTH = 50;
+const TABLE_NUMBER_REGEX = /^[A-Za-z0-9-]+$/;
+const MAX_SESSION_CREATE_RETRIES = 3;
 
 function getStoredSessionId(restaurantId: string, tableNumber: string): string | null {
   if (typeof window === "undefined") return null;
@@ -51,7 +54,12 @@ export default function DineInMenuPage({
 }) {
   const { restaurantId } = use(params);
   const resolvedSearchParams = use(searchParams);
-  const tableNumber = typeof resolvedSearchParams.table === "string" ? resolvedSearchParams.table : null;
+  const rawTableNumber = typeof resolvedSearchParams.table === "string" ? resolvedSearchParams.table : null;
+  const tableNumber = rawTableNumber &&
+    rawTableNumber.length <= MAX_TABLE_NUMBER_LENGTH &&
+    TABLE_NUMBER_REGEX.test(rawTableNumber)
+      ? rawTableNumber
+      : null;
 
   if (!isValidRestaurantId(restaurantId) || !tableNumber) {
     return (
@@ -87,7 +95,9 @@ function DineInContent({
   const [sessionReady, setSessionReady] = useState(false);
   const [tableOccupied, setTableOccupied] = useState(false);
   const [alreadyAtAnotherTable, setAlreadyAtAnotherTable] = useState(false);
+  const [sessionError, setSessionError] = useState(false);
   const sessionCreateAttempted = useRef(false);
+  const retryCount = useRef(0);
 
   const restaurant = useQuery(api.customerRestaurants.getPublicRestaurant, {
     restaurantId,
@@ -100,7 +110,6 @@ function DineInContent({
 
   const { addToCart } = useSessionCart(sessionReady ? sessionId : null);
 
-  // Create session and set order context once table is loaded
   useEffect(() => {
     if (!table || sessionReady || sessionCreateAttempted.current) return;
     sessionCreateAttempted.current = true;
@@ -112,7 +121,6 @@ function DineInContent({
       deviceId: getDeviceId(),
     })
       .then((result) => {
-        // Use the sessionId returned by backend (may be from existing active session)
         const activeSessionId = result.sessionId;
         storeSessionId(restaurantId, tableNumber, activeSessionId);
         setSessionId(activeSessionId);
@@ -140,16 +148,12 @@ function DineInContent({
           return;
         }
 
-        // Session was closed — create a new one
-        if (errorMessage.includes("SESSION_CLOSED")) {
-          const newId = uuidv4();
-          storeSessionId(restaurantId, tableNumber, newId);
-          sessionCreateAttempted.current = false;
-          setSessionId(newId);
+        // Session was closed or other error — retry with new session (with limit)
+        if (retryCount.current >= MAX_SESSION_CREATE_RETRIES) {
+          setSessionError(true);
           return;
         }
-
-        // Other errors — retry with new session
+        retryCount.current += 1;
         const newId = uuidv4();
         storeSessionId(restaurantId, tableNumber, newId);
         sessionCreateAttempted.current = false;
@@ -225,6 +229,18 @@ function DineInContent({
         <h1 className="text-2xl font-bold">Voce ja esta em outra mesa</h1>
         <p className="mt-2 text-muted-foreground">
           Feche sua conta na mesa atual antes de acessar outra.
+        </p>
+      </div>
+    );
+  }
+
+  if (sessionError) {
+    return (
+      <div className="container mx-auto px-4 py-16 text-center">
+        <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4" />
+        <h1 className="text-2xl font-bold">Erro ao iniciar sessao</h1>
+        <p className="mt-2 text-muted-foreground">
+          Nao foi possivel conectar a mesa. Tente novamente mais tarde.
         </p>
       </div>
     );
@@ -345,9 +361,13 @@ function DineInProductCard({ item, onAdd }: DineInProductCardProps) {
             fill
             sizes="64px"
             className="object-cover"
+            loading="lazy"
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-lg font-bold text-muted-foreground/30">
+          <div
+            className="flex h-full items-center justify-center text-lg font-bold text-muted-foreground/30"
+            aria-label={item.name}
+          >
             {item.name.charAt(0)}
           </div>
         )}
@@ -377,6 +397,7 @@ function DineInProductCard({ item, onAdd }: DineInProductCardProps) {
         variant="outline"
         className="shrink-0"
         onClick={() => onAdd(item._id, item.name)}
+        aria-label={`Adicionar ${item.name} ao pedido`}
       >
         <Plus className="h-4 w-4" />
       </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useReducer, useMemo, useCallback } from "react";
+import { use, useReducer, useMemo, useCallback, lazy, Suspense } from "react";
 import { useQuery, useMutation } from "convex/react";
 import Link from "next/link";
 import { api } from "@workspace/backend/_generated/api";
@@ -21,7 +21,9 @@ import { StatCard } from "@/components/stat-card";
 import { pageReducer, initialState } from "./_components/tables-reducer";
 import { DeleteConfirmDialog } from "./_components/delete-confirm-dialog";
 import { TableStatsDialog } from "./_components/table-stats-dialog";
-import { TableCartDialog } from "./_components/table-cart-dialog";
+const TableCartDialog = lazy(() =>
+  import("./_components/table-cart-dialog").then((m) => ({ default: m.TableCartDialog }))
+);
 import { BatchActionsDesktop, BatchActionsMobile } from "./_components/batch-actions-panel";
 import { GenerateTablesForm } from "./_components/generate-tables-form";
 import { TableSearchToolbar } from "./_components/table-search-toolbar";
@@ -471,17 +473,21 @@ function TableManagementContent({
         tableId={statsTableId as Id<"tables"> | null}
       />
 
-      <TableCartDialog
-        tableId={cartDialogTableId as Id<"tables"> | null}
-        restaurantId={restaurantId}
-        tableNumber={
-          tables.find((t) => t._id === cartDialogTableId)?.tableNumber ?? ""
-        }
-        open={cartDialogTableId !== null}
-        onOpenChange={(open) =>
-          !open && dispatch({ type: "SET_CART_DIALOG_TABLE_ID", payload: null })
-        }
-      />
+      {cartDialogTableId !== null && (
+        <Suspense fallback={null}>
+          <TableCartDialog
+            tableId={cartDialogTableId as Id<"tables">}
+            restaurantId={restaurantId}
+            tableNumber={
+              tables.find((t) => t._id === cartDialogTableId)?.tableNumber ?? ""
+            }
+            open={true}
+            onOpenChange={(open) =>
+              !open && dispatch({ type: "SET_CART_DIALOG_TABLE_ID", payload: null })
+            }
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

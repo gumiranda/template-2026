@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, lazy, Suspense } from "react";
 import { useAtomValue } from "jotai";
 import { StoreHeader } from "@/components/store/store-header";
 import { StoreFooter } from "@/components/store/store-footer";
 import { CartDrawer } from "@/components/store/cart-drawer";
 import { SessionCartDrawer } from "@/components/store/session-cart-drawer";
 import { DineInHeader } from "@/components/store/dine-in-header";
-import { BillDrawer } from "@/components/store/bill-drawer";
 import { SessionClosedOverlay } from "@/components/store/session-closed-overlay";
 import { StatusNotification } from "@/components/store/status-notification";
 import { useStatusNotifications } from "@/hooks/use-status-notifications";
 import { orderContextAtom } from "@/lib/atoms/order-context";
+
+const BillDrawer = lazy(() =>
+  import("@/components/store/bill-drawer").then((m) => ({ default: m.BillDrawer }))
+);
 
 export default function StoreLayout({
   children,
@@ -55,7 +58,11 @@ export default function StoreLayout({
             onOpenChange={setCartOpen}
             onOrderSent={handleOrderSent}
           />
-          <BillDrawer open={billOpen} onOpenChange={setBillOpen} />
+          {billOpen && (
+            <Suspense fallback={null}>
+              <BillDrawer open={billOpen} onOpenChange={setBillOpen} />
+            </Suspense>
+          )}
           <SessionClosedOverlay />
           <StatusNotification
             type={notification.type}

@@ -33,7 +33,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@workspace/ui/lib/utils";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, calculateDiscountedPrice } from "@/lib/format";
 
 interface TableCartDialogProps {
   tableId: Id<"tables"> | null;
@@ -95,8 +95,7 @@ export function TableCartDialog({
     let totalItems = 0;
     for (const item of cart.items) {
       const price = item.menuItem?.price ?? item.price;
-      const discount = item.menuItem?.discountPercentage ?? 0;
-      const discountedPrice = price * (1 - discount / 100);
+      const discountedPrice = calculateDiscountedPrice(price, item.menuItem?.discountPercentage);
       subtotal += discountedPrice * item.quantity;
       totalItems += item.quantity;
     }
@@ -109,7 +108,6 @@ export function TableCartDialog({
       setAddingItemId(menuItemId);
       try {
         await addToCart({ tableId, restaurantId, menuItemId, quantity });
-        // Switch to cart tab and show success
         if (activeTab === "menu") {
           setActiveTab("cart");
         }
@@ -129,7 +127,6 @@ export function TableCartDialog({
       if (!tableId) return;
       const newQty = currentQty + delta;
       if (newQty <= 0) {
-        // Remove item
         setRemovingItemId(menuItemId);
         try {
           await addToCart({ tableId, restaurantId, menuItemId, quantity: -currentQty });
@@ -177,7 +174,6 @@ export function TableCartDialog({
         menuItemId: item.menuItemId,
         quantity: item.quantity,
       }));
-      // Use the sessionId returned by backend (may be from existing active session)
       await createOrder({ sessionId: sessionResult.sessionId, tableId, restaurantId, items });
       await clearCart({ tableId });
       toast.success("Pedido criado com sucesso!");
@@ -287,9 +283,10 @@ export function TableCartDialog({
                           {category.items.map((item) => {
                             const hasDiscount =
                               item.discountPercentage && item.discountPercentage > 0;
-                            const discountedPrice = hasDiscount
-                              ? item.price * (1 - (item.discountPercentage ?? 0) / 100)
-                              : item.price;
+                            const discountedPrice = calculateDiscountedPrice(
+                              item.price,
+                              item.discountPercentage
+                            );
                             const isAdding = addingItemId === item._id;
                             const cartItem = cart?.items?.find(
                               (ci) => ci.menuItemId === item._id
@@ -310,9 +307,13 @@ export function TableCartDialog({
                                     width={56}
                                     height={56}
                                     className="rounded-lg object-cover shrink-0"
+                                    loading="lazy"
                                   />
                                 ) : (
-                                  <div className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center text-lg font-medium text-muted-foreground shrink-0">
+                                  <div
+                                    className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center text-lg font-medium text-muted-foreground shrink-0"
+                                    aria-label={item.name}
+                                  >
                                     {item.name.charAt(0)}
                                   </div>
                                 )}
@@ -421,8 +422,10 @@ export function TableCartDialog({
                     <div className="p-6 space-y-3">
                       {cart.items.map((item) => {
                         const price = item.menuItem?.price ?? item.price;
-                        const discount = item.menuItem?.discountPercentage ?? 0;
-                        const discountedPrice = price * (1 - discount / 100);
+                        const discountedPrice = calculateDiscountedPrice(
+                          price,
+                          item.menuItem?.discountPercentage
+                        );
                         const totalPrice = discountedPrice * item.quantity;
                         const isUpdating = addingItemId === item.menuItemId;
                         const isRemoving = removingItemId === item.menuItemId;
