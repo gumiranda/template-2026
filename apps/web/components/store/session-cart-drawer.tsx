@@ -52,6 +52,7 @@ export function SessionCartDrawer({ open, onOpenChange, onOrderSent }: SessionCa
         items: items.map((i) => ({
           menuItemId: i.menuItemId,
           quantity: i.quantity,
+          modifiers: i.modifiers,
         })),
       });
       await clearCart();
