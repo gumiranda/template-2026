@@ -131,19 +131,16 @@ function DineInContent({
       .catch((error) => {
         const errorMessage = error instanceof Error ? error.message : "";
 
-        // Table is occupied by another customer
         if (errorMessage.includes("TABLE_OCCUPIED")) {
           setTableOccupied(true);
           return;
         }
 
-        // Device already has an active session at another table
         if (errorMessage.includes("ALREADY_AT_ANOTHER_TABLE")) {
           setAlreadyAtAnotherTable(true);
           return;
         }
 
-        // Session was closed or other error — retry with new session (with limit)
         if (retryCount.current >= MAX_SESSION_CREATE_RETRIES) {
           setSessionError(true);
           return;
@@ -228,7 +225,6 @@ function DineInContent({
       />
 
       <div className="container mx-auto px-4 py-6 space-y-6">
-        {/* Restaurant + Table Info */}
         <div className="space-y-2">
           <h1 className="text-2xl font-bold">{restaurant.name}</h1>
           {restaurant.description && (
@@ -249,7 +245,6 @@ function DineInContent({
 
         <Separator />
 
-        {/* Menu Categories */}
         <MenuCategoryTabs
           categories={restaurant.categories}
           renderItem={(item) => (

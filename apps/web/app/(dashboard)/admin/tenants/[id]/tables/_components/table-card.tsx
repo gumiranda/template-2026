@@ -67,7 +67,7 @@ export function TableCard({
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={table.isActive ? "default" : "secondary"}>
-              {table.isActive ? "Active" : "Inactive"}
+              {table.isActive ? "Ativa" : "Inativa"}
             </Badge>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -82,7 +82,7 @@ export function TableCard({
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onViewStats}>
                   <BarChart3 className="mr-2 h-4 w-4" />
-                  View Stats
+                  Ver Estatísticas
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onDownloadQR}>
                   <Download className="mr-2 h-4 w-4" />
@@ -90,14 +90,14 @@ export function TableCard({
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onToggleStatus}>
                   <Power className="mr-2 h-4 w-4" />
-                  {table.isActive ? "Deactivate" : "Activate"}
+                  {table.isActive ? "Desativar" : "Ativar"}
                 </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={onDelete}
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
+                  Excluir
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -120,7 +120,7 @@ export function TableCard({
           Abrir link da mesa
         </Link>
         <p className="text-xs text-muted-foreground text-center mt-1">
-          Capacity: {table.capacity}
+          Capacidade: {table.capacity}
         </p>
       </CardContent>
     </Card>

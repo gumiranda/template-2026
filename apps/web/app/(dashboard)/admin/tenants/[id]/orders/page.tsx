@@ -41,8 +41,6 @@ import {
 import { TableGroupCard } from "./_components/table-group-card";
 import { BillRequestsPanel } from "./_components/bill-requests-panel";
 
-// ─── State ───────────────────────────────────────────────────────────────────
-
 interface OrdersState {
   statusFilter: StatusFilter;
   tableSearch: string;
@@ -70,8 +68,6 @@ const INITIAL_STATE: OrdersState = {
   tableSearch: "",
   updatingOrderId: null,
 };
-
-// ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function OrdersPage({
   params,
@@ -106,8 +102,6 @@ export default function OrdersPage({
     </AdminGuard>
   );
 }
-
-// ─── Content ─────────────────────────────────────────────────────────────────
 
 function OrdersContent({
   restaurantId,
@@ -175,7 +169,6 @@ function OrdersContent({
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -196,7 +189,6 @@ function OrdersContent({
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Button asChild variant="ghost" size="icon">
           <Link href={`/admin/tenants/${restaurantId}`}>
@@ -206,7 +198,6 @@ function OrdersContent({
         <h1 className="text-2xl font-bold">Pedidos</h1>
       </div>
 
-      {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -242,10 +233,8 @@ function OrdersContent({
         </Select>
       </div>
 
-      {/* Content grid with bill requests panel */}
       <div className="grid gap-6 lg:grid-cols-[1fr_350px]">
         <div>
-          {/* Empty state */}
           {tableGroups.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />

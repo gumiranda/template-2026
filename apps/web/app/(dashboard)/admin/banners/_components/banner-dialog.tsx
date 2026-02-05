@@ -15,6 +15,7 @@ import { Label } from "@workspace/ui/components/label";
 import { Switch } from "@workspace/ui/components/switch";
 import { Loader2, Upload, ImageIcon } from "lucide-react";
 import type { Id } from "@workspace/backend/_generated/dataModel";
+import { toast } from "sonner";
 import type { BannerFormData } from "./banner-types";
 
 interface BannerDialogProps {
@@ -93,7 +94,10 @@ export function BannerDialog({
         }
         await onSubmit(form, imageId);
         handleOpenChange(false);
-      } catch {
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Erro ao salvar banner"
+        );
         setIsSubmitting(false);
       }
     },
@@ -113,7 +117,6 @@ export function BannerDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Image */}
           <div className="space-y-2">
             <Label>Imagem</Label>
             <button
@@ -151,9 +154,8 @@ export function BannerDialog({
             />
           </div>
 
-          {/* Title */}
           <div className="space-y-2">
-            <Label htmlFor="banner-title">Titulo</Label>
+            <Label htmlFor="banner-title">Título</Label>
             <Input
               id="banner-title"
               value={form.title}
@@ -165,7 +167,6 @@ export function BannerDialog({
             />
           </div>
 
-          {/* Link URL */}
           <div className="space-y-2">
             <Label htmlFor="banner-link">Link (opcional)</Label>
             <Input
@@ -178,7 +179,6 @@ export function BannerDialog({
             />
           </div>
 
-          {/* Order */}
           <div className="space-y-2">
             <Label htmlFor="banner-order">Ordem</Label>
             <Input
@@ -195,7 +195,6 @@ export function BannerDialog({
             />
           </div>
 
-          {/* Active */}
           {editingId && (
             <div className="flex items-center justify-between">
               <Label htmlFor="banner-active">Ativo</Label>

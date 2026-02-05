@@ -86,7 +86,6 @@ function SessionOrdersContent({
     sessionId ? { restaurantId: restaurantId as Id<"restaurants">, tableNumber } : "skip"
   );
 
-  // Restore order context for dine-in header
   useEffect(() => {
     if (!sessionId || !table) return;
 
@@ -149,7 +148,6 @@ function SessionOrdersContent({
         </BreadcrumbList>
       </Breadcrumb>
 
-      {/* Orders */}
       {orders.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <ClipboardList className="h-12 w-12 text-muted-foreground mb-4" />

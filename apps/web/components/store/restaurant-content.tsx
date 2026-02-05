@@ -62,7 +62,6 @@ export function RestaurantContent(props: RestaurantContentProps) {
       />
 
       <div className="container mx-auto px-4 py-6 space-y-6">
-        {/* Restaurant Info */}
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-2">
             <h1 className="text-2xl font-bold">{restaurant.name}</h1>
@@ -103,7 +102,6 @@ export function RestaurantContent(props: RestaurantContentProps) {
 
         <Separator />
 
-        {/* Menu Categories */}
         <MenuCategoryTabs
           categories={restaurant.categories}
           renderItem={(item) => (
