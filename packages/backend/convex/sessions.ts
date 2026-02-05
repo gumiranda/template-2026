@@ -3,6 +3,7 @@ import { query, mutation } from "./_generated/server";
 import { validateSession, batchFetchMenuItems, SESSION_DURATION_MS, isValidSessionId, validateQuantity } from "./lib/helpers";
 import { validateMenuItemForCart } from "./lib/cartHelpers";
 import { MAX_SESSIONS_PER_TABLE, MAX_CART_ITEM_QUANTITY } from "./lib/constants";
+import { SessionStatus } from "./lib/types";
 
 export const createSession = mutation({
   args: {
@@ -32,7 +33,15 @@ export const createSession = mutation({
       .withIndex("by_session_id", (q) => q.eq("sessionId", args.sessionId))
       .first();
 
-    if (existing) return existing._id;
+    // If session exists and is not closed, return it
+    if (existing && existing.status !== SessionStatus.CLOSED) {
+      return existing._id;
+    }
+    // If session exists but is closed, we need to create a new one with a new sessionId
+    // This case should not happen because the frontend generates new UUIDs
+    if (existing) {
+      throw new Error("Session is closed. Please scan the QR code again.");
+    }
 
     // Rate limiting: max 10 active sessions per table to prevent abuse
     const now = Date.now();
@@ -86,6 +95,10 @@ export const addToSessionCart = mutation({
     validateQuantity(args.quantity);
 
     const session = await validateSession(ctx, args.sessionId);
+
+    if (session.status === SessionStatus.REQUESTING_CLOSURE) {
+      throw new Error("Cannot add items while bill closure is pending");
+    }
 
     const menuItem = await validateMenuItemForCart(ctx, args.menuItemId, session.restaurantId);
 

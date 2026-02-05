@@ -8,6 +8,7 @@ import { CartDrawer } from "@/components/store/cart-drawer";
 import { SessionCartDrawer } from "@/components/store/session-cart-drawer";
 import { DineInHeader } from "@/components/store/dine-in-header";
 import { BillDrawer } from "@/components/store/bill-drawer";
+import { SessionClosedOverlay } from "@/components/store/session-closed-overlay";
 import { StatusNotification } from "@/components/store/status-notification";
 import { useStatusNotifications } from "@/hooks/use-status-notifications";
 import { orderContextAtom } from "@/lib/atoms/order-context";
@@ -55,6 +56,7 @@ export default function StoreLayout({
             onOrderSent={handleOrderSent}
           />
           <BillDrawer open={billOpen} onOpenChange={setBillOpen} />
+          <SessionClosedOverlay />
           <StatusNotification
             type={notification.type}
             show={notification.show}

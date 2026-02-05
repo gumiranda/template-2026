@@ -10,10 +10,12 @@ import { Button } from "@workspace/ui/components/button";
 import { Separator } from "@workspace/ui/components/separator";
 import { ScrollArea } from "@workspace/ui/components/scroll-area";
 import { Badge } from "@workspace/ui/components/badge";
-import { Receipt, Clock } from "lucide-react";
+import { Alert, AlertDescription } from "@workspace/ui/components/alert";
+import { Receipt, Clock, Loader2, CheckCircle2, X } from "lucide-react";
 import { useAtomValue } from "jotai";
 import { orderContextAtom } from "@/lib/atoms/order-context";
 import { useSessionBill } from "@/hooks/use-session-bill";
+import { useCloseBill } from "@/hooks/use-close-bill";
 import { formatCurrency } from "@/lib/format";
 import { cn } from "@workspace/ui/lib/utils";
 import { getStatusConfig } from "@/app/(dashboard)/admin/tenants/[id]/orders/_components/orders-types";
@@ -21,7 +23,6 @@ import { getStatusConfig } from "@/app/(dashboard)/admin/tenants/[id]/orders/_co
 interface BillDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCloseBill?: () => void;
 }
 
 function formatTime(timestamp: number): string {
@@ -31,10 +32,11 @@ function formatTime(timestamp: number): string {
   });
 }
 
-export function BillDrawer({ open, onOpenChange, onCloseBill }: BillDrawerProps) {
+export function BillDrawer({ open, onOpenChange }: BillDrawerProps) {
   const orderContext = useAtomValue(orderContextAtom);
   const sessionId = orderContext.type === "dine_in" ? orderContext.sessionId : null;
   const { orders, totalBill, itemCount } = useSessionBill(sessionId);
+  const { status, isRequestingClosure, isClosed, requestCloseBill, cancelRequest } = useCloseBill();
 
   const tableNumber = orderContext.type === "dine_in" ? orderContext.tableNumber : "";
 
@@ -123,8 +125,33 @@ export function BillDrawer({ open, onOpenChange, onCloseBill }: BillDrawerProps)
               </div>
             </div>
 
-            {onCloseBill && (
-              <Button className="w-full" size="lg" onClick={onCloseBill}>
+            {isClosed ? (
+              <Alert className="border-green-200 bg-green-50">
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-green-800">
+                  Conta fechada com sucesso!
+                </AlertDescription>
+              </Alert>
+            ) : isRequestingClosure ? (
+              <div className="space-y-3">
+                <Alert className="border-yellow-200 bg-yellow-50">
+                  <Loader2 className="h-4 w-4 animate-spin text-yellow-600" />
+                  <AlertDescription className="text-yellow-800">
+                    Aguardando garcom fechar a conta...
+                  </AlertDescription>
+                </Alert>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  size="lg"
+                  onClick={cancelRequest}
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Cancelar Solicitacao
+                </Button>
+              </div>
+            ) : (
+              <Button className="w-full" size="lg" onClick={requestCloseBill}>
                 Fechar Conta
               </Button>
             )}

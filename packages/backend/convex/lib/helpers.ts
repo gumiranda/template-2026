@@ -1,7 +1,7 @@
 import type { QueryCtx, MutationCtx } from "../_generated/server";
 import type { Id, Doc } from "../_generated/dataModel";
 import { resolveImageUrl, resolveStorageUrl } from "./storage";
-import { RestaurantStatus } from "./types";
+import { RestaurantStatus, SessionStatus } from "./types";
 import { MAX_ORDER_ITEMS, VALID_ICON_IDS, MAX_ICON_LENGTH } from "./constants";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -44,6 +44,7 @@ export function isValidRestaurantId(id: string): id is Id<"restaurants"> {
 
 type ValidateSessionOptions = {
   checkExpiry?: boolean;
+  allowClosed?: boolean;
 };
 
 export async function validateSession(
@@ -51,7 +52,7 @@ export async function validateSession(
   sessionId: string,
   options: ValidateSessionOptions = {}
 ): Promise<Doc<"sessions">> {
-  const { checkExpiry = true } = options;
+  const { checkExpiry = true, allowClosed = false } = options;
 
   // Validate session ID format to prevent enumeration attacks
   if (!isValidSessionId(sessionId)) {
@@ -65,6 +66,9 @@ export async function validateSession(
 
   if (!session) throw new Error("Invalid session");
   if (checkExpiry && session.expiresAt < Date.now()) throw new Error("Session expired");
+  if (!allowClosed && session.status === SessionStatus.CLOSED) {
+    throw new Error("Session is closed");
+  }
   return session;
 }
 

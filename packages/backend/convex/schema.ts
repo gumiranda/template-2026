@@ -36,6 +36,12 @@ const restaurantStatusValidator = v.union(
   v.literal("inactive")
 );
 
+const sessionStatusValidator = v.union(
+  v.literal("open"),
+  v.literal("requesting_closure"),
+  v.literal("closed")
+);
+
 export default defineSchema({
   users: defineTable({
     name: v.string(),
@@ -144,6 +150,9 @@ export default defineSchema({
     sessionId: v.string(),
     restaurantId: v.id("restaurants"),
     tableId: v.id("tables"),
+    status: v.optional(sessionStatusValidator),
+    closedAt: v.optional(v.number()),
+    closedBy: v.optional(v.id("users")),
     // Deprecated: use _creationTime instead. Kept optional for backward compatibility.
     createdAt: v.optional(v.number()),
     expiresAt: v.number(),
@@ -151,7 +160,8 @@ export default defineSchema({
     .index("by_session_id", ["sessionId"])
     .index("by_table", ["tableId"])
     .index("by_restaurant", ["restaurantId"])
-    .index("by_expires_at", ["expiresAt"]),
+    .index("by_expires_at", ["expiresAt"])
+    .index("by_restaurantId_and_status", ["restaurantId", "status"]),
 
   carts: defineTable({
     tableId: v.id("tables"),

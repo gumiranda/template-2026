@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as billManagement from "../billManagement.js";
 import type * as carts from "../carts.js";
 import type * as cleanup from "../cleanup.js";
 import type * as clerkWebhook from "../clerkWebhook.js";
@@ -53,6 +54,7 @@ import type {
  * ```
  */
 declare const fullApi: ApiFromModules<{
+  billManagement: typeof billManagement;
   carts: typeof carts;
   cleanup: typeof cleanup;
   clerkWebhook: typeof clerkWebhook;

@@ -39,6 +39,7 @@ import {
   type OrderStatusType,
 } from "./_components/orders-types";
 import { TableGroupCard } from "./_components/table-group-card";
+import { BillRequestsPanel } from "./_components/bill-requests-panel";
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -241,29 +242,40 @@ function OrdersContent({
         </Select>
       </div>
 
-      {/* Empty state */}
-      {tableGroups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium">Nenhum pedido encontrado</h3>
-          <p className="text-muted-foreground">
-            {orders.length === 0
-              ? "Este restaurante ainda nao recebeu pedidos."
-              : "Nenhum pedido corresponde aos filtros aplicados."}
-          </p>
+      {/* Content grid with bill requests panel */}
+      <div className="grid gap-6 lg:grid-cols-[1fr_350px]">
+        <div>
+          {/* Empty state */}
+          {tableGroups.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <ShoppingCart className="h-12 w-12 text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium">Nenhum pedido encontrado</h3>
+              <p className="text-muted-foreground">
+                {orders.length === 0
+                  ? "Este restaurante ainda nao recebeu pedidos."
+                  : "Nenhum pedido corresponde aos filtros aplicados."}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {tableGroups.map((group) => (
+                <TableGroupCard
+                  key={group.key}
+                  group={group}
+                  onStatusChange={handleStatusChange}
+                  updatingOrderId={state.updatingOrderId}
+                />
+              ))}
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="space-y-4">
-          {tableGroups.map((group) => (
-            <TableGroupCard
-              key={group.key}
-              group={group}
-              onStatusChange={handleStatusChange}
-              updatingOrderId={state.updatingOrderId}
-            />
-          ))}
+
+        <div className="hidden lg:block">
+          <div className="sticky top-6">
+            <BillRequestsPanel restaurantId={restaurantId} />
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
