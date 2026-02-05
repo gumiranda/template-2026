@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer, useMemo, useCallback, Dispatch, SetStateAction } from "react";
+import { useReducer, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import { Id } from "@workspace/backend/_generated/dataModel";
@@ -29,7 +29,7 @@ import { formatCurrency } from "@/lib/format";
 import { AdminGuard } from "@/components/admin-guard";
 import { StatCard } from "@/components/stat-card";
 import { useUploadFile } from "@/hooks/use-upload-file";
-import type { RestaurantForm, RestaurantWithStats } from "./_components/types";
+import type { RestaurantForm, RestaurantWithStats, RestaurantFormUpdater } from "./_components/types";
 import { initialFormData } from "./_components/types";
 import { RestaurantFormDialog } from "./_components/restaurant-form-dialog";
 import { DesktopRestaurantTable } from "./_components/desktop-restaurant-table";
@@ -57,8 +57,8 @@ type PageAction =
   | { type: "EDIT_SUCCESS" }
   | { type: "SET_SEARCH_QUERY"; payload: string }
   | { type: "SET_STATUS_FILTER"; payload: string }
-  | { type: "SET_FORM_DATA"; payload: RestaurantForm }
-  | { type: "SET_EDIT_FORM_DATA"; payload: RestaurantForm }
+  | { type: "UPDATE_FORM_DATA"; payload: RestaurantFormUpdater }
+  | { type: "UPDATE_EDIT_FORM_DATA"; payload: RestaurantFormUpdater }
   | { type: "SET_CREATE_SUBMITTING"; payload: boolean }
   | { type: "SET_EDIT_SUBMITTING"; payload: boolean };
 
@@ -110,10 +110,18 @@ function pageReducer(state: PageState, action: PageAction): PageState {
       return { ...state, searchQuery: action.payload };
     case "SET_STATUS_FILTER":
       return { ...state, statusFilter: action.payload };
-    case "SET_FORM_DATA":
-      return { ...state, formData: action.payload };
-    case "SET_EDIT_FORM_DATA":
-      return { ...state, editFormData: action.payload };
+    case "UPDATE_FORM_DATA": {
+      const newData = typeof action.payload === "function"
+        ? action.payload(state.formData)
+        : action.payload;
+      return { ...state, formData: newData };
+    }
+    case "UPDATE_EDIT_FORM_DATA": {
+      const newData = typeof action.payload === "function"
+        ? action.payload(state.editFormData)
+        : action.payload;
+      return { ...state, editFormData: newData };
+    }
     case "SET_CREATE_SUBMITTING":
       return { ...state, isCreateSubmitting: action.payload };
     case "SET_EDIT_SUBMITTING":
@@ -267,17 +275,15 @@ function TenantOverviewContent() {
     dispatch({ type: "CLOSE_EDIT_MODAL" });
   };
 
-  const setFormData = useCallback<Dispatch<SetStateAction<RestaurantForm>>>((action) => {
-    const newData = typeof action === "function" ? action(formData) : action;
-    dispatch({ type: "SET_FORM_DATA", payload: newData });
-  }, [formData]);
+  const setFormData = useCallback((action: RestaurantFormUpdater) => {
+    dispatch({ type: "UPDATE_FORM_DATA", payload: action });
+  }, []);
 
-  const setEditFormData = useCallback<Dispatch<SetStateAction<RestaurantForm>>>((action) => {
-    const newData = typeof action === "function" ? action(editFormData) : action;
-    dispatch({ type: "SET_EDIT_FORM_DATA", payload: newData });
-  }, [editFormData]);
+  const setEditFormData = useCallback((action: RestaurantFormUpdater) => {
+    dispatch({ type: "UPDATE_EDIT_FORM_DATA", payload: action });
+  }, []);
 
-  const onlinePercentage = useMemo(() => computeOnlinePercentage(stats), [stats]);
+  const onlinePercentage = computeOnlinePercentage(stats);
 
   return (
     <div className="space-y-6 pb-24 md:pb-0">
