@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import Image from "next/image";
 import {
   Dialog,
@@ -48,28 +48,18 @@ export function BannerDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (open) {
-      setForm(initialData);
-      setPreviewUrl(null);
-      setSelectedFile(null);
-      setIsSubmitting(false);
-    }
-  }, [open, initialData]);
-
-  const resetState = useCallback(() => {
-    setForm(initialData);
-    setPreviewUrl(null);
-    setSelectedFile(null);
-    setIsSubmitting(false);
-  }, [initialData]);
-
   const handleOpenChange = useCallback(
     (value: boolean) => {
-      if (!value) resetState();
+      if (value) {
+        // Reset state when dialog opens
+        setForm(initialData);
+        setPreviewUrl(null);
+        setSelectedFile(null);
+        setIsSubmitting(false);
+      }
       onOpenChange(value);
     },
-    [onOpenChange, resetState]
+    [onOpenChange, initialData]
   );
 
   const handleFileChange = useCallback(

@@ -40,7 +40,7 @@ export function MenuItemForm({ restaurantId, itemId }: MenuItemFormProps) {
   }
 
   return (
-    <MenuItemFormProvider restaurantId={restaurantId} itemId={itemId}>
+    <MenuItemFormProvider key={itemId ?? "create"} restaurantId={restaurantId} itemId={itemId}>
       <MenuItemFormContent />
     </MenuItemFormProvider>
   );

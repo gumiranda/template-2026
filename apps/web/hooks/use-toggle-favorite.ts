@@ -1,9 +1,9 @@
 "use client";
 
-import { useMutation, useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
 import type { Id } from "@workspace/backend/_generated/dataModel";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export function useToggleFavorite() {
   const favorites = useQuery(api.favorites.getUserFavorites) ?? [];
@@ -12,15 +12,10 @@ export function useToggleFavorite() {
   // Track pending toggles for optimistic UI
   const [pendingToggles, setPendingToggles] = useState<Set<Id<"restaurants">>>(new Set());
 
-  // Clear pending toggles when the server-side list actually changes
-  const prevFavoritesRef = useRef<string>("");
   const favoritesKey = favorites.join(",");
 
   useEffect(() => {
-    if (prevFavoritesRef.current !== favoritesKey) {
-      prevFavoritesRef.current = favoritesKey;
-      setPendingToggles((prev) => (prev.size > 0 ? new Set() : prev));
-    }
+    setPendingToggles(new Set());
   }, [favoritesKey]);
 
   // Compute optimistic list: flip pending items
@@ -40,8 +35,7 @@ export function useToggleFavorite() {
   }, [favorites, pendingToggles]);
 
   const isFavorite = useCallback(
-    (restaurantId: Id<"restaurants">) =>
-      optimisticFavorites.includes(restaurantId),
+    (restaurantId: Id<"restaurants">) => optimisticFavorites.includes(restaurantId),
     [optimisticFavorites]
   );
 

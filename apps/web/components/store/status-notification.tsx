@@ -104,7 +104,7 @@ export function StatusNotification({ type, show, onComplete }: StatusNotificatio
     const startTime = Date.now();
     const durationMs = config.duration * 1000;
     let rafId: number;
-    let completeTimeoutId: NodeJS.Timeout;
+    let completeTimeoutId: NodeJS.Timeout | undefined;
 
     const updateProgress = () => {
       const elapsed = Date.now() - startTime;
@@ -124,7 +124,7 @@ export function StatusNotification({ type, show, onComplete }: StatusNotificatio
 
     return () => {
       cancelAnimationFrame(rafId);
-      clearTimeout(completeTimeoutId);
+      if (completeTimeoutId) clearTimeout(completeTimeoutId);
     };
   }, [show, config.duration]);
 

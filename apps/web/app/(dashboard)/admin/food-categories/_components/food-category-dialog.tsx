@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import Image from "next/image";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
@@ -135,22 +135,20 @@ export function FoodCategoryDialog({
     []
   );
 
-  useEffect(() => {
-    if (open) {
-      setForm(initialData);
-      setPreviewUrl(null);
-      setSelectedFile(null);
-      setIsSubmitting(false);
-      setCreateModeSelection(new Set());
-      setPendingLinks(new Set());
-    }
-  }, [open, initialData]);
-
   const handleOpenChange = useCallback(
     (value: boolean) => {
+      if (value) {
+        // Reset state when dialog opens
+        setForm(initialData);
+        setPreviewUrl(null);
+        setSelectedFile(null);
+        setIsSubmitting(false);
+        setCreateModeSelection(new Set());
+        setPendingLinks(new Set());
+      }
       onOpenChange(value);
     },
-    [onOpenChange]
+    [onOpenChange, initialData]
   );
 
   const handleFileChange = useCallback(

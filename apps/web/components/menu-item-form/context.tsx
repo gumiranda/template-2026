@@ -4,7 +4,6 @@ import {
   createContext,
   use,
   useState,
-  useEffect,
   useMemo,
   useCallback,
   type ReactNode,
@@ -83,39 +82,26 @@ export function MenuItemFormProvider({
   );
   const { save, isSaving } = useMenuItemForm(restaurantId);
 
-  // Form state
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [price, setPrice] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [isActive, setIsActive] = useState(true);
-  const [tags, setTags] = useState<string[]>([]);
+  // Form state - initialized from existingItem if editing
+  // Component should be remounted with key prop when itemId changes
+  const [name, setName] = useState(existingItem?.name ?? "");
+  const [description, setDescription] = useState(existingItem?.description ?? "");
+  const [price, setPrice] = useState(existingItem?.price.toString() ?? "");
+  const [categoryId, setCategoryId] = useState(existingItem?.categoryId ?? "");
+  const [isActive, setIsActive] = useState(existingItem?.isActive ?? true);
+  const [tags, setTags] = useState<string[]>(existingItem?.tags ?? []);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(
+    existingItem?.imageUrl ?? null
+  );
   const [removeImage, setRemoveImage] = useState(false);
-  const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>([]);
-  const [initialized, setInitialized] = useState(!itemId);
-
-  // Populate form with existing data
-  useEffect(() => {
-    if (!existingItem || initialized) return;
-
-    setName(existingItem.name);
-    setDescription(existingItem.description ?? "");
-    setPrice(existingItem.price.toString());
-    setCategoryId(existingItem.categoryId);
-    setIsActive(existingItem.isActive);
-    setTags(existingItem.tags ?? []);
-    setImagePreview(existingItem.imageUrl ?? null);
-    setModifierGroups(
-      existingItem.modifierGroups.map((g) => ({
-        name: g.name,
-        required: g.required,
-        options: g.options.map((o) => ({ name: o.name, price: o.price })),
-      }))
-    );
-    setInitialized(true);
-  }, [existingItem, initialized]);
+  const [modifierGroups, setModifierGroups] = useState<ModifierGroup[]>(
+    existingItem?.modifierGroups.map((g) => ({
+      name: g.name,
+      required: g.required,
+      options: g.options.map((o) => ({ name: o.name, price: o.price })),
+    })) ?? []
+  );
 
   const categories = useMemo(() => {
     if (!menu) return [];
