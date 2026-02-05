@@ -43,7 +43,7 @@ export function BillDrawer({ open, onOpenChange }: BillDrawerProps) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="flex w-full flex-col sm:max-w-md">
-        <SheetHeader>
+        <SheetHeader aria-label={`Conta da mesa ${tableNumber}`}>
           <SheetTitle className="flex items-center gap-2">
             <Receipt className="h-5 w-5" />
             Conta - Mesa {tableNumber}
