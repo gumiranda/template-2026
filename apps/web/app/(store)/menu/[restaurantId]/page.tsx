@@ -1,7 +1,6 @@
 "use client";
 
-import { use, useEffect, useRef, useState, useCallback } from "react";
-import Image from "next/image";
+import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation } from "convex/react";
 import { useSetAtom } from "jotai";
@@ -10,16 +9,14 @@ import type { Id } from "@workspace/backend/_generated/dataModel";
 import { isValidRestaurantId } from "@workspace/backend/lib/helpers";
 import { Separator } from "@workspace/ui/components/separator";
 import { Button } from "@workspace/ui/components/button";
-import { Plus, ClipboardList } from "lucide-react";
-import { toast } from "sonner";
+import { ClipboardList } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { orderContextAtom } from "@/lib/atoms/order-context";
-import { useSessionCart } from "@/hooks/use-session-cart";
-import { formatCurrency } from "@/lib/format";
 import { SessionErrorScreen } from "@/components/store/session-error-screen";
 import { RestaurantCoverImage } from "@/components/store/restaurant-cover-image";
 import { RestaurantLoadingSkeleton } from "@/components/store/restaurant-loading-skeleton";
-import { MenuCategoryTabs, type MenuTabItem } from "@/components/store/menu-category-tabs";
+import { MenuCategoryTabs } from "@/components/store/menu-category-tabs";
+import { ProductCard } from "@/components/store/product-card";
 
 const SESSION_STORAGE_PREFIX = "dine-in-session-";
 const DEVICE_ID_KEY = "dine-in-device-id";
@@ -108,8 +105,6 @@ function DineInContent({
   });
   const createSession = useMutation(api.sessions.createSession);
 
-  const { addToCart } = useSessionCart(sessionReady ? sessionId : null);
-
   useEffect(() => {
     if (!table || sessionReady || sessionCreateAttempted.current) return;
     sessionCreateAttempted.current = true;
@@ -161,18 +156,6 @@ function DineInContent({
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [table, sessionId]);
-
-  const handleAddToCart = useCallback(
-    async (menuItemId: Id<"menuItems">, itemName: string) => {
-      try {
-        await addToCart(menuItemId, 1);
-        toast.success(`${itemName} adicionado ao pedido`);
-      } catch {
-        toast.error("Erro ao adicionar item. Tente novamente.");
-      }
-    },
-    [addToCart]
-  );
 
   if (restaurant === undefined || table === undefined) {
     return <RestaurantLoadingSkeleton />;
@@ -269,77 +252,23 @@ function DineInContent({
         {/* Menu Categories */}
         <MenuCategoryTabs
           categories={restaurant.categories}
-          gridClassName="grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
           renderItem={(item) => (
-            <DineInProductCard
+            <ProductCard
               key={item._id}
-              item={item}
-              onAdd={handleAddToCart}
+              product={{
+                _id: item._id,
+                name: item.name,
+                description: item.description,
+                price: item.price,
+                discountPercentage: item.discountPercentage ?? 0,
+                discountedPrice: item.discountedPrice,
+                imageUrl: item.imageUrl,
+              }}
             />
           )}
           emptyMessage="Nenhum item no cardapio ainda."
         />
       </div>
-    </div>
-  );
-}
-
-interface DineInProductCardProps {
-  item: MenuTabItem;
-  onAdd: (menuItemId: Id<"menuItems">, name: string) => void;
-}
-
-function DineInProductCard({ item, onAdd }: DineInProductCardProps) {
-  return (
-    <div className="flex items-center gap-4 rounded-lg border p-3">
-      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
-        {item.imageUrl ? (
-          <Image
-            src={item.imageUrl}
-            alt={item.name}
-            fill
-            sizes="64px"
-            className="object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div
-            className="flex h-full items-center justify-center text-lg font-bold text-muted-foreground/30"
-            aria-label={item.name}
-          >
-            {item.name.charAt(0)}
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm line-clamp-1">{item.name}</p>
-        {item.description && (
-          <p className="text-xs text-muted-foreground line-clamp-1">
-            {item.description}
-          </p>
-        )}
-        <div className="flex items-center gap-2 mt-1">
-          <span className="font-semibold text-sm text-primary">
-            {formatCurrency(item.discountedPrice)}
-          </span>
-          {(item.discountPercentage ?? 0) > 0 && (
-            <span className="text-xs text-muted-foreground line-through">
-              {formatCurrency(item.price)}
-            </span>
-          )}
-        </div>
-      </div>
-
-      <Button
-        size="icon"
-        variant="outline"
-        className="shrink-0"
-        onClick={() => onAdd(item._id, item.name)}
-        aria-label={`Adicionar ${item.name} ao pedido`}
-      >
-        <Plus className="h-4 w-4" />
-      </Button>
     </div>
   );
 }

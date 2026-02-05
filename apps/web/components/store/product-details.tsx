@@ -10,6 +10,9 @@ import { Separator } from "@workspace/ui/components/separator";
 import { DiscountBadge } from "./discount-badge";
 import { DeliveryInfo } from "./delivery-info";
 import { useCart } from "@/hooks/use-cart";
+import { useSessionCart } from "@/hooks/use-session-cart";
+import { useAtomValue } from "jotai";
+import { orderContextAtom } from "@/lib/atoms/order-context";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "sonner";
 import type { Id } from "@workspace/backend/_generated/dataModel";
@@ -60,7 +63,12 @@ type ModifierSelections = Record<string, string>;
 export function ProductDetails({ product }: ProductDetailsProps) {
   const [quantity, setQuantity] = useState(1);
   const [selections, setSelections] = useState<ModifierSelections>({});
-  const { addToCart, setCartDeliveryFee } = useCart();
+  const orderContext = useAtomValue(orderContextAtom);
+  const isDineIn = orderContext.type === "dine_in";
+
+  // Hooks always called (rules of hooks)
+  const { addToCart: addToDeliveryCart, setCartDeliveryFee } = useCart();
+  const sessionCart = useSessionCart(isDineIn ? orderContext.sessionId : null);
 
   const selectOption = useCallback(
     (groupId: string, optionId: string) => {
@@ -107,25 +115,35 @@ export function ProductDetails({ product }: ProductDetailsProps) {
       .some((g) => !selections[g._id]);
   }, [product.modifierGroups, selections]);
 
-  const handleAddToCart = () => {
-    addToCart(
-      {
-        menuItemId: product._id,
-        name: product.name,
-        price: product.price,
-        discountedPrice: product.discountedPrice,
-        imageUrl: product.imageUrl,
-        restaurantId: product.restaurantId,
-        restaurantName: product.restaurant.name,
-        selectedModifiers:
-          selectedModifiers.length > 0 ? selectedModifiers : undefined,
-      },
-      quantity
-    );
-    setCartDeliveryFee(product.restaurant.deliveryFee);
-    toast.success("Adicionado ao carrinho", {
-      description: `${quantity}x ${product.name}`,
-    });
+  const handleAddToCart = async () => {
+    if (isDineIn) {
+      // Dine-in: use session cart (server-side)
+      // Note: modifiers are not supported by session cart
+      await sessionCart.addToCart(product._id, quantity);
+      toast.success("Adicionado ao pedido", {
+        description: `${quantity}x ${product.name}`,
+      });
+    } else {
+      // Delivery: use Jotai cart (client-side)
+      addToDeliveryCart(
+        {
+          menuItemId: product._id,
+          name: product.name,
+          price: product.price,
+          discountedPrice: product.discountedPrice,
+          imageUrl: product.imageUrl,
+          restaurantId: product.restaurantId,
+          restaurantName: product.restaurant.name,
+          selectedModifiers:
+            selectedModifiers.length > 0 ? selectedModifiers : undefined,
+        },
+        quantity
+      );
+      setCartDeliveryFee(product.restaurant.deliveryFee);
+      toast.success("Adicionado ao carrinho", {
+        description: `${quantity}x ${product.name}`,
+      });
+    }
     setQuantity(1);
     setSelections({});
   };
