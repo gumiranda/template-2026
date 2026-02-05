@@ -21,6 +21,7 @@ interface TableGridProps {
   dispatch: React.Dispatch<PageAction>;
   onToggleStatus: (tableId: Id<"tables">) => void;
   onDownloadQR: (table: TableData) => void;
+  onManageCart: (tableId: Id<"tables">) => void;
 }
 
 export function TableGrid({
@@ -31,6 +32,7 @@ export function TableGrid({
   dispatch,
   onToggleStatus,
   onDownloadQR,
+  onManageCart,
 }: TableGridProps) {
   if (tables.length === 0) {
     return (
@@ -70,6 +72,7 @@ export function TableGrid({
           onViewStats={() =>
             dispatch({ type: "SET_STATS_TABLE_ID", payload: table._id })
           }
+          onManageCart={() => onManageCart(table._id)}
         />
       ))}
     </div>

@@ -21,6 +21,7 @@ import { StatCard } from "@/components/stat-card";
 import { pageReducer, initialState } from "./_components/tables-reducer";
 import { DeleteConfirmDialog } from "./_components/delete-confirm-dialog";
 import { TableStatsDialog } from "./_components/table-stats-dialog";
+import { TableCartDialog } from "./_components/table-cart-dialog";
 import { BatchActionsDesktop, BatchActionsMobile } from "./_components/batch-actions-panel";
 import { GenerateTablesForm } from "./_components/generate-tables-form";
 import { TableSearchToolbar } from "./_components/table-search-toolbar";
@@ -85,6 +86,7 @@ function TableManagementContent({
     isGenerating,
     deleteConfirmTableId,
     statsTableId,
+    cartDialogTableId,
   } = state;
 
   const restaurant = useQuery(api.restaurants.getWithStats, { id: restaurantId });
@@ -429,6 +431,9 @@ function TableManagementContent({
             dispatch={dispatch}
             onToggleStatus={handleToggleStatus}
             onDownloadQR={handleDownloadQR}
+            onManageCart={(tableId) =>
+              dispatch({ type: "SET_CART_DIALOG_TABLE_ID", payload: tableId })
+            }
           />
         </div>
 
@@ -464,6 +469,18 @@ function TableManagementContent({
           !open && dispatch({ type: "SET_STATS_TABLE_ID", payload: null })
         }
         tableId={statsTableId as Id<"tables"> | null}
+      />
+
+      <TableCartDialog
+        tableId={cartDialogTableId as Id<"tables"> | null}
+        restaurantId={restaurantId}
+        tableNumber={
+          tables.find((t) => t._id === cartDialogTableId)?.tableNumber ?? ""
+        }
+        open={cartDialogTableId !== null}
+        onOpenChange={(open) =>
+          !open && dispatch({ type: "SET_CART_DIALOG_TABLE_ID", payload: null })
+        }
       />
     </div>
   );

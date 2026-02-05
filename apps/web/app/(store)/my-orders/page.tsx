@@ -1,13 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@workspace/backend/_generated/api";
+import type { Id } from "@workspace/backend/_generated/dataModel";
 import { OrderCard } from "@/components/store/order-card";
+import { OrderDetailDialog } from "@/components/store/order-detail-dialog";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { ClipboardList } from "lucide-react";
 
 export default function MyOrdersPage() {
   const orders = useQuery(api.customerOrders.getMyOrders);
+  const [selectedOrderId, setSelectedOrderId] = useState<Id<"orders"> | null>(null);
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
@@ -28,10 +32,20 @@ export default function MyOrdersPage() {
       ) : (
         <div className="space-y-4">
           {orders.map((order) => (
-            <OrderCard key={order._id} order={order} />
+            <OrderCard
+              key={order._id}
+              order={order}
+              onClick={setSelectedOrderId}
+            />
           ))}
         </div>
       )}
+
+      <OrderDetailDialog
+        orderId={selectedOrderId}
+        open={selectedOrderId !== null}
+        onOpenChange={(open) => !open && setSelectedOrderId(null)}
+      />
     </div>
   );
 }

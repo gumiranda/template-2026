@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
-import { MapPin, LayoutGrid, MoreVertical, Pencil, ExternalLink } from "lucide-react";
+import { MapPin, LayoutGrid, MoreVertical, Pencil, ExternalLink, Trash2 } from "lucide-react";
 import { cn } from "@workspace/ui/lib/utils";
 import { getStatusBadgeConfig } from "@/lib/constants";
 import type { RestaurantWithStats } from "./types";
@@ -19,11 +19,13 @@ import type { RestaurantWithStats } from "./types";
 interface MobileRestaurantCardProps {
   restaurant: RestaurantWithStats;
   onEdit: (restaurant: RestaurantWithStats) => void;
+  onDelete: (restaurant: RestaurantWithStats) => void;
 }
 
 export function MobileRestaurantCard({
   restaurant,
   onEdit,
+  onDelete,
 }: MobileRestaurantCardProps) {
   const statusBadge = getStatusBadgeConfig(restaurant.status);
 
@@ -79,6 +81,13 @@ export function MobileRestaurantCard({
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Gerenciar
                 </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => onDelete(restaurant)}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Deletar
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

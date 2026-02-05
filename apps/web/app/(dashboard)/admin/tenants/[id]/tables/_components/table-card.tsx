@@ -18,6 +18,7 @@ import {
   Power,
   Trash2,
   ExternalLink,
+  ShoppingCart,
 } from "lucide-react";
 
 function extractPath(url: string): string {
@@ -43,6 +44,7 @@ interface TableCardProps {
   onDelete: () => void;
   onDownloadQR: () => void;
   onViewStats: () => void;
+  onManageCart: () => void;
 }
 
 export function TableCard({
@@ -53,6 +55,7 @@ export function TableCard({
   onDelete,
   onDownloadQR,
   onViewStats,
+  onManageCart,
 }: TableCardProps) {
   return (
     <Card className={isSelected ? "ring-2 ring-primary" : ""}>
@@ -73,6 +76,10 @@ export function TableCard({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={onManageCart}>
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  Gerenciar Carrinho
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={onViewStats}>
                   <BarChart3 className="mr-2 h-4 w-4" />
                   View Stats

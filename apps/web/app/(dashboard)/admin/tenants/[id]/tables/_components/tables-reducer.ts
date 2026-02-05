@@ -22,6 +22,7 @@ export interface PageState {
   isGenerating: boolean;
   deleteConfirmTableId: string | null;
   statsTableId: string | null;
+  cartDialogTableId: string | null;
 }
 
 export type PageAction =
@@ -37,7 +38,8 @@ export type PageAction =
   | { type: "SET_BATCH_SETTING"; payload: Partial<BatchSettings> }
   | { type: "SET_IS_GENERATING"; payload: boolean }
   | { type: "SET_DELETE_CONFIRM_TABLE_ID"; payload: string | null }
-  | { type: "SET_STATS_TABLE_ID"; payload: string | null };
+  | { type: "SET_STATS_TABLE_ID"; payload: string | null }
+  | { type: "SET_CART_DIALOG_TABLE_ID"; payload: string | null };
 
 const initialBatchSettings: BatchSettings = {
   formatTemplate: "tent-card-4x6",
@@ -57,6 +59,7 @@ export const initialState: PageState = {
   isGenerating: false,
   deleteConfirmTableId: null,
   statsTableId: null,
+  cartDialogTableId: null,
 };
 
 export function pageReducer(state: PageState, action: PageAction): PageState {
@@ -100,6 +103,8 @@ export function pageReducer(state: PageState, action: PageAction): PageState {
       return { ...state, deleteConfirmTableId: action.payload };
     case "SET_STATS_TABLE_ID":
       return { ...state, statsTableId: action.payload };
+    case "SET_CART_DIALOG_TABLE_ID":
+      return { ...state, cartDialogTableId: action.payload };
     default:
       return state;
   }

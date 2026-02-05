@@ -10,6 +10,7 @@ interface MobileRestaurantListProps {
   searchQuery: string;
   statusFilter: string;
   onEdit: (restaurant: RestaurantWithStats) => void;
+  onDelete: (restaurant: RestaurantWithStats) => void;
 }
 
 export function MobileRestaurantList({
@@ -18,6 +19,7 @@ export function MobileRestaurantList({
   searchQuery,
   statusFilter,
   onEdit,
+  onDelete,
 }: MobileRestaurantListProps) {
   return (
     <div className="space-y-4">
@@ -44,6 +46,7 @@ export function MobileRestaurantList({
               key={restaurant._id}
               restaurant={restaurant}
               onEdit={onEdit}
+              onDelete={onDelete}
             />
           ))}
         </div>
