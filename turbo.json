@@ -1,17 +1,45 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
+  "globalEnv": ["NODE_ENV"],
+  "globalPassThroughEnv": ["CI", "VERCEL", "GITHUB_ACTIONS"],
   "tasks": {
+    "transit": {
+      "dependsOn": ["^transit"]
+    },
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "inputs": ["$TURBO_DEFAULT$", ".env.local"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**", "*.tsbuildinfo"]
     },
     "lint": {
-      "dependsOn": ["^lint"]
+      "dependsOn": ["transit"],
+      "outputs": []
     },
     "check-types": {
-      "dependsOn": ["^check-types"]
+      "dependsOn": ["transit"],
+      "outputs": ["*.tsbuildinfo"]
+    },
+    "typecheck": {
+      "dependsOn": ["transit"],
+      "outputs": ["*.tsbuildinfo"]
+    },
+    "format": {
+      "dependsOn": [],
+      "inputs": ["**/*.{ts,tsx,md,json}", "!node_modules/**", "!.next/**"],
+      "outputs": []
+    },
+    "format:check": {
+      "dependsOn": [],
+      "inputs": ["**/*.{ts,tsx,md,json}", "!node_modules/**", "!.next/**"],
+      "outputs": []
+    },
+    "test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
+    "clean": {
+      "cache": false
     },
     "dev": {
       "cache": false,

@@ -12,7 +12,7 @@ import { FullPageLoader } from "@/components/full-page-loader";
 
 export default function PendingApprovalPage() {
   const { isLoading } = useAuthRedirect({
-    whenPending: undefined,
+    whenPending: false,
   });
 
   if (isLoading) {

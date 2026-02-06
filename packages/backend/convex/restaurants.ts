@@ -1,9 +1,11 @@
 import { v } from "convex/values";
 import { mutation, query, internalMutation } from "./_generated/server";
-import { getAuthenticatedUser, canModifyRestaurant, canViewRestaurant, isAdmin } from "./lib/auth";
+import { getAuthenticatedUser, canModifyRestaurant, isAdmin } from "./lib/auth";
 import { RestaurantStatus, OrderStatus } from "./lib/types";
-import { groupBy, calculateTotalRevenue } from "./lib/helpers";
-import { resolveStorageUrl } from "./files";
+import { calculateTotalRevenue } from "./lib/helpers";
+import { MAX_DESCRIPTION_LENGTH } from "./lib/constants";
+import { resolveImageUrl, resolveStorageUrl } from "./files";
+import { generateSlug, ensureUniqueSlug } from "./lib/slug";
 
 export const list = query({
   args: {},
@@ -45,10 +47,40 @@ export const create = mutation({
       throw new Error("Only admins can create restaurants");
     }
 
+    const name = args.name.trim();
+    if (!name || name.length > 200) {
+      throw new Error("Restaurant name must be between 1 and 200 characters");
+    }
+
+    const address = args.address.trim();
+    if (!address || address.length > 500) {
+      throw new Error("Address must be between 1 and 500 characters");
+    }
+
+    if (args.description && args.description.length > MAX_DESCRIPTION_LENGTH) {
+      throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
+    }
+
+    if (args.phone !== undefined) {
+      const phone = args.phone.trim();
+      if (phone.length > 30) {
+        throw new Error("Phone number must be 30 characters or less");
+      }
+    }
+
+    // Generate unique slug
+    const baseSlug = generateSlug(name);
+    const existingRestaurants = await ctx.db.query("restaurants").collect();
+    const existingSlugs = new Set(
+      existingRestaurants.map((r) => r.slug).filter((s): s is string => !!s)
+    );
+    const slug = ensureUniqueSlug(baseSlug, existingSlugs);
+
     return ctx.db.insert("restaurants", {
-      name: args.name,
-      address: args.address,
-      phone: args.phone,
+      name,
+      slug,
+      address,
+      phone: args.phone?.trim(),
       description: args.description,
       logoId: args.logoId,
       status: RestaurantStatus.ACTIVE,
@@ -79,12 +111,36 @@ export const update = mutation({
       throw new Error("Not authorized to update this restaurant");
     }
 
+    const name = args.options.name.trim();
+    if (!name || name.length > 200) {
+      throw new Error("Restaurant name must be between 1 and 200 characters");
+    }
+
+    const address = args.options.address.trim();
+    if (!address || address.length > 500) {
+      throw new Error("Address must be between 1 and 500 characters");
+    }
+
+    if (args.options.description.length > MAX_DESCRIPTION_LENGTH) {
+      throw new Error(`Description must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
+    }
+
+    const phone = args.options.phone.trim();
+    if (phone.length > 30) {
+      throw new Error("Phone number must be 30 characters or less");
+    }
+
     // If replacing logo, delete old one from storage
     if (args.options.logoId && restaurant.logoId && restaurant.logoId !== args.options.logoId) {
       await ctx.storage.delete(restaurant.logoId);
     }
 
-    return await ctx.db.patch(args.id, args.options);
+    return await ctx.db.patch(args.id, {
+      ...args.options,
+      name,
+      address,
+      phone,
+    });
   },
 });
 
@@ -107,11 +163,45 @@ export const deleteRestaurant = mutation({
       throw new Error("Restaurant already deleted");
     }
 
-    return await ctx.db.patch(args.id, {
+    await ctx.db.patch(args.id, {
       deletedAt: Date.now(),
       deletedBy: currentUser._id,
       status: RestaurantStatus.INACTIVE,
     });
+
+    // Cascade: deactivate tables
+    const tables = await ctx.db
+      .query("tables")
+      .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.id))
+      .collect();
+    for (const table of tables) {
+      if (table.isActive) {
+        await ctx.db.patch(table._id, { isActive: false });
+      }
+    }
+
+    // Cascade: expire active sessions
+    const now = Date.now();
+    const sessions = await ctx.db
+      .query("sessions")
+      .withIndex("by_restaurant", (q) => q.eq("restaurantId", args.id))
+      .collect();
+    for (const session of sessions) {
+      if (session.expiresAt > now) {
+        await ctx.db.patch(session._id, { expiresAt: now });
+      }
+    }
+
+    // Cascade: deactivate active carts
+    const activeCarts = await ctx.db
+      .query("carts")
+      .withIndex("by_restaurantId_and_isActive", (q) =>
+        q.eq("restaurantId", args.id).eq("isActive", true)
+      )
+      .collect();
+    for (const cart of activeCarts) {
+      await ctx.db.patch(cart._id, { isActive: false });
+    }
   },
 });
 
@@ -126,11 +216,11 @@ export const get = query({
     const restaurant = await ctx.db.get(args.id);
     if (!restaurant) return null;
 
-    if (!canViewRestaurant(currentUser, restaurant)) {
+    if (!canModifyRestaurant(currentUser, restaurant)) {
       return null;
     }
 
-    const logoUrl = await resolveStorageUrl(ctx, restaurant.logoId) ?? restaurant.logoUrl ?? null;
+    const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
 
     return {
       _id: restaurant._id,
@@ -140,7 +230,6 @@ export const get = query({
       phone: restaurant.phone,
       description: restaurant.description,
       status: restaurant.status,
-      isActive: restaurant.isActive,
       logoUrl,
     };
   },
@@ -173,25 +262,28 @@ export const listAllWithStats = query({
       .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.ACTIVE))
       .collect();
 
-    const completedOrders = await ctx.db
-      .query("orders")
-      .withIndex("by_status", (q) => q.eq("status", OrderStatus.COMPLETED))
-      .collect();
-
-    const revenueByRestaurant = groupBy(completedOrders, (order) =>
-      order.restaurantId.toString()
-    );
-
     const restaurantsWithStats = await Promise.all(
       restaurants.map(async (restaurant) => {
-        const restaurantOrders = revenueByRestaurant.get(restaurant._id.toString()) ?? [];
-        const totalRevenue = calculateTotalRevenue(restaurantOrders);
-        const logoUrl = await resolveStorageUrl(ctx, restaurant.logoId) ?? restaurant.logoUrl ?? null;
+        const completedOrders = await ctx.db
+          .query("orders")
+          .withIndex("by_restaurantId_and_status", (q) =>
+            q.eq("restaurantId", restaurant._id).eq("status", OrderStatus.COMPLETED)
+          )
+          .collect();
+        const totalRevenue = calculateTotalRevenue(completedOrders);
+        const logoUrl = await resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl);
+        const coverImageUrl = await resolveStorageUrl(ctx, restaurant.coverImageId);
+        const tables = await ctx.db
+          .query("tables")
+          .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
+          .collect();
 
         return {
           ...restaurant,
           logoUrl,
+          coverImageUrl,
           totalRevenue,
+          tablesCount: tables.length,
         };
       })
     );
@@ -213,45 +305,41 @@ export const getWithStats = query({
     const restaurant = await ctx.db.get(args.id);
     if (!restaurant) return null;
 
-    const completedOrders = await ctx.db
-      .query("orders")
-      .withIndex("by_restaurantId_and_status", (q) =>
-        q.eq("restaurantId", restaurant._id).eq("status", OrderStatus.COMPLETED)
-      )
-      .collect();
-
-    const pendingOrders = await ctx.db
-      .query("orders")
-      .withIndex("by_restaurantId_and_status", (q) =>
-        q.eq("restaurantId", restaurant._id).eq("status", OrderStatus.PENDING)
-      )
-      .collect();
-
-    const allOrders = await ctx.db
-      .query("orders")
-      .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
-      .collect();
+    const [completedOrders, pendingOrders, tables, menuItems, logoUrl, coverImageUrl] =
+      await Promise.all([
+        ctx.db
+          .query("orders")
+          .withIndex("by_restaurantId_and_status", (q) =>
+            q.eq("restaurantId", restaurant._id).eq("status", OrderStatus.COMPLETED)
+          )
+          .collect(),
+        ctx.db
+          .query("orders")
+          .withIndex("by_restaurantId_and_status", (q) =>
+            q.eq("restaurantId", restaurant._id).eq("status", OrderStatus.PENDING)
+          )
+          .collect(),
+        ctx.db
+          .query("tables")
+          .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
+          .collect(),
+        ctx.db
+          .query("menuItems")
+          .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
+          .collect(),
+        resolveImageUrl(ctx, restaurant.logoId, restaurant.logoUrl),
+        resolveStorageUrl(ctx, restaurant.coverImageId),
+      ]);
 
     const totalRevenue = calculateTotalRevenue(completedOrders);
-
-    const tables = await ctx.db
-      .query("tables")
-      .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
-      .collect();
-
-    const menuItems = await ctx.db
-      .query("menuItems")
-      .withIndex("by_restaurant", (q) => q.eq("restaurantId", restaurant._id))
-      .collect();
-
-    const logoUrl = await resolveStorageUrl(ctx, restaurant.logoId) ?? restaurant.logoUrl ?? null;
 
     return {
       ...restaurant,
       logoUrl,
+      coverImageUrl,
       stats: {
         totalRevenue,
-        totalOrders: allOrders.length,
+        totalOrders: completedOrders.length + pendingOrders.length,
         pendingOrders: pendingOrders.length,
         completedOrders: completedOrders.length,
         tablesCount: tables.length,
@@ -269,23 +357,11 @@ export const getOverviewStats = query({
       return null;
     }
 
-    const activeRestaurants = await ctx.db
-      .query("restaurants")
-      .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.ACTIVE))
-      .collect();
-
-    const inactiveRestaurants = await ctx.db
-      .query("restaurants")
-      .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.INACTIVE))
-      .collect();
-
-    const maintenanceRestaurants = await ctx.db
-      .query("restaurants")
-      .withIndex("by_status", (q) => q.eq("status", RestaurantStatus.MAINTENANCE))
-      .collect();
-
-    const totalRestaurants =
-      activeRestaurants.length + inactiveRestaurants.length + maintenanceRestaurants.length;
+    const allRestaurants = await ctx.db.query("restaurants").collect();
+    const activeCount = allRestaurants.filter(
+      (r) => (r.status ?? RestaurantStatus.ACTIVE) === RestaurantStatus.ACTIVE && !r.deletedAt
+    ).length;
+    const totalRestaurants = allRestaurants.length;
 
     const now = Date.now();
     const activeSessions = await ctx.db
@@ -299,11 +375,14 @@ export const getOverviewStats = query({
       .collect();
     const totalRevenue = calculateTotalRevenue(allCompletedOrders);
 
+    const allTables = await ctx.db.query("tables").collect();
+
     return {
       totalRestaurants,
-      activeRestaurants: activeRestaurants.length,
+      activeRestaurants: activeCount,
       activeSessions: activeSessions.length,
       totalRevenue,
+      totalTables: allTables.length,
     };
   },
 });
@@ -336,6 +415,36 @@ export const migrateRestaurantStatus = internalMutation({
     for (const restaurant of restaurants) {
       if (restaurant.status === undefined) {
         await ctx.db.patch(restaurant._id, { status: RestaurantStatus.ACTIVE });
+        migratedCount++;
+      }
+    }
+
+    return { migratedCount };
+  },
+});
+
+export const migrateRestaurantSlugs = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const restaurants = await ctx.db.query("restaurants").collect();
+    const existingSlugs = new Set<string>();
+    let migratedCount = 0;
+
+    // First pass: collect existing slugs
+    for (const restaurant of restaurants) {
+      if (restaurant.slug) {
+        existingSlugs.add(restaurant.slug);
+      }
+    }
+
+    // Second pass: generate slugs for restaurants without them
+    for (const restaurant of restaurants) {
+      if (!restaurant.slug) {
+        const baseSlug = generateSlug(restaurant.name);
+        const slug = ensureUniqueSlug(baseSlug, existingSlugs);
+        existingSlugs.add(slug);
+
+        await ctx.db.patch(restaurant._id, { slug });
         migratedCount++;
       }
     }

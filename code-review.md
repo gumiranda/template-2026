@@ -34,3 +34,41 @@ unnecessary casts: Are there any unnecessary casts that can be removed?
 complexity: any code with complexity 0(n+1) or O(n)2 will be refactored.
 
 Thoroughly investigate the current feature for security problems, permission gaps. Act like a red-team pen-tester. Suggest fixes.
+
+Implemente lazy loading para componentes pesados.
+
+Implemente o código split usando React.lazy e Suspense.
+
+Use IntersectionObserver para carregar imagens e componentes somente quando estiverem visíveis.
+
+Adicione descrições alternativas (alt) para todas as imagens.
+
+Assegure que todos os elementos interativos possam ser acessados via teclado.
+
+Utilize aria-label e aria-labelledby para descrever componentes complexos.
+
+Use aria-live para atualizações dinâmicas do conteúdo.
+
+Implemente navegação por tab de maneira lógica e intuitiva.
+
+Forneça feedback visual em elementos focáveis.
+
+Adicione feedback visual para ações do usuário, como cliques e carregamentos.
+
+Implemente breadcrumbs para facilitar a navegação.
+
+Utilize placeholders significativos em campos de entrada de dados.
+
+Adicione tooltips para ícones ou ações que podem não ser imediatamente óbvias.
+
+Forneça mensagens de erro claras e específicas para validação de formulário.
+
+Use modais para ações que requerem confirmação.
+
+Adicione animações sutis para melhorar a experiência do usuário
+
+Divida componentes grandes em componentes menores e reutilizáveis.
+
+Use hooks personalizados para lógica de componentes reutilizável.
+
+Adicione alt text a todas as imagens para melhorar a acessibilidade e SEO.

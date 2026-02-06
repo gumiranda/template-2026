@@ -3,6 +3,7 @@ import { query, mutation, internalMutation, QueryCtx } from "./_generated/server
 import { paginationOptsValidator } from "convex/server";
 import { Role, UserStatus, isValidSector } from "./lib/types";
 import { getAuthenticatedUser, isAdmin } from "./lib/auth";
+import { MAX_DESCRIPTION_LENGTH } from "./lib/constants";
 
 async function fetchPendingUsers(ctx: QueryCtx) {
   const [pendingUsers, noStatusUsers] = await Promise.all([
@@ -134,7 +135,7 @@ export const getAllUsers = query({
       return {
         page: [],
         isDone: true,
-        continueCursor: "" as string,
+        continueCursor: "",
       };
     }
 
@@ -296,6 +297,10 @@ export const rejectUser = mutation({
 
     if (!isAdmin(currentUser.role)) {
       throw new Error("Not authorized to reject users");
+    }
+
+    if (args.reason && args.reason.length > MAX_DESCRIPTION_LENGTH) {
+      throw new Error(`Reason must be ${MAX_DESCRIPTION_LENGTH} characters or less`);
     }
 
     const targetUser = await ctx.db.get(args.userId);
