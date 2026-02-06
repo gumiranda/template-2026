@@ -2,6 +2,10 @@ import { ArrowRight, Play, ChevronDown } from "lucide-react";
 import { Button } from "../../components/ui/button";
 
 export const Hero = () => {
+  function encaminhar() {
+    window.location.href = "/"
+    
+  }
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-secondary/80 via-secondary/40 to-background py-16 lg:py-24">
       {/* Background decoration */}
@@ -32,7 +36,7 @@ export const Hero = () => {
               an unforgettable experience for your customers with our cutting-edge technology.
             </p>
 
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-4" onClick={encaminhar}>
               <Button size="lg" className="group px-8">
                 Get Started Now
                 <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />

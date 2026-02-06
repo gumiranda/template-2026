@@ -86,7 +86,7 @@ export const Statistics = () => {
 
   useEffect(() => {
     const observer = new IntersectionObserver(
-      ([entry]) => {
+      ([entry]:any) => {
         if (entry.isIntersecting) {
           setIsVisible(true);
         }

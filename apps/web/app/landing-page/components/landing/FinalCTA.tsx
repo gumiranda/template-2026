@@ -20,7 +20,7 @@ export const FinalCTA = () => {
             with our digital menu solution. Start your free trial today.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center" onClick={() => window.location.href = "/"}>
             <Button
               size="lg"
               className="bg-primary hover:bg-primary/90 text-primary-foreground group"

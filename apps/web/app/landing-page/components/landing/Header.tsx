@@ -1,3 +1,4 @@
+'use client'
 import { useState } from "react";
 import { Menu, X, Search } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -7,6 +8,7 @@ import {
   SheetContent,
   SheetTrigger,
 } from "../../components/ui/sheet";
+import { useRouter } from "next/router";
 
 const navLinks = [
   { name: "Features", href: "#features" },
@@ -16,8 +18,12 @@ const navLinks = [
 ];
 
 export const Header = () => {
+ 
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-
+  
+  function encaminhar() {
+    window.location.href = "/" 
+  }
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center justify-between">
@@ -73,9 +79,11 @@ export const Header = () => {
               </Button>
             )}
           </div>
-          
-          <Button variant="ghost">Login</Button>
+          <div onClick={encaminhar}>
+             <Button variant="ghost">Login</Button>
           <Button>Get Started</Button>
+          </div>
+         
         </div>
 
         {/* Mobile Menu */}
@@ -111,9 +119,9 @@ export const Header = () => {
               </nav>
 
               {/* Mobile Actions */}
-              <div className="flex flex-col space-y-3 pt-4 border-t">
-                <Button variant="outline" className="w-full">Login</Button>
-                <Button className="w-full">Get Started</Button>
+              <div className="flex flex-col space-y-3 pt-4 border-t" onClick={encaminhar}>
+                <Button variant="outline" className="w-full" >Logina</Button>
+                <Button className="w-full" >Get Started</Button>
               </div>
             </div>
           </SheetContent>
@@ -122,3 +130,4 @@ export const Header = () => {
     </header>
   );
 };
+ 
