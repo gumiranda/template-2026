@@ -616,6 +616,196 @@ Posso te mostrar como funciona? Leva 5 minutos.
 
 ---
 
+# PARTE 15: UX/UI E MOBILE
+
+O fluxo mais crítico do produto é o **cliente acessando o menu via QR code no celular**. Esta seção garante que a experiência mobile seja impecável.
+
+## 15.1 Touch Targets (CRÍTICO)
+
+Todos os elementos interativos devem ter **mínimo 44x44px** (recomendação Apple/Google).
+
+### Componentes a Corrigir
+
+- [ ] `apps/web/components/store/product-details/quantity.tsx`
+  - Botões de +/- estão com ~28px, devem ser 44px+
+  - Usar `size="icon"` com classes `h-11 w-11` (44px)
+
+- [ ] `apps/web/components/store/cart-item.tsx`
+  - Mesmos botões de quantidade com 28px
+  - Aplicar mesma correção
+
+- [ ] `apps/web/components/store/store-header.tsx`
+  - Botões de ícone (carrinho, menu) com 32-36px
+  - Aumentar para `h-11 w-11` ou usar padding adequado
+
+- [ ] `apps/web/components/store/dine-in-header.tsx`
+  - Verificar touch targets dos botões
+
+- [ ] `packages/ui/src/components/button.tsx`
+  - Variante `size="icon"` deve ter 44px por padrão em mobile
+  - Considerar: `h-9 w-9 md:h-10 md:w-10` → `h-11 w-11 md:h-10 md:w-10`
+
+### Verificação
+```bash
+# Inspecionar todos os botões de ícone
+grep -r 'size="icon"' apps/web/components/store/
+```
+
+## 15.2 Responsividade - Páginas do Cliente (CRÍTICO)
+
+Estas páginas são acessadas principalmente via celular (QR code).
+
+### Product Card
+- [ ] `apps/web/components/store/product-card.tsx`
+  - Remover larguras fixas que causam overflow em telas < 350px
+  - Usar `w-full` ou `min-w-0` com flexbox
+  - Testar em iPhone SE (320px de largura)
+
+### Category Tabs
+- [ ] `apps/web/components/store/menu-category-tabs.tsx`
+  - Adicionar indicador visual de scroll no iOS
+  - Usar `scrollbar-hide` com fade nas bordas
+  - Ou shadow sutil indicando mais conteúdo
+
+### Cart Drawer
+- [ ] `apps/web/components/store/cart-drawer.tsx`
+  - Textarea de endereço muito pequena com teclado aberto
+  - Aumentar `min-h` e considerar comportamento de scroll
+  - Testar com teclado virtual aberto
+
+### Order Detail Dialog
+- [ ] `apps/web/components/store/order-detail-dialog.tsx`
+  - Dialog com `max-w-md` fixo quebra em telas < 350px
+  - Usar `max-w-[calc(100vw-2rem)]` como fallback
+  - Ou `w-full max-w-md` com padding do container
+
+### Search Input
+- [ ] Verificar se search input causa scroll horizontal
+  - Usar `w-full` e `min-w-0` em containers flex
+
+## 15.3 Responsividade - Dashboard Admin (ALTO)
+
+### Tabelas
+- [ ] Implementar versão mobile para tabelas do admin
+  - Opção A: Cards empilhados em mobile
+  - Opção B: Horizontal scroll com sticky first column
+  - Opção C: Expandable rows
+- [ ] Arquivos afetados:
+  - `apps/web/components/orders/orders-table.tsx`
+  - `apps/web/components/menu/menu-items-table.tsx`
+  - Outros componentes de tabela
+
+### Headers Fixos
+- [ ] Avaliar se headers fixos ocupam muito espaço vertical em mobile
+- [ ] Considerar header que esconde no scroll down
+
+### Navegação
+- [ ] Menu lateral colapsável em mobile
+- [ ] Bottom navigation como alternativa (se aplicável)
+
+## 15.4 Espaçamentos e Tipografia (MÉDIO)
+
+### Gaps Responsivos
+- [ ] Substituir gaps fixos por responsivos onde necessário
+  ```tsx
+  // ANTES
+  <div className="gap-6">
+
+  // DEPOIS (se gap-6 for excessivo em mobile)
+  <div className="gap-4 md:gap-6">
+  ```
+
+### Tipografia
+- [ ] Evitar saltos grandes de tamanho de fonte
+  ```tsx
+  // ANTES - salto de 1.875rem para 2.25rem
+  <h1 className="text-3xl lg:text-4xl">
+
+  // DEPOIS - transição mais suave
+  <h1 className="text-2xl sm:text-3xl lg:text-4xl">
+  ```
+
+### Empty States
+- [ ] Ícones de empty state com tamanho adequado para mobile
+- [ ] Texto centralizado e legível
+
+### Breadcrumbs
+- [ ] Implementar truncamento em telas pequenas
+- [ ] Ou esconder intermediários (Home > ... > Atual)
+
+## 15.5 Acessibilidade Básica (MÉDIO)
+
+### Contraste
+- [ ] Verificar contraste de texto em todos os componentes
+- [ ] Usar ferramentas: axe DevTools, Lighthouse
+- [ ] Ratio mínimo: 4.5:1 para texto normal, 3:1 para texto grande
+
+### Labels e ARIA
+- [ ] Todos os botões de ícone devem ter `aria-label`
+  ```tsx
+  <Button size="icon" aria-label="Adicionar ao carrinho">
+    <ShoppingCart />
+  </Button>
+  ```
+- [ ] Inputs com labels associados (`htmlFor`/`id`)
+- [ ] Estados de erro anunciados para screen readers
+
+### Focus States
+- [ ] Todos os elementos interativos devem ter focus visible
+- [ ] Não remover outline sem alternativa visual
+- [ ] Ordem de tab lógica
+
+### Navegação por Teclado
+- [ ] Dialogs/modais com focus trap
+- [ ] Escape fecha modais
+- [ ] Tab navega na ordem correta
+
+## 15.6 Performance Visual (MÉDIO)
+
+### Loading States
+- [ ] Skeleton loaders para conteúdo dinâmico
+- [ ] Shimmer effect para cards de produto
+- [ ] Loading indicators para ações assíncronas
+
+### Lazy Loading
+- [ ] Imagens fora da viewport com `loading="lazy"`
+- [ ] Componentes pesados com dynamic import
+  ```tsx
+  const HeavyComponent = dynamic(() => import('./HeavyComponent'), {
+    loading: () => <Skeleton />
+  })
+  ```
+
+### Otimização de Imagens
+- [ ] Usar `next/image` para todas as imagens dinâmicas
+- [ ] Configurar `remotePatterns` em `next.config.mjs`
+- [ ] Placeholder blur para imagens grandes
+
+## 15.7 Checklist de Teste Mobile
+
+### Dispositivos Mínimos para Testar
+- [ ] iPhone SE (320px) - menor viewport comum
+- [ ] iPhone 14 (390px) - tamanho médio
+- [ ] iPhone 14 Pro Max (428px) - maior iPhone
+- [ ] Android médio (~360px)
+- [ ] Tablet (768px)
+
+### Cenários de Teste
+- [ ] Menu completo navegação (scroll, categorias)
+- [ ] Adicionar item ao carrinho
+- [ ] Fluxo completo de checkout
+- [ ] Visualização de pedido
+- [ ] Com teclado virtual aberto
+- [ ] Em modo landscape
+- [ ] Com fonte do sistema aumentada (acessibilidade)
+
+### Ferramentas
+- [ ] Chrome DevTools device emulation
+- [ ] Dispositivos físicos para teste final
+- [ ] BrowserStack/LambdaTest para cobertura maior
+
+---
+
 # STATUS GERAL
 
 | Área | Status |
@@ -642,6 +832,11 @@ Posso te mostrar como funciona? Leva 5 minutos.
 | **Operações** | |
 | Suporte | ❓ Verificar |
 | Onboarding | ❓ Verificar |
+| **UX/UI Mobile** | |
+| Touch Targets (44px) | ❌ Abaixo do mínimo |
+| Responsividade Cliente | ❌ Problemas identificados |
+| Responsividade Admin | ❌ Tabelas sem versão mobile |
+| Acessibilidade | ❓ Verificar |
 
 ---
 
