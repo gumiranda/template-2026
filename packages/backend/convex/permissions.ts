@@ -56,7 +56,9 @@ export const getMenuItems = query({
     }
 
     const baseMenu = [
-      { label: "Dashboard", href: "/", icon: "LayoutDashboard" },
+      { label: "Dashboard", href: "/dashboard", icon: "LayoutDashboard" },
+      { label: "Analytics", href: "/analytics", icon: "BarChart3" },
+      { label: "Settings", href: "/settings", icon: "Settings" },
     ];
 
     if (isAdmin(user.role)) {

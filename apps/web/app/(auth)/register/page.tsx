@@ -19,7 +19,7 @@ export default function RegisterPage() {
 
   const { currentUser, hasSuperadmin, isLoading } = useAuthRedirect({
     whenNoUser: undefined,
-    whenApproved: "/",
+    whenApproved: "/dashboard",
     whenPending: "/pending-approval",
     whenRejected: "/rejected",
   });

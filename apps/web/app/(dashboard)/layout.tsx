@@ -17,6 +17,9 @@ import {
   UserCog,
   Users,
   Menu,
+  BarChart3,
+  Settings,
+  Zap,
 } from "lucide-react";
 import { RoleBadge } from "@/components/role-badge";
 import Link from "next/link";
@@ -40,7 +43,9 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   );
 
   const navItems = useMemo(() => [
-    { label: "Dashboard", href: "/", icon: LayoutDashboard },
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+    { label: "Analytics", href: "/analytics", icon: BarChart3 },
+    { label: "Settings", href: "/settings", icon: Settings },
     ...(isSuperadminOrCeo ? [
       { label: "Users", href: "/admin/users", icon: UserCog },
       { label: "Pending Users", href: "/admin/pending-users", icon: Users },
@@ -65,13 +70,16 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const SidebarContent = ({ onNavigate }: { onNavigate?: () => void }) => (
     <>
       <div className="p-6">
-        <h1 className="text-xl font-bold">Template App</h1>
+        <Link href="/dashboard" className="flex items-center gap-2 font-bold text-xl">
+          <Zap className="h-5 w-5 text-primary" />
+          SaaSKit
+        </Link>
       </div>
       <nav className="px-4 space-y-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href ||
-            (item.href !== "/" && pathname.startsWith(item.href));
+            (item.href !== "/dashboard" && pathname.startsWith(item.href));
           return (
             <Link
               key={item.href}

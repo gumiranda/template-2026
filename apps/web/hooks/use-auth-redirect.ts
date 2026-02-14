@@ -14,7 +14,7 @@ type AuthRedirectOptions = {
 };
 
 const defaultOptions: AuthRedirectOptions = {
-  whenApproved: "/",
+  whenApproved: "/dashboard",
   whenPending: "/pending-approval",
   whenRejected: "/rejected",
   whenNoUser: "/register",

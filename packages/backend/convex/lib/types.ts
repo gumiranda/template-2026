@@ -19,3 +19,22 @@ export const UserStatus = {
 } as const;
 
 export type UserStatusType = (typeof UserStatus)[keyof typeof UserStatus];
+
+export const Plan = {
+  FREE: "free",
+  PRO: "pro",
+  ENTERPRISE: "enterprise",
+} as const;
+
+export type PlanType = (typeof Plan)[keyof typeof Plan];
+
+export const SubscriptionEventType = {
+  CREATED: "created",
+  UPGRADED: "upgraded",
+  DOWNGRADED: "downgraded",
+  CANCELLED: "cancelled",
+  RENEWED: "renewed",
+} as const;
+
+export type SubscriptionEventTypeValue =
+  (typeof SubscriptionEventType)[keyof typeof SubscriptionEventType];

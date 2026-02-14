@@ -25,7 +25,7 @@ export default function BootstrapPage() {
         bootstrapAttempted.current = true;
         try {
           await bootstrap();
-          router.push("/");
+          router.push("/dashboard");
         } catch (err) {
           setError(
             err instanceof Error ? err.message : "Error creating superadmin",
@@ -37,7 +37,7 @@ export default function BootstrapPage() {
   }, [isSignedIn, hasAnyUsers, bootstrap, router]);
   useEffect(() => {
     if (currentUser) {
-      router.push("/");
+      router.push("/dashboard");
     }
   }, [currentUser, router]);
 
