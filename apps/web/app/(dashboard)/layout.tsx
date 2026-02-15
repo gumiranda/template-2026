@@ -17,6 +17,7 @@ import {
   UserCog,
   Users,
   Menu,
+  MessageCircle,
 } from "lucide-react";
 import { RoleBadge } from "@/components/role-badge";
 import Link from "next/link";
@@ -41,6 +42,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
 
   const navItems = useMemo(() => [
     { label: "Dashboard", href: "/", icon: LayoutDashboard },
+    { label: "Chat", href: "/chat", icon: MessageCircle },
     ...(isSuperadminOrCeo ? [
       { label: "Users", href: "/admin/users", icon: UserCog },
       { label: "Pending Users", href: "/admin/pending-users", icon: Users },
